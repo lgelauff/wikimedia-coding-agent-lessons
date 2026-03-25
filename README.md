@@ -13,3 +13,7 @@ Each file captures gotchas, doc links, and patterns that are not obvious from of
 ## How to use
 
 At the start of a new project, paste the relevant files into the conversation or tell the assistant to fetch the URLs listed under "Docs to fetch at project start" in each file.
+
+## Code of Conduct
+
+All contributions and discussions related to this repository are expected to follow the [Wikimedia Code of Conduct](https://www.mediawiki.org/wiki/Code_of_Conduct).
