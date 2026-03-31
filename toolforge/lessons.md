@@ -1,4 +1,4 @@
-# Toolforge lessons
+# Toolforge Lessons - Full Content
 
 ## Docs to fetch at project start
 
@@ -12,14 +12,17 @@
 
 🤖 = fetchable via WebFetch at conversation start. 📥 = download and paste in.
 
----
-
 ## Deployment
 
-- **Venv must use the system Python**: `uv venv --python /usr/bin/python3 ~/www/python/venv`. Do not use the project's local Python version. The Kubernetes node runs whatever Python version Toolforge provides (currently 3.13).
+- **`~/www/python` must be a real directory**, not a symlink to the repo. If you accidentally run `ln -s ~/wiki-polis ~/www/python`, all subsequent symlinks (`src`, `venv`) end up inside the repo, breaking everything. Always `mkdir -p ~/www/python` first.
+- **`~/www/python/src` is the symlink to the repo**: `ln -s ~/wiki-polis ~/www/python/src`. Toolforge serves `~/www/python/src/app.py`.
+- **Venv must be created inside a webservice shell**: run `toolforge webservice python3.13 shell`, then `python3 -m venv ~/www/python/venv`. A venv created directly on the bastion will not work with `toolforge webservice`.
+- **Use plain pip inside the shell**, not uv, to install into `~/www/python/venv`: `~/www/python/venv/bin/pip install -e ~/wiki-polis`. uv is not documented for Toolforge web service venvs and can pull in its own managed Python instead of the system one.
+- **Flask apps with `static/` and `templates/` dirs** need `[tool.setuptools] packages = []` in `pyproject.toml`, otherwise setuptools chokes on "Multiple top-level packages discovered" when doing `pip install -e .`.
 - **`webservice restart` must be run from `~`**, not from inside the repo. It fails silently or behaves wrongly otherwise.
+- **`toolforge envvars create` syntax**: `toolforge envvars create NAME "VALUE"` — no `--value` flag.
 - **`toolforge envvars list` masks values** — secrets cannot be retrieved after creation. Keep a local record.
-- Updating a running deployment: `git pull`, then `uv pip install --python ~/www/python/venv/bin/python -r requirements.txt`, then `webservice restart`.
+- **Updating a running deployment**: use a `deploy.sh` script that runs `git pull`, `pip install -e ~/wiki-polis`, then `webservice restart` from `~`.
 
 ## uWSGI
 
@@ -27,6 +30,7 @@
 - **`processes=1 threads=8`** is the safe pattern for apps with background threads (avoids cross-process races). Verify Toolforge is not injecting its own `--workers` flag on the command line — check the startup log line starting with `exec /usr/bin/uwsgi`.
 - **`logto = /dev/stdout`** is correct for Kubernetes log capture.
 - **`webservice restart` must be run from `~`**.
+- **Long OAuth callback URLs need a larger uWSGI buffer**: Wikimedia OAuth codes are very long and exceed uWSGI's default 4KB buffer, causing "unable to add HTTP_X_ORIGINAL_URI to uwsgi packet". Fix: add `uwsgi.ini` to the repo root with `buffer-size = 65536`. Toolforge picks it up automatically from `~/www/python/src/uwsgi.ini`.
 
 ## ToolsDB (MySQL)
 
