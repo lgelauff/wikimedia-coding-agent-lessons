@@ -24,6 +24,12 @@
 - **`toolforge envvars list` masks values** — secrets cannot be retrieved after creation. Keep a local record.
 - **Updating a running deployment**: use a `deploy.sh` script that runs `git pull`, `pip install -e ~/wiki-polis`, then `webservice restart` from `~`.
 
+## pip / venv
+
+- **Always run `pip install` inside `toolforge webservice python3.X shell`**, not the bastion shell. The bastion shell activates a different venv than the one uwsgi uses — installing packages there has no effect on the running service. Enter the webservice shell first, then pip install, then exit and restart.
+- **The uwsgi log is not inside `src/`** — it is typically at `/data/project/<tool>/uwsgi.log`, one level above the repo.
+- **No `sqlite3` CLI on Toolforge** — use Python: `python3 -c 'import sqlite3; c=sqlite3.connect("path/to/db"); ...'`
+
 ## uWSGI
 
 - **`lseek: Illegal seek` in logs** — harmless noise from uWSGI trying to rotate logs on a non-seekable stdout. Filter with `grep -v lseek` when reading logs.
