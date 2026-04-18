@@ -44,3 +44,10 @@
 
 - Replica DBs (`*.labsdb`) are **only accessible from within Toolforge**, not locally.
 - Design any code that queries replicas to fail gracefully or skip those steps when not on Toolforge.
+
+## Python package compatibility
+
+- **`cffi` pinned to 1.16.x fails on Python 3.13** — cffi 1.16.0 has no pre-built wheel for Python 3.13 and its source build requires `libffi-dev` headers that are not available on Toolforge. If `pip install -r requirements.txt` fails with `fatal error: ffi.h: No such file or directory`, bump `cffi` to `>=1.17.1` in `requirements.txt`. cffi 1.17.1 ships a pre-built wheel for Python 3.13.
+- **Use `--prefer-binary` when installing requirements** — avoids source-compilation failures for packages where binary wheels exist: `pip install --prefer-binary -r requirements.txt`.
+- **Broken venv (pip missing)** — if `pip` or `pip3` raises `ModuleNotFoundError: No module named 'pip'`, the venv is corrupt. Rebuild it from inside a webservice shell: `python3 -m venv ~/www/python/venv --clear`, then reinstall requirements.
+- **`requirements.txt` generated with older Python may have incompatible pins** — if the file header says `pip-compile with Python 3.9` but you're running 3.13, package versions (especially C extensions like cffi, cryptography) may need bumping. Regenerate with `pip-compile` on the target Python version when possible.
