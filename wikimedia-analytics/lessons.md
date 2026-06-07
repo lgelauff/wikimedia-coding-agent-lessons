@@ -27,3 +27,11 @@
 ## User-Agent convention
 
 - Wikimedia servers expect a descriptive `User-Agent` header identifying your tool and contact point. Without it you risk being rate-limited or blocked. Conventional format: `ProjectName/1.0 (https://github.com/you/repo; brief description)`.
+
+## Phabricator bug reports
+
+- Follow the standard template: **Steps to replicate**, **What happens**, **What should have happened instead**, **Other information**. Skip sections that don't apply — don't add a "Requested action" section, that's not the convention.
+- Include a minimal reproduction script in Steps to replicate. Cross-validate with a second data source (e.g. AQS API) to isolate whether the bug is in the pipeline or the raw data.
+- If you can identify the likely root cause from source code, add it to Other information — include the specific file and field. This gives the team a precise starting point without over-prescribing the fix.
+- Tag with the relevant project (e.g. `Analytics`, `Differential-Privacy`) so the right team sees it. Skip priority unless you have strong justification.
+- Known issue example: T426559 — Netherlands missing from `country_project_page` DP dataset since 2023-11-09, traced to a JOIN on `canonical_data.countries.data_risk_classification` in `country_project_page_gaussian.py`.
