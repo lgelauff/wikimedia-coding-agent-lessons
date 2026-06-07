@@ -68,8 +68,8 @@ interpreters).
 
 - **Read the hook JSON from stdin; on any parse error `sys.exit(0)`** (fail open).
   A guard that crashes or false-blocks is worse than one that misses an edge case.
-  (Caveat: a guard that is supposed to *fail closed* must guard its own parse step
-  too — see the `block_ssh.py` note below.)
+  (Exception: a guard that is supposed to *fail closed* must guard its own parse
+  step too — see the `block_ssh.py` note below.)
 - **Match `tool_name` first and exit 0 immediately** if it isn't the tool you
   guard — cheap, and prevents false positives on unrelated calls.
 - **Exit-code contract:** `0` = this hook raises no objection — the *normal*
@@ -87,8 +87,9 @@ interpreters).
   (e.g. blocking `ssh`/`scp`/`rsync -e ssh`). A true fail-closed guard must also
   `exit(2)` on a stdin/parse error — otherwise a crash exits nonzero-but-not-2,
   which is treated as a non-blocking error and the tool *proceeds*. (The bundled
-  `block_ssh.py` exemplar currently `json.load`s without a try/except, so on
-  malformed stdin it fails *open* — a real gap to close in any security guard.)
+  `block_ssh.py` exemplar wraps `json.load` in a try/except that `exit(2)`s on a
+  parse error — so even malformed stdin fails *closed*. Without that guard a crash
+  would exit nonzero-but-not-2 and let the command through.)
 - **No shell-outs from the guard** — pure stdlib (`json`, `re`, `urllib`,
   `pathlib`). Keeps it fast, portable, and stops the guard itself from tripping
   other validators.
