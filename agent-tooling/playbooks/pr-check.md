@@ -36,4 +36,6 @@ An agent-neutral procedure for vetting a pull request and ending with one verdic
 
 End with **GO / MERGE-WITH-FIXES / NEEDS-CHANGES** and one line of rationale, then: must-fix (deduped, cross-confirmed, by severity, with file:line + fix), should-fix/over-claims, security (if run), local-verification results (reproduced map + pathway timings), and the staging call.
 
+**Persist it as a handoff.** Besides reporting in-conversation, write the verdict to a predetermined, git-ignored folder in the project (a `report_dir`), as a file keyed by PR id or branch. It must stand alone for a reader with zero session context (PR id + head SHA, scope, test result, must-fix with file:line + fix, reproduced-vs-flagged, staging call) — so the next agent or a human can act on it cold.
+
 Rules of thumb: failing test, real security finding, or a **reproduced** bug → needs-changes; cross-confirmed correctness bugs not locally reproducible still lean needs-changes (say so honestly); flagged-but-not-reproduced → merge-with-fixes or noted non-issue; only minor/over-claim/perf-nits → merge-with-fixes; nothing of substance → go. Reproduction beats assertion — weight what the running system did over what a reviewer inferred.

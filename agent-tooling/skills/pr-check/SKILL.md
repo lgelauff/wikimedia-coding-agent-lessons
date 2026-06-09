@@ -22,7 +22,7 @@ Read the playbook: [`../../playbooks/pr-check.md`](../../playbooks/pr-check.md).
 
 ## 2. Load the project config
 
-Read `.claude/pr-check.json` in the **consuming repo** (schema: [`pr-check.example.json`](pr-check.example.json)). It supplies `base_ref`, scope globs, sensitive patterns, `test_command`, reviewer map, `a11y_spec`, `e2e_skill`, `staging_skill`. **If it's missing, stop and offer to create one from the example** — do not hardcode another repo's values.
+Read `.claude/pr-check.json` in the **consuming repo** (schema: [`pr-check.example.json`](pr-check.example.json)). It supplies `base_ref`, scope globs, sensitive patterns, `test_command`, reviewer map, `a11y_spec`, `e2e_skill`, `staging_skill`, `report_dir`. **If it's missing, stop and offer to create one from the example** — do not hardcode another repo's values.
 
 ## 3. Scope (playbook step 0)
 
@@ -45,6 +45,12 @@ It returns `{files, flags}`. Branch on the flags for the rest.
 - **Local verification (step 5):** if `RUNTIME` or any reproducible finding. Use the config's `e2e_skill` for stack lifecycle, but feed it the **finding-driven plan** from step 5, not generic happy-path flows. Reproduction can be cheap (e.g. `node --check` on an extracted inline script) — don't spin up the full stack when a parse/unit check is decisive.
 - **Staging (step 6):** recommend the config's `staging_skill` per the playbook's criteria.
 
-## 6. Verdict
+## 6. Verdict + handoff file
 
-Emit the playbook's verdict format. Be decisive; weight reproduced behavior over inferred findings.
+Emit the playbook's verdict format in chat. Be decisive; weight reproduced behavior over inferred findings.
+
+Then **persist it as a handoff** so it survives the session and another agent can pick it up:
+- Write the full verdict (the playbook's verdict structure — must-fix, security, local-verification, staging call, checklist) to `<report_dir>/pr-<N>.md` (or `<report_dir>/<branch>.md` when run on a branch), where `report_dir` comes from the config (default `.claude/pr-check`).
+- Create the dir if needed (`mkdir -p`). It lives under `.claude/`, which is gitignored — confirm the consuming repo ignores it (don't commit handoffs).
+- Make the file **stand alone for a cold reader**: PR id + head SHA, the scope flags, test result, must-fix with file:line + fix, what was reproduced vs only-flagged, and the staging recommendation — like a fresh agent would need with zero session context.
+- Tell the user the path you wrote.

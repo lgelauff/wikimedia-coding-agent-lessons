@@ -20,5 +20,6 @@
   },
   "a11y_spec": "v2/spec_accessibility.md",
   "e2e_skill": "local-e2e",
-  "staging_skill": "staging-chrome-test"
+  "staging_skill": "staging-chrome-test",
+  "report_dir": ".claude/pr-check"
 }
