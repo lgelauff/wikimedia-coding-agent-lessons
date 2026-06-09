@@ -10,6 +10,7 @@ Claude Code hooks — the product-specific layer (PreToolUse/PostToolUse event i
 | `github_write_permission.sh` | PreToolUse | Gates GitHub *write* operations (push/PR/merge) behind an explicit prompt. |
 | `openrouter_permission.sh` | PreToolUse | Asks permission for the first OpenRouter API call per model per session. |
 | `webfetch_content_check.py` | PostToolUse | Inspects fetched content (injection / unexpected-instruction check). |
+| `tool_token_log.py` | PostToolUse | Appends an **estimated** token-cost line per tool/skill call (input+output bytes ÷4) to a JSONL log. Never blocks. A hook can't see real API token accounting, so this is a proxy for "which tools/skills are context-heavy"; for exact numbers parse the transcript `usage` fields. Log path: `$TOOL_TOKEN_LOG` or `~/.claude/tool-token-log.jsonl`. Summarize: `jq -s 'group_by(.tool)[]\|{tool:.[0].tool,calls:length,est_tokens:(map(.est_tokens)\|add)}' ~/.claude/tool-token-log.jsonl`. |
 | `pre-commit` | git hook | Runs `detect-secrets-hook` on staged files; blocks commits with likely secrets. |
 
 ## Wiring
