@@ -5,7 +5,7 @@ Fewer permission prompts comes mostly from *coding hygiene*, not from a big allo
 ## Method (per machine, ~5 min)
 
 1. Let Claude scan your recent transcripts for the read-only commands that keep prompting (the `fewer-permission-prompts` skill does this), and add the high-frequency, safe ones to `~/.claude/settings.json` under `permissions.allow`.
-2. Prefer **bundled script paths** over widening command access — see "Scripts over inline bash" in [`conventions.md`](conventions.md). One `Bash(<repo>/scripts/foo.sh*)` entry replaces a dozen ad-hoc-pipeline prompts.
+2. Prefer **bundled script paths** over widening command access — see "Scripts over inline bash" in [`conventions.md`](../../../conventions.md). One `Bash(<repo>/scripts/foo.sh*)` entry replaces a dozen ad-hoc-pipeline prompts.
 
 ## Rules (the part that's actually reusable)
 
