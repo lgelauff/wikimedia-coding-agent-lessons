@@ -21,5 +21,11 @@
   "a11y_spec": "v2/spec_accessibility.md",
   "e2e_skill": "local-e2e",
   "staging_skill": "staging-chrome-test",
-  "report_dir": ".claude/pr-check"
+  "report_dir": ".claude/pr-check",
+  "browser": {
+    "_comment": "Used by the browser-verify skill for headless Playwright checks.",
+    "base_url": "http://localhost:5000",
+    "serve": "local-e2e",
+    "playwright": "python"
+  }
 }
