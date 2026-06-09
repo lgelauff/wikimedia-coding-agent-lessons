@@ -1,0 +1,13 @@
+{
+  "description": "agent-tooling plugin hooks. Generally-useful guards only; block_zotero.py ships as a file but is intentionally NOT wired here (it's a personal path block — wire it yourself if you want it). Paths use ${CLAUDE_PLUGIN_ROOT} so they resolve wherever the plugin is installed.",
+  "hooks": {
+    "PreToolUse": [
+      { "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/block_ssh.py\"" }] },
+      { "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/github_write_permission.sh\"" }] },
+      { "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/openrouter_permission.sh\"" }] }
+    ],
+    "PostToolUse": [
+      { "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/webfetch_content_check.py\"" }] }
+    ]
+  }
+}

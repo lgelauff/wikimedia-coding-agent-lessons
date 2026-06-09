@@ -13,22 +13,12 @@ Claude Code hooks — the product-specific layer (PreToolUse/PostToolUse event i
 
 ## Wiring
 
-These are **git/Claude hooks**, not skills — the harness runs them, so they go in config, not in a skill body. Copy the ones you want into `~/.claude/hooks/` (or reference them in place) and wire in `~/.claude/settings.json`:
+**Installed as part of the plugin, these wire automatically** via [`hooks.json`](hooks.json) (paths use `${CLAUDE_PLUGIN_ROOT}`). Wired by default: `block_ssh`, `github_write_permission`, `openrouter_permission` (PreToolUse) and `webfetch_content_check` (PostToolUse). `block_zotero.py` ships as a file but is **not** wired (personal path block — wire it yourself if you want it).
 
-```jsonc
-{
-  "hooks": {
-    "PreToolUse": [
-      { "hooks": [{ "type": "command", "command": "~/.claude/hooks/block_ssh.py" }] },
-      { "hooks": [{ "type": "command", "command": "~/.claude/hooks/github_write_permission.sh" }] }
-    ],
-    "PostToolUse": [
-      { "hooks": [{ "type": "command", "command": "python3 ~/.claude/hooks/webfetch_content_check.py" }] }
-    ]
-  }
-}
-```
+> ⚠️ **Dedup if you already wired these manually.** If your `~/.claude/settings.json` already references copies of these hooks (e.g. from before this plugin existed), remove those manual entries after installing the plugin — otherwise each hook fires twice. The plugin's `hooks.json` is now the single source.
 
-`pre-commit` goes in your repo's `.git/hooks/` (or a global `core.hooksPath`); it needs `detect-secrets` installed (`pipx install detect-secrets`).
+For **non-plugin** use (copying hooks into `~/.claude/hooks/` and wiring by hand), the same structure applies with literal paths instead of `${CLAUDE_PLUGIN_ROOT}`.
+
+`pre-commit` is a **git** hook, not a Claude hook — it lives in `../git-hooks/`, goes in your repo's `.git/hooks/` (or a global `core.hooksPath`), and needs `detect-secrets` (`pipx install detect-secrets`).
 
 Secrets the hooks use (e.g. `MISTRAL_API_KEY` for the review path) come from your environment — set them in your shell profile, never in these files.
