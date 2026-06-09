@@ -1,0 +1,36 @@
+#!/bin/bash
+# Global pre-commit hook — scans staged files for secrets using detect-secrets.
+#
+# If a .secrets.baseline file exists in the repo root, it is used to suppress
+# known false positives. Create one with:
+#   detect-secrets scan > .secrets.baseline
+#
+# To bypass in an emergency (use with caution):
+#   git commit --no-verify
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+if [ -z "$STAGED" ]; then
+    exit 0
+fi
+
+if ! command -v detect-secrets-hook &>/dev/null; then
+    echo "WARNING: detect-secrets not found, skipping credential scan."
+    exit 0
+fi
+
+if [ -f ".secrets.baseline" ]; then
+    detect-secrets-hook --baseline .secrets.baseline $STAGED
+else
+    detect-secrets-hook $STAGED
+fi
+
+STATUS=$?
+if [ $STATUS -ne 0 ]; then
+    echo ""
+    echo "Commit blocked: potential secrets detected in staged files."
+    echo "If this is a false positive, add it to .secrets.baseline:"
+    echo "  detect-secrets scan > .secrets.baseline"
+    echo "Then re-stage .secrets.baseline and commit again."
+    echo "To bypass: git commit --no-verify (use with caution)"
+fi
+exit $STATUS
