@@ -54,3 +54,13 @@ Then **persist it as a handoff** so it survives the session and another agent ca
 - Create the dir if needed (`mkdir -p`). It lives under `.claude/`, which is gitignored — confirm the consuming repo ignores it (don't commit handoffs).
 - Make the file **stand alone for a cold reader**: PR id + head SHA, the scope flags, test result, must-fix with file:line + fix, what was reproduced vs only-flagged, and the staging recommendation — like a fresh agent would need with zero session context.
 - Tell the user the path you wrote.
+
+## 7. Record the run cost
+
+If a panel workflow ran, log its cost tagged by PR type so "what does pr-check cost on this kind of PR" accrues empirically. Use the **real `subagent_tokens`** the Workflow result reported (not a guess), the scope flags from step 0, and the diff size:
+```bash
+python3 "$SKILL_DIR/../../scripts/record_run.py" --skill pr-check --pr <N> \
+  --flags <comma-separated flags that fired> --diff-lines <changed lines> \
+  --subagent-tokens <subagent_tokens from the workflow result> --duration-ms <duration_ms>
+```
+Skip `--subagent-tokens` (defaults 0) for a docs-only run with no panel. See accrued cost-by-PR-type with `scripts/cost_report.py [--rate <$/Mtok>]`, or a pre-run estimate with `cost_report.py --predict --flags … --diff-lines …`.
