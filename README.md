@@ -10,7 +10,8 @@ Each topic captures gotchas, doc links, and patterns that aren't obvious from of
 - [`wikimedia/lessons.md`](wikimedia/lessons.md) — OAuth 2.0, MediaWiki API, Commons thumbnail API
 - [`flask/lessons.md`](flask/lessons.md) — Flask-Session + SQLAlchemy 2.0, Alembic stamp-vs-upgrade, general Flask gotchas
 - [`wikimedia-analytics/lessons.md`](wikimedia-analytics/lessons.md) — MediaWiki API parsing, mailing list archives, PAWS, User-Agent convention
-- [`claude-code/`](claude-code/) — **lessons + solutions** for the AI agent itself: hook/guard & CLI-script patterns and allowlist hygiene ([`lessons.md`](claude-code/lessons.md)), plus reusable [`hooks/`](claude-code/hooks/), [`scripts/`](claude-code/scripts/), [`skills/`](claude-code/skills/), and an [allowlist method](claude-code/allowlist.md) / [authoring conventions](claude-code/conventions.md)
+- [`claude-code/lessons.md`](claude-code/lessons.md) — prose lessons for the agent itself: hook/guard & CLI-script patterns, allowlist hygiene, Bash quirks
+- [`agent-tooling/`](agent-tooling/ARCHITECTURE.md) — **the runnable solutions**: reusable hooks, scripts, policies, playbooks, and skills, structured as an agent-agnostic core + thin per-agent adapters (Claude Code today). The *what you run* that pairs with the lessons above
 
 ## How to use
 

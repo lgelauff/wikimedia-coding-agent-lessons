@@ -24,7 +24,7 @@ Scripts: read-only unless mutation is the whole point (then say so loudly); no s
 
 ## 3. Permission hygiene
 
-See [`allowlist.md`](allowlist.md). The one rule that always holds: **never allowlist arbitrary code execution**; prefer exact invocations or bundled script paths.
+See [`adapters/claude-code/settings/allowlist.md`](adapters/claude-code/settings/allowlist.md). The one rule that always holds: **never allowlist arbitrary code execution**; prefer exact invocations or bundled script paths.
 
 ## 4. Quality bar
 
