@@ -18,7 +18,7 @@ This is the Claude Code adapter over the agent-neutral **PR quality-gate playboo
 
 ## 1. Read the method
 
-Read the playbook: [`../../../../playbooks/pr-check.md`](../../../../playbooks/pr-check.md). It defines steps 0–6 and the verdict rules. Follow it; the notes below are only the Claude-specific *how*.
+Read the playbook: [`../../playbooks/pr-check.md`](../../playbooks/pr-check.md). It defines steps 0–6 and the verdict rules. Follow it; the notes below are only the Claude-specific *how*.
 
 ## 2. Load the project config
 
@@ -26,10 +26,11 @@ Read `.claude/pr-check.json` in the **consuming repo** (schema: [`pr-check.examp
 
 ## 3. Scope (playbook step 0)
 
-Run the bundled script once instead of ad-hoc pipelines:
+Run the bundled script once instead of ad-hoc pipelines — it lives two levels up from this skill, at the plugin's `scripts/scope.py`:
 ```bash
-python3 <toolkit>/agent-tooling/scripts/scope.py --config .claude/pr-check.json [--pr N | --base <ref>]
+python3 "$SKILL_DIR/../../scripts/scope.py" --config .claude/pr-check.json [--pr N | --base <ref>]
 ```
+(`$SKILL_DIR` = this skill's directory. Allowlist `Bash(python3 *agent-tooling/scripts/scope.py*)` to make it prompt-free.)
 It returns `{files, flags}`. Branch on the flags for the rest.
 
 ## 4. Review, tests, panel (steps 1–3)

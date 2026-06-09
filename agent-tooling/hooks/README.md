@@ -1,6 +1,6 @@
 # Hooks
 
-Claude Code **adapter** hooks — the thin, product-specific layer (PreToolUse/PostToolUse event in, decision out). Each pairs with a lesson in [`../../../../claude-code/lessons.md`](../../../../claude-code/lessons.md): the lesson is the *why*, the hook is the *what you run*. All read their secrets from the **environment** — none contain hardcoded keys. Where a hook's decision logic is reusable beyond Claude Code, it should move to [`../../../policies/`](../../../) with this hook becoming a thin wrapper (see [`../../../ARCHITECTURE.md`](../../../ARCHITECTURE.md)).
+Claude Code hooks — the product-specific layer (PreToolUse/PostToolUse event in, decision out). Each pairs with a lesson in [`../../claude-code/lessons.md`](../../claude-code/lessons.md): the lesson is the *why*, the hook is the *what you run*. All read their secrets from the **environment** — none contain hardcoded keys. Where a hook's decision logic is reusable beyond Claude Code, extract it to `../policies/` (planned) with this hook becoming a thin wrapper (see [`../ARCHITECTURE.md`](../ARCHITECTURE.md)).
 
 | Hook | Event | What it does |
 |---|---|---|
