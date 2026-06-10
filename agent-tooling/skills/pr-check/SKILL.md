@@ -42,7 +42,7 @@ It returns `{files, flags}`. Branch on the flags for the rest.
 ## 5. Conditional steps (4–6)
 
 - **Security (step 4):** only if `SENSITIVE`. Run `/security-review`.
-- **Local verification (step 5):** if `RUNTIME` or any reproducible finding. Use the config's `e2e_skill` for stack lifecycle, but feed it the **finding-driven plan** from step 5, not generic happy-path flows. Reproduction can be cheap (e.g. `node --check` on an extracted inline script) — don't spin up the full stack when a parse/unit check is decisive.
+- **Local verification (step 5):** if `RUNTIME` or any reproducible finding. Use the config's `e2e_skill` for stack lifecycle, but feed it the **finding-driven plan** from step 5, not generic happy-path flows. Reproduction can be cheap (e.g. `node --check` on an extracted inline script) — don't spin up the full stack when a parse/unit check is decisive. For visual/UI flows, run **`browser-verify`** (headless screenshots of the relevant screens). If the user wants those screenshots **on the PR**, browser-verify's step 5 posts them as a comment — opt-in and confirmed, never automatic.
 - **Staging (step 6):** recommend the config's `staging_skill` per the playbook's criteria.
 
 ## 6. Verdict + handoff file

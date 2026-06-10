@@ -50,4 +50,15 @@ Allowlist `Bash(python3 *probe.py*)` and `Bash(playwright install*)` to keep it 
 
 Report each check as CONFIRMED / FIXED-AND-CLEAN / REGRESSION / COULD-NOT-RUN, with evidence (assertion text, console dump, `probe.png`). State explicitly whether the risky-path / user-supplied checks passed — that's the "no side damage" finding. One-line overall verdict. Trust the browser over the code.
 
+## 5. Optionally post screenshots to the PR
+
+The probe already screenshots each screen it drives. If the user wants those on the PR (only when asked — never automatically), label the **relevant** ones and use the bundled poster. It pushes images to a `pr-screenshots` assets branch (PR branch stays clean) and embeds their raw URLs in a comment; **public repos only**.
+
+```bash
+python3 "$SKILL_DIR/../../scripts/post_pr_screenshots.py" --pr <N> \
+  --intro "browser-verify on <what>" \
+  --image "Arguments tab=probe-args.png" --image "Vote flow=probe-vote.png"
+```
+It **dry-runs by default** (prints the comment, touches nothing). Show that to the user; add `--confirm` to actually push + comment **only after they approve** — this both pushes to the remote and posts a public comment.
+
 Memory note: headless keeps this light, but it still launches Chromium — if OS memory pressure is critical, free memory or `/compact` first (the memory_guard hook only gates fan-outs, not this).
