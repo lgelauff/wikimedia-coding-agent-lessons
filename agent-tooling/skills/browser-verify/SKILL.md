@@ -46,6 +46,8 @@ python3 probe.py    # exit 0 = all checks pass + no console/page errors
 ```
 Allowlist `Bash(python3 *probe.py*)` and `Bash(playwright install*)` to keep it prompt-free.
 
+For a **pure screenshot** (a screen or a bug, no assertions), skip the probe and call the shared helper: `python3 "$SKILL_DIR/../../scripts/capture.py" --url <route> --out shot.png [--login dev-user-1] [--clip SELECTOR] [--viewport 390x844] [--dark]`. Same shot logic as this template, factored out so other skills share it; saves the PNG + a sidecar with console errors / final URL / sha256.
+
 ## 4. Verdict (playbook step 4)
 
 Report each check as CONFIRMED / FIXED-AND-CLEAN / REGRESSION / COULD-NOT-RUN, with evidence (assertion text, console dump, `probe.png`). State explicitly whether the risky-path / user-supplied checks passed — that's the "no side damage" finding. One-line overall verdict. Trust the browser over the code.

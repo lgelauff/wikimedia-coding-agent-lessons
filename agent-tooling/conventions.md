@@ -41,6 +41,14 @@ See [`settings/allowlist.md`](settings/allowlist.md). The one rule that always h
 - [ ] No arbitrary-exec allowlist entries introduced.
 - [ ] Validation noted (eval or dry-run); no secrets; no single-repo assumptions.
 
+## 6. Visual evidence (screenshots)
+
+**Habit: any UI-observable change carries a screenshot — in the PR and in the issue/bug report, not just chat.** The tooling makes this cheap and headless (no computer takeover):
+
+- `scripts/capture.py` — render a route/state → PNG + sidecar `.json` (console errors, final URL, sha256). The shot helper other skills call; it does not manage the stack, assert, or post.
+- Chain: `local-e2e` (serve) → `capture.py` (shoot) → `post_pr_screenshots.py` (publish to PR).
+- Posting to GitHub stays opt-in + confirmed (`post_pr_screenshots.py` dry-runs by default). Never auto-post.
+
 ## Open items (foundation phase)
 
 - Plugin/marketplace manifest (`.claude-plugin/`) so projects can install this — confirm the current schema against an installed plugin before writing it; don't guess.
