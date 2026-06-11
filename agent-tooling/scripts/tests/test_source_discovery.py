@@ -40,3 +40,33 @@ def test_run_survives_a_failing_backend(monkeypatch):
     def boom(*a_, **k): raise RuntimeError("api down")
     monkeypatch.setattr(sd, "search_openalex", boom)
     assert sd.run(["q"]) == []   # logged + skipped, no crash
+
+
+def test_ddg_unwrap_decodes_redirect():
+    href = "//duckduckgo.com/l/?uddg=https%3A%2F%2Fdemos.co.uk%2Freport.pdf&rut=x"
+    assert sd._ddg_unwrap(href) == "https://demos.co.uk/report.pdf"
+    assert sd._ddg_unwrap("https://direct.org/x") == "https://direct.org/x"
+
+
+def test_search_web_parses_results(monkeypatch):
+    html = ('<a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fknoca.eu%2Fr.pdf">'
+            'KNOCA <b>Polis</b> report</a>'
+            '<a class="result__a" href="https://demos.co.uk/x">Demos paper</a>')
+    monkeypatch.setattr(sd, "_get_text", lambda url, data=None: html)
+    out = sd.search_web("klimarat polis", per_query=10)
+    assert len(out) == 2
+    assert out[0]["url"] == "https://knoca.eu/r.pdf" and out[0]["source_api"] == "web"
+    assert out[0]["title"] == "KNOCA Polis report"   # tags stripped
+
+
+def test_backends_select_web_and_dedup_by_url(monkeypatch):
+    monkeypatch.setattr(sd, "search_web",
+                        lambda q, n=25: [{"title": "R", "url": "http://x/r.pdf/", "doi": None,
+                                          "openalex_id": None, "source_api": "web"}])
+    out = sd.run(["q1", "q2"], backends=["web"])  # same url across queries -> 1
+    assert len(out) == 1 and out[0]["source_api"] == "web"
+
+
+def test_unknown_backend_is_skipped_not_fatal(monkeypatch):
+    # bogus backend raises inside _call_backend -> caught, run still returns
+    assert sd.run(["q"], backends=["bogus"]) == []

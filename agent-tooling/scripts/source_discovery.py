@@ -27,8 +27,10 @@ Each output line is one candidate:
    cited_by_count, openalex_id}
 """
 import argparse
+import html
 import json
 import os
+import re
 import sys
 import time
 import urllib.parse
@@ -57,6 +59,13 @@ def _get_json(url: str) -> dict:
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
     with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
         return json.loads(resp.read().decode("utf-8"))
+
+
+def _get_text(url: str, data: bytes | None = None) -> str:
+    _rate_limit(url)
+    req = urllib.request.Request(url, data=data, headers={"User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+        return resp.read().decode("utf-8", errors="replace")
 
 
 def _reconstruct_abstract(inv: dict | None) -> str:
@@ -91,12 +100,14 @@ def search_openalex(query: str, per_query: int = 25, from_year: int | None = Non
     out = []
     for w in _get_json(url).get("results", []):
         doi = (w.get("doi") or "").replace("https://doi.org/", "") or None
+        oa = (w.get("open_access") or {}).get("oa_url")
         out.append({
             "title": w.get("title") or w.get("display_name") or "",
             "authors": _authors_openalex(w),
             "year": w.get("publication_year"),
             "doi": doi,
-            "oa_pdf_url": (w.get("open_access") or {}).get("oa_url"),
+            "oa_pdf_url": oa,
+            "url": oa or (f"https://doi.org/{doi}" if doi else None),
             "source_api": "openalex",
             "query": query,
             "abstract": _reconstruct_abstract(w.get("abstract_inverted_index")),
@@ -121,12 +132,14 @@ def search_crossref(query: str, per_query: int = 25, from_year: int | None = Non
         if dp and dp[0]:
             year = dp[0][0]
         title = (w.get("title") or [""])[0]
+        doi = w.get("DOI")
         out.append({
             "title": title,
             "authors": authors,
             "year": year,
-            "doi": w.get("DOI"),
+            "doi": doi,
             "oa_pdf_url": None,
+            "url": f"https://doi.org/{doi}" if doi else w.get("URL"),
             "source_api": "crossref",
             "query": query,
             "abstract": w.get("abstract", ""),
@@ -136,29 +149,86 @@ def search_crossref(query: str, per_query: int = 25, from_year: int | None = Non
     return out
 
 
+_DDG_RESULT = re.compile(
+    r'<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)</a>', re.DOTALL)
+_TAGS = re.compile(r"<[^>]+>")
+
+
+def _ddg_unwrap(href: str) -> str:
+    """DuckDuckGo wraps result links as //duckduckgo.com/l/?uddg=<encoded>."""
+    if "uddg=" in href:
+        q = urllib.parse.urlparse(href if href.startswith("http") else "https:" + href).query
+        uddg = urllib.parse.parse_qs(q).get("uddg")
+        if uddg:
+            return urllib.parse.unquote(uddg[0])
+    return href if href.startswith("http") else "https:" + href
+
+
+def search_web(query: str, per_query: int = 25) -> list[dict]:
+    """Grey-lit / non-academic discovery via DuckDuckGo HTML (no API key).
+
+    Catches reports, press, NGO/gov docs, blogs — sources the scholarly graph
+    misses. Returns the same candidate schema (no DOI/year/abstract); the
+    `url` is the fetch target the downstream bridge uses.
+    """
+    body = urllib.parse.urlencode({"q": query}).encode()
+    page = _get_text("https://html.duckduckgo.com/html/", data=body)
+    out = []
+    for href, title_html in _DDG_RESULT.findall(page):
+        link = _ddg_unwrap(href)
+        title = html.unescape(_TAGS.sub("", title_html)).strip()
+        if not link.startswith("http"):
+            continue
+        out.append({
+            "title": title, "authors": [], "year": None, "doi": None,
+            "oa_pdf_url": None, "url": link, "source_api": "web",
+            "query": query, "abstract": "", "cited_by_count": 0, "openalex_id": None,
+        })
+        if len(out) >= per_query:
+            break
+    return out
+
+
 def _dedup_key(c: dict) -> str:
     if c.get("doi"):
         return "doi:" + c["doi"].lower()
     if c.get("openalex_id"):
         return "oa:" + c["openalex_id"]
+    if c.get("url"):
+        return "url:" + c["url"].rstrip("/").lower()
     return "title:" + (c.get("title") or "").strip().lower()
+
+
+def _call_backend(name: str, q: str, per_query: int, from_year: int | None,
+                  open_access_only: bool) -> list[dict]:
+    if name == "openalex":
+        return search_openalex(q, per_query, from_year, open_access_only)
+    if name == "crossref":
+        return search_crossref(q, per_query, from_year)
+    if name == "web":
+        return search_web(q, per_query)
+    raise ValueError(f"unknown backend: {name!r} (openalex|crossref|web)")
 
 
 def run(queries: list[str], per_query: int = 25, from_year: int | None = None,
         open_access_only: bool = False, use_crossref: bool = False,
-        max_total: int | None = None) -> list[dict]:
-    """Run all queries through the enabled backends; dedup; return candidates."""
+        max_total: int | None = None, backends: list[str] | None = None) -> list[dict]:
+    """Run all queries through the named backends; dedup; return candidates.
+
+    backends: subset of ["openalex","crossref","web"] (default ["openalex"]).
+    use_crossref is kept for back-compat — it appends "crossref" if not listed.
+    """
+    names = list(backends) if backends else ["openalex"]
+    if use_crossref and "crossref" not in names:
+        names.append("crossref")
     seen: set[str] = set()
     results: list[dict] = []
     for q in queries:
-        backends = [lambda: search_openalex(q, per_query, from_year, open_access_only)]
-        if use_crossref:
-            backends.append(lambda: search_crossref(q, per_query, from_year))
-        for backend in backends:
+        for name in names:
             try:
-                hits = backend()
+                hits = _call_backend(name, q, per_query, from_year, open_access_only)
             except Exception as e:  # one bad query/backend shouldn't sink the run
-                print(f"WARN backend failed for {q!r}: {e}", file=sys.stderr)
+                print(f"WARN backend {name} failed for {q!r}: {e}", file=sys.stderr)
                 continue
             for c in hits:
                 k = _dedup_key(c)
@@ -190,7 +260,10 @@ def main() -> int:
     ap.add_argument("--per-query", type=int, default=25, help="max results per query per backend")
     ap.add_argument("--from-year", type=int, help="only works published on/after this year")
     ap.add_argument("--open-access-only", action="store_true", help="OpenAlex: OA works only")
-    ap.add_argument("--crossref", action="store_true", help="also query Crossref")
+    ap.add_argument("--backends", default="openalex",
+                    help="comma list of openalex,crossref,web (default: openalex). "
+                         "Add 'web' for grey-lit/press/reports the scholarly graph misses.")
+    ap.add_argument("--crossref", action="store_true", help="(compat) also query Crossref")
     ap.add_argument("--max-total", type=int, help="stop after this many deduped candidates")
     a = ap.parse_args()
 
@@ -198,7 +271,9 @@ def main() -> int:
     if not queries:
         ap.error("no queries (use --query / --queries-file / stdin)")
 
-    cands = run(queries, a.per_query, a.from_year, a.open_access_only, a.crossref, a.max_total)
+    names = [b.strip() for b in a.backends.split(",") if b.strip()]
+    cands = run(queries, a.per_query, a.from_year, a.open_access_only,
+                a.crossref, a.max_total, backends=names)
     lines = [json.dumps(c, ensure_ascii=False) for c in cands]
     if a.out:
         with open(a.out, "w", encoding="utf-8") as f:
