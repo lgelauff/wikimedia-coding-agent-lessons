@@ -34,13 +34,20 @@ import hashlib
 import json
 import pathlib
 import sys
+import os
 import time
 
 DEFAULT_BASE = "http://localhost:5000"
+# One dedicated, predictable home for all screenshots, so a single permission
+# rule covers them. Override with $CAPTURE_DIR (e.g. an in-repo .screenshots/).
+CAPTURE_DIR = os.environ.get("CAPTURE_DIR", "/tmp/claude-screenshots")
+
+
+def _default_out() -> str:
+    return os.path.join(CAPTURE_DIR, "capture.png")
 
 
 def _resolve_base(base_url: str | None, config: str | None) -> str:
-    import os
     if base_url:
         return base_url.rstrip("/")
     if config:
@@ -73,7 +80,7 @@ def _apply_step(page, step: dict) -> None:
 
 def capture(
     url: str,
-    out: str | pathlib.Path = "capture.png",
+    out: str | pathlib.Path | None = None,
     *,
     base_url: str | None = None,
     config: str | None = None,
@@ -90,6 +97,7 @@ def capture(
         from playwright.sync_api import sync_playwright
     except ImportError:
         raise SystemExit("playwright not installed: pip install playwright && playwright install chromium")
+    out = _default_out() if out is None else out
     base = _resolve_base(base_url, config)
     full_url = url if url.startswith("http") else f"{base}{url if url.startswith('/') else '/' + url}"
     out = pathlib.Path(out)
@@ -161,7 +169,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--url", required=True, help="route (joined to base_url) or full http(s) URL")
-    ap.add_argument("--out", default="capture.png", help="output PNG path")
+    ap.add_argument("--out", default=_default_out(),
+                    help=f"output PNG path (default: {CAPTURE_DIR}/, set $CAPTURE_DIR to change)")
     ap.add_argument("--base-url", help="override base url")
     ap.add_argument("--config", help="path to pr-check.json to read browser.base_url from")
     ap.add_argument("--login", metavar="DEV_USER", help="dev-login id, e.g. dev-user-1")
