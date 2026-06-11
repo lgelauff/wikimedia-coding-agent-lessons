@@ -42,7 +42,7 @@ wikimedia-coding-agent-lessons/
     ├── settings/        Claude-specific — allowlist method + hook-wiring snippets
     ├── scripts/         AGENT-AGNOSTIC — deterministic helpers; tests in scripts/tests/
     ├── playbooks/       AGENT-AGNOSTIC — procedures (markdown)
-    ├── policies/        AGENT-AGNOSTIC — decision executables (is_ssh_command, content_too_short; tests in policies/tests/)
+    ├── policies/        AGENT-AGNOSTIC — decision executables (is_ssh_command; tests in policies/tests/)
     └── git-hooks/       standard git hooks (no agent coupling)
 ```
 
@@ -72,7 +72,8 @@ The first fold landed everything under `claude-code/`. It relocates as:
 |---|---|---|
 | `claude-code/scripts/llm_review.py` | `agent-tooling/scripts/` | not Claude-specific at all |
 | `claude-code/hooks/pre-commit` | `agent-tooling/git-hooks/` | standard git hook |
-| `claude-code/hooks/block_ssh.py`, `webfetch_content_check.py` | policy → `agent-tooling/policies/`; Claude wrapper → `agent-tooling/hooks/` | general policy + thin adapter — **done**: `policies/{is_ssh_command,content_too_short}.py`, hooks now thin adapters |
+| `claude-code/hooks/block_ssh.py` | policy → `agent-tooling/policies/`; Claude wrapper → `agent-tooling/hooks/` | general policy + thin adapter — **done**: `policies/is_ssh_command.py`, hook now a thin adapter |
+| `claude-code/hooks/webfetch_content_check.py` | `agent-tooling/hooks/` | kept self-contained — its short-content check is a small heuristic, not a reusable policy |
 | `claude-code/hooks/github_write_permission.sh`, `openrouter_permission.sh` | `agent-tooling/hooks/` (logic extractable to `policies/` if reused) | gating tied to the agent's permission model |
 | `claude-code/allowlist.md`, `conventions.md` | `agent-tooling/` (conventions) + `agent-tooling/settings/` (allowlist) | split general rules from Claude wiring |
 | `wiki-polis/.claude/skills/{pr-check,local-e2e,staging-chrome-test}` | playbook → `agent-tooling/playbooks/`; `SKILL.md` → `agent-tooling/skills/` | general procedure + Claude adapter |

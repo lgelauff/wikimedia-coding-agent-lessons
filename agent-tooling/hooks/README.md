@@ -1,6 +1,6 @@
 # Hooks
 
-Claude Code hooks — the product-specific layer (PreToolUse/PostToolUse event in, decision out). Each pairs with a lesson in [`../../claude-code/lessons.md`](../../claude-code/lessons.md): the lesson is the *why*, the hook is the *what you run*. All read their secrets from the **environment** — none contain hardcoded keys. Where a hook's decision logic is reusable beyond Claude Code, extract it to `../policies/` with this hook becoming a thin adapter (see [`../ARCHITECTURE.md`](../ARCHITECTURE.md)). Done for `block_ssh` (→ `policies/is_ssh_command.py`) and `webfetch_content_check` (→ `policies/content_too_short.py`): the hook parses the Claude event, the policy makes the call.
+Claude Code hooks — the product-specific layer (PreToolUse/PostToolUse event in, decision out). Each pairs with a lesson in [`../../claude-code/lessons.md`](../../claude-code/lessons.md): the lesson is the *why*, the hook is the *what you run*. All read their secrets from the **environment** — none contain hardcoded keys. Where a hook's decision logic is reusable beyond Claude Code, extract it to `../policies/` with this hook becoming a thin adapter (see [`../ARCHITECTURE.md`](../ARCHITECTURE.md)). Done for `block_ssh` (→ `policies/is_ssh_command.py`): the hook parses the Claude event, the policy makes the call. (`webfetch_content_check` stays self-contained — its short-content check is a heuristic, not a reusable policy.)
 
 | Hook | Event | What it does |
 |---|---|---|
@@ -9,7 +9,7 @@ Claude Code hooks — the product-specific layer (PreToolUse/PostToolUse event i
 | `block_zotero.py` | PreToolUse | Blocks writes to a protected Zotero path. |
 | `github_write_permission.sh` | PreToolUse | Gates GitHub *write* operations (push/PR/merge) behind an explicit prompt. |
 | `openrouter_permission.sh` | PreToolUse | Asks permission for the first OpenRouter API call per model per session. |
-| `webfetch_content_check.py` | PostToolUse | Warns when fetched content is suspiciously short (likely a redirect/login/error page, not the resource) — treat as UNVERIFIED. Adapter over `policies/content_too_short.py`; advisory, fails open. |
+| `webfetch_content_check.py` | PostToolUse | Warns when fetched content is suspiciously short (likely a redirect/login/error page, not the resource) — treat as UNVERIFIED. Self-contained heuristic; advisory, fails open. |
 | `tool_token_log.py` | PostToolUse | Appends an **estimated** token-cost line per tool/skill call (input+output bytes ÷4) to a JSONL log. Never blocks. A hook can't see real API token accounting, so this is a proxy for "which tools/skills are context-heavy"; for exact numbers parse the transcript `usage` fields. Log path: `$TOOL_TOKEN_LOG` or `~/.claude/tool-token-log.jsonl`. Summarize: `jq -s 'group_by(.tool)[]\|{tool:.[0].tool,calls:length,est_tokens:(map(.est_tokens)\|add)}' ~/.claude/tool-token-log.jsonl`. |
 | `pre-commit` | git hook | Runs `detect-secrets-hook` on staged files; blocks commits with likely secrets. |
 
