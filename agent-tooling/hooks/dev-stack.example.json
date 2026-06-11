@@ -1,0 +1,5 @@
+{
+  "_comment": "Copy to a project's .claude/dev-stack.json to enable the dev_stack_reminder hook. When you sign off (bye/goodnight/ttyl...) and a container matching container_filter is still running, you get a one-line reminder with stop_command. Absent file = hook is a silent no-op.",
+  "container_filter": "particiapp-docker",
+  "stop_command": "docker compose -f docker-compose.yaml -f docker-compose.wiki-polis.yaml -f docker-compose.local.yaml down (from the particiapp-docker dir)"
+}
