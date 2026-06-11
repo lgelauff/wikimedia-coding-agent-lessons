@@ -1,18 +1,25 @@
 #!/usr/bin/env python3
-"""
-PostToolUse hook: warn when WebFetch returns suspiciously little content.
+"""PostToolUse adapter: warn when WebFetch returns suspiciously little content.
 
-A very short response usually means a redirect, login wall, or error page
-rather than the expected resource. Claude should treat it as unverified.
+Thin Claude adapter. The decision ("is this content too short to trust?") lives
+in the agent-agnostic policy `policies/content_too_short.py`. This file's only
+job: read Claude's PostToolUse event, pull out the tool response, ask the policy,
+and surface a flag as a warning. Advisory only — fails OPEN (a malformed event
+or short content never blocks the tool; the security SSH guard fails closed, this
+one fails open, and that asymmetry is intentional).
 """
 import json
+import os
 import sys
 
-d = json.load(sys.stdin)
-r = str(d.get("tool_response", ""))
-if len(r) < 300:
-    print(
-        "HOOK WARNING: WebFetch returned very little content. Treat as UNVERIFIED. "
-        "Do not assume the expected resource exists. Find another way to verify "
-        "(git remote, DNS lookup, curl, ask the user) or explicitly flag it as unconfirmed."
-    )
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.pardir, "policies"))
+from content_too_short import too_short  # noqa: E402
+
+try:
+    d = json.load(sys.stdin)
+except (json.JSONDecodeError, EOFError, ValueError):
+    sys.exit(0)  # advisory hook: never crash the tool on a bad event
+
+reason = too_short(str(d.get("tool_response", "")))
+if reason:
+    print(f"HOOK WARNING: {reason}")
