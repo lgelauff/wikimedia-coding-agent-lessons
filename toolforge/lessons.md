@@ -63,6 +63,24 @@
 - `replica.my.cnf` doubles as credentials for both ToolsDB and replica databases.
 - `NOW()` is MySQL-only — use bound parameters (`:now`) with `utcnow().replace(tzinfo=None)` in raw SQL for portability.
 
+## Rules & acceptable use
+
+- **All code on Toolforge/WMCS must be OSI-approved open source.** If you don't declare a license, it defaults to **GPLv3** under the Cloud Services Terms of use. Add a root `LICENSE` before deploying. Exceptions: code withheld to protect privacy, and one-time throwaway scripts.
+- **Acceptable use test = "benefit to the Wikimedia movement."** Research data collection/processing and analytics are *explicitly* permitted; a public data-exploration tool qualifies. Prohibited: crypto mining, using WMCS as a network proxy/VPN/Tor, hosting proprietary software, mimicking Wikimedia branding.
+- **Privacy:** don't collect personal data beyond OAuth username/email + forwarded user-agent; public webservices sit behind an anonymizing reverse proxy automatically. Outputs built from already-public data (page text, revision metadata) carry minimal privacy burden.
+
+## Outbound network / external APIs
+
+- **Outbound internet access is generally available** — tools can call external HTTPS APIs. There is **no blanket egress block** (a common misconception). The proxy machinery in the docs is for *inbound* traffic (TLS termination, reverse-proxying to your web service) and for anonymizing *client-facing* external content (hiding users' IPs), not for your tool's own server-side outbound calls.
+- Inbound rate limit: **100 requests/minute per source IP** across all of Toolforge.
+- **Still avoid running paid third-party LLM/API pipelines on Toolforge** — not because egress is blocked, but for secrets hygiene (no API keys on shared community infra), cost, and acceptable-use spirit. Run those stages off-infra and import the compact results.
+
+## Webservice vs jobs
+
+- **A tool can run BOTH `toolforge jobs` (batch) and a `webservice` (HTTP) under one account** — same home, same ToolsDB. Exposing a web UI does not constrain the batch build.
+- **Keep heavy compute out of the webservice request path** — pods have memory/CPU caps. Precompute derived/indexed tables in jobs; the webservice only queries + renders. A query that's fine offline can time out a web request.
+- For **read-only / infrequently-updated data**, prefer a **static export** (job precomputes JSON + client-side viewer, served as static files) over a live backend: no DB-in-request-path, near-zero maintenance, reproducible, can't go down. Reserve a live Flask app for genuinely interactive/stateful features.
+
 ## Replica databases
 
 - Replica DBs (`*.labsdb`) are **only accessible from within Toolforge**, not locally.

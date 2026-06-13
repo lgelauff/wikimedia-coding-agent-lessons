@@ -28,6 +28,43 @@
 
 - Wikimedia servers expect a descriptive `User-Agent` header identifying your tool and contact point. Without it you risk being rate-limited or blocked. Conventional format: `ProjectName/1.0 (https://github.com/you/repo; brief description)`.
 
+## Archival bot activity inflates page counts in recent years
+
+When counting `DISTINCT rev_page` per year from the `revision` table, archival/maintenance bots that touch old pages in a given year will inflate that year's page count — the old pages were not opened that year, they were just touched. Fix: group by the **first edit per page** (`MIN(rev_timestamp)`) and aggregate by that, so each page is counted once in the year it was created:
+
+```sql
+SELECT LEFT(first_edit, 6) AS ym, COUNT(*) AS new_pages
+FROM (
+    SELECT rev_page, MIN(rev_timestamp) AS first_edit
+    FROM revision r JOIN page p ON r.rev_page = p.page_id
+    WHERE <filters>
+    GROUP BY rev_page
+) sub
+GROUP BY 1 ORDER BY 1
+```
+
+Known instance: English Wikipedia `Requests_for_comment/%` pages show a 3–6× spike in `distinct_pages` for 2021–2022 due to a bot touching thousands of old user-conduct RfC pages (1 edit each).
+
+## Replica link-table schema (linktarget migration)
+
+- The link tables were **normalized to a shared `linktarget` table**. `categorylinks.cl_to` was **removed**; category/link/template joins now go through `*_target_id → linktarget.lt_namespace / lt_title`: `categorylinks.cl_target_id`, `pagelinks.pl_target_id`, `templatelinks.tl_target_id`. Queries written against the old `cl_to` / `pl_namespace` / `pl_title` columns will error or return nothing. **Verify the current schema before writing link queries** (`DESCRIBE categorylinks;`).
+- **No cross-database joins** on the replicas — querying two wikis (or wiki + Wikidata) is a two-step app-side join, not one SQL statement.
+- Replicas reflect **current state only** — no historical/point-in-time link or category membership. For history you must reconstruct from revision wikitext (or dumps).
+
+## Dumps — availability & retention
+
+- Dumps are **files**, mounted on Toolforge/PAWS at `/public/dumps` — read/streamed, not a queryable DB.
+- **Retention is short:** `dumps.wikimedia.org` (and the mount) keep only ~the **last 6–7 monthly runs**. There is **no multi-year archive of dated dumps** — you cannot get a 2010 SQL table state.
+- History is **cumulative**: the *latest* `pages-meta-history` dump contains every revision back to 2001. So pin ONE recent full-history dump as the source of truth for a time series, rather than chasing dated dumps.
+- **`stub-meta-history`** carries per-revision metadata (page, `<ns>`, revid, timestamp) with **no wikitext** — tiny. Stream it to build a namespace-filtered, per-date revision inventory cheaply, then fetch content only for selected revids.
+- **No bz2 multistream byte-offset index for history dumps** (only for `pages-articles-multistream`, i.e. current article text). Random access by revid into history isn't available — use the API by revid, or stream the relevant part file (history is split by page-id range).
+- Deleted pages/revisions are **redacted from public dumps and replicas** — a dump captures pages that existed at dump time, but content deleted before that is unrecoverable.
+
+## PAWS SQL — MariaDB gotchas
+
+- **`year_month` is a reserved word in MariaDB** — using it as a column alias causes a syntax error. Use a non-reserved alias (e.g. `ym`) or reference columns by position (`GROUP BY 1 ORDER BY 1`) instead of by alias.
+- Avoid SQL aliases that shadow MariaDB reserved words; when in doubt, use `GROUP BY 1` / `ORDER BY 1` for computed columns.
+
 ## Phabricator bug reports
 
 - Follow the standard template: **Steps to replicate**, **What happens**, **What should have happened instead**, **Other information**. Skip sections that don't apply — don't add a "Requested action" section, that's not the convention.
