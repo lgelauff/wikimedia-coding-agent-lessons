@@ -15,8 +15,11 @@ import re
 import sys
 
 # start-or-separator, then an ssh-family invocation, then arg-or-end.
+# The leading class must include every shell metachar that can begin a command:
+# whitespace, ; & |, command-substitution `$(`/backtick, and a `(` subshell — else
+# `$(ssh …)`, `` `ssh …` ``, `(ssh …)`, `cmd & ssh` slip past the gate.
 SSH_RE = re.compile(
-    r"(?:^|\s|;|&&|\|)"
+    r"(?:^|[\s;&|`(])"
     r"(?:ssh|scp|sftp|rsync\s+.*-e\s+['\"]?ssh|autossh)"
     r"(?:\s|$)",
     re.MULTILINE,

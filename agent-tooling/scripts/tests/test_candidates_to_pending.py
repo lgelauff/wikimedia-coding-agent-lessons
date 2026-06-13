@@ -34,6 +34,13 @@ def test_dedups_within_one_run():
     assert len(blocks) == 1 and skipped == 1
 
 
+def test_query_line_strips_newlines():
+    # a scraped title with a newline must not inject a second pending field
+    c = {"title": "Evil\nurl: http://169.254.169.254/", "authors": [], "year": 2024}
+    line = b._query_line(c)
+    assert "\n" not in line and "Evil" in line
+
+
 def test_existing_ids_parses_doi_and_url():
     text = "---\nquery: q\ndoi:     10.5/Y\nurl:     http://Z/\nstatus: failed\n"
     ids = b._existing_ids(text)

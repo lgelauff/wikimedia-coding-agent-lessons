@@ -70,3 +70,28 @@ def test_backends_select_web_and_dedup_by_url(monkeypatch):
 def test_unknown_backend_is_skipped_not_fatal(monkeypatch):
     # bogus backend raises inside _call_backend -> caught, run still returns
     assert sd.run(["q"], backends=["bogus"]) == []
+
+
+def test_host_blocking_ssrf():
+    for bad in ["http://localhost/x", "http://127.0.0.1/x", "http://169.254.169.254/latest",
+                "http://10.0.0.5/", "http://192.168.1.1/", "http://[::1]/", "http://foo.local/"]:
+        assert not sd._safe_public_url(bad), f"should block {bad}"
+    for ok in ["http://demos.co.uk/r.pdf", "https://arxiv.org/abs/x"]:
+        assert sd._safe_public_url(ok), f"should allow {ok}"
+
+
+def test_safe_public_url_rejects_non_http_scheme():
+    assert not sd._safe_public_url("file:///etc/passwd")
+    assert not sd._safe_public_url("gopher://x/")
+
+
+def test_clean_collapses_control_chars():
+    assert sd._clean("a\nb\tc\x00d") == "a b c d"
+
+
+def test_search_web_drops_ssrf_candidates(monkeypatch):
+    html = ('<a class="result__a" href="http://169.254.169.254/meta">metadata</a>'
+            '<a class="result__a" href="https://demos.co.uk/ok.pdf">good</a>')
+    monkeypatch.setattr(sd, "_get_text", lambda url, data=None: html)
+    out = sd.search_web("q")
+    assert len(out) == 1 and out[0]["url"] == "https://demos.co.uk/ok.pdf"

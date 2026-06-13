@@ -181,17 +181,14 @@ def main() -> int:
     ap.add_argument("--steps", metavar="JSON", help="path to a JSON list of step dicts")
     a = ap.parse_args()
 
-    steps = None
-    if a.steps:
-        steps = json.loads(pathlib.Path(a.steps).read_text(encoding="utf-8"))
-
     try:
+        steps = json.loads(pathlib.Path(a.steps).read_text(encoding="utf-8")) if a.steps else None
         out = capture(
             a.url, a.out, base_url=a.base_url, config=a.config, login=a.login,
             viewport=_parse_viewport(a.viewport), clip=a.clip, wait=a.wait,
             dark=a.dark, steps=steps,
         )
-    except Exception as e:  # render/navigation failure
+    except Exception as e:  # bad --steps/--viewport, or render/navigation failure
         print(f"capture failed: {e}", file=sys.stderr)
         return 1
     print(out)                       # path on stdout, like fetch.py — callers capture this

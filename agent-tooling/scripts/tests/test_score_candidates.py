@@ -21,6 +21,18 @@ def test_extracts_json_from_chatty_reply(monkeypatch):
     assert sc.score_one("f", {"title": "T"})["x_verdict"] == "drop"
 
 
+def test_float_score_does_not_drop_a_keep(monkeypatch):
+    # the bug: int("85.0") used to throw -> whole candidate downgraded to maybe/0
+    _mock(monkeypatch, '{"verdict":"keep","score":"85.0"}')
+    out = sc.score_one("f", {"title": "T"})
+    assert out["x_verdict"] == "keep" and out["x_score"] == 85 and not out["x_score_failed"]
+
+
+def test_total_failure_flags_score_failed(monkeypatch):
+    _mock(monkeypatch, "garbage")
+    assert sc.score_one("f", {"title": "T"})["x_score_failed"] is True
+
+
 def test_clamps_score_and_defaults_bad_verdict(monkeypatch):
     _mock(monkeypatch, '{"verdict":"perfect","score":900}')
     out = sc.score_one("f", {"title": "T"})

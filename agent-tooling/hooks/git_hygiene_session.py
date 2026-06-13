@@ -10,9 +10,14 @@ Silent when the repo is clean (no noise). Never blocks; fails open.
 import json
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.pardir, "scripts"))
 from git_hygiene import scan_repo, is_dirty, format_report  # noqa: E402
+
+# Hard wall-clock budget for the whole scan — session start must stay snappy even
+# with many worktrees. Per-call git timeouts + this deadline bound total latency.
+SCAN_BUDGET_S = float(os.environ.get("GIT_HYGIENE_BUDGET_S", "4"))
 
 
 def main() -> int:
@@ -23,7 +28,7 @@ def main() -> int:
     repo = d.get("cwd") or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
 
     try:
-        r = scan_repo(repo)
+        r = scan_repo(repo, deadline=time.monotonic() + SCAN_BUDGET_S)
     except Exception:
         return 0  # advisory: never break session start
     if not is_dirty(r):

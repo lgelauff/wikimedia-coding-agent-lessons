@@ -36,6 +36,48 @@ def test_http_provider_requires_key(monkeypatch):
         assert "MISTRAL_API_KEY" in str(e)
 
 
+def test_claude_code_strips_routing_env_keeps_oauth(monkeypatch):
+    import types
+    cap = {}
+    def fake_run(cmd, **kw):
+        cap["env"] = kw.get("env", {})
+        return types.SimpleNamespace(returncode=0, stdout="ok", stderr="")
+    monkeypatch.setattr(lp.subprocess, "run", fake_run)
+    for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL",
+              "AWS_SECRET_ACCESS_KEY", "CLAUDE_CODE_USE_BEDROCK", "HTTPS_PROXY"):
+        monkeypatch.setenv(k, "x")
+    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "tok")
+    assert lp._claude_code("hi", None, None, 10) == "ok"
+    env = cap["env"]
+    for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL",
+              "AWS_SECRET_ACCESS_KEY", "CLAUDE_CODE_USE_BEDROCK", "HTTPS_PROXY"):
+        assert k not in env, f"{k} should be stripped"
+    assert env.get("CLAUDE_CODE_OAUTH_TOKEN") == "tok"   # subscription token kept
+
+
+def test_query_llm_retries_then_succeeds(monkeypatch):
+    monkeypatch.setenv("AGENT_LLM_PROVIDER", "claude-code")
+    monkeypatch.setattr(lp.time, "sleep", lambda s: None)
+    n = {"c": 0}
+    def flaky(p, s, m, t):
+        n["c"] += 1
+        if n["c"] < 2:
+            raise RuntimeError("429 rate limit")
+        return "ok"
+    monkeypatch.setattr(lp, "_claude_code", flaky)
+    assert lp.query_llm("x", retries=2) == "ok" and n["c"] == 2
+
+
+def test_query_llm_does_not_retry_bad_provider(monkeypatch):
+    monkeypatch.setenv("AGENT_LLM_PROVIDER", "bogus")
+    monkeypatch.setattr(lp.time, "sleep", lambda s: (_ for _ in ()).throw(AssertionError("slept")))
+    try:
+        lp.query_llm("x")
+        assert False
+    except ValueError:
+        pass
+
+
 def test_dispatch_routes_to_claude_code(monkeypatch):
     monkeypatch.setenv("AGENT_LLM_PROVIDER", "claude-code")
     calls = {}

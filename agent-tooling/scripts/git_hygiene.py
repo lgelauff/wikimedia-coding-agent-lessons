@@ -17,10 +17,18 @@ import os
 import pathlib
 import subprocess
 import sys
+import time
 
 
-def _git(repo: str, *args: str) -> str:
-    r = subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True)
+def _git(repo: str, *args: str, timeout: float = 5.0) -> str:
+    # --no-optional-locks: never take index.lock (read-only safety on a busy repo).
+    # timeout: this runs on the SessionStart critical path — a hung cred helper,
+    # NFS worktree, or stale lock must not block the session. A hang reads as "".
+    try:
+        r = subprocess.run(["git", "--no-optional-locks", "-C", repo, *args],
+                           capture_output=True, text=True, timeout=timeout)
+    except (subprocess.TimeoutExpired, OSError):
+        return ""
     return r.stdout if r.returncode == 0 else ""
 
 
@@ -47,17 +55,30 @@ def _parse_worktrees(text: str) -> list[str]:
     return paths[1:] if len(paths) > 1 else []
 
 
-def scan_repo(repo: str) -> dict:
+def _unpushed(repo: str) -> tuple[int, bool]:
+    """(count, no_upstream). With an upstream: commits ahead of it. Without one:
+    commits not reachable from any remote — the 'forgot to push a new branch' case
+    a plain @{u} check reports as 0."""
+    has_upstream = bool(_git(repo, "rev-parse", "--abbrev-ref",
+                             "--symbolic-full-name", "@{u}").strip())
+    if has_upstream:
+        return _count_lines(_git(repo, "log", "--oneline", "@{u}..HEAD")), False
+    return _count_lines(_git(repo, "log", "--oneline", "HEAD", "--not", "--remotes")), True
+
+
+def scan_repo(repo: str, deadline: float | None = None) -> dict:
     repo = str(pathlib.Path(repo).resolve())
     inside = _git(repo, "rev-parse", "--is-inside-work-tree").strip()
     if inside != "true":
         return {"repo": repo, "is_repo": False}
     tracked, untracked = _classify_porcelain(_git(repo, "status", "--porcelain"))
     stashes = _count_lines(_git(repo, "stash", "list"))
-    # unpushed: empty if no upstream
-    unpushed = _count_lines(_git(repo, "log", "--oneline", "@{u}..HEAD"))
-    dirty_worktrees = []
+    unpushed, no_upstream = _unpushed(repo)
+    dirty_worktrees, partial = [], False
     for wt in _parse_worktrees(_git(repo, "worktree", "list", "--porcelain")):
+        if deadline is not None and time.monotonic() > deadline:
+            partial = True
+            break
         wt_tracked, wt_untracked = _classify_porcelain(_git(wt, "status", "--porcelain"))
         if wt_tracked or wt_untracked:
             dirty_worktrees.append({"path": wt, "uncommitted": wt_tracked, "untracked": wt_untracked})
@@ -65,8 +86,8 @@ def scan_repo(repo: str) -> dict:
         "repo": repo, "is_repo": True,
         "branch": _git(repo, "rev-parse", "--abbrev-ref", "HEAD").strip(),
         "uncommitted": tracked, "untracked": untracked,
-        "stashes": stashes, "unpushed": unpushed,
-        "dirty_worktrees": dirty_worktrees,
+        "stashes": stashes, "unpushed": unpushed, "no_upstream": no_upstream,
+        "dirty_worktrees": dirty_worktrees, "partial_scan": partial,
     }
 
 
@@ -85,7 +106,7 @@ def summarize(r: dict) -> str:
     if r.get("stashes"):
         bits.append(f"{r['stashes']} stash{'es' if r['stashes'] > 1 else ''}")
     if r.get("unpushed"):
-        bits.append(f"{r['unpushed']} unpushed")
+        bits.append(f"{r['unpushed']} unpushed" + (" (no upstream)" if r.get("no_upstream") else ""))
     if r.get("dirty_worktrees"):
         bits.append(f"{len(r['dirty_worktrees'])} dirty worktree(s)")
     return ", ".join(bits)
@@ -102,6 +123,8 @@ def format_report(reports: list[dict]) -> str:
         for wt in r["dirty_worktrees"]:
             wtn = pathlib.Path(wt["path"]).name
             lines.append(f"      ↳ worktree {wtn}: {wt['uncommitted']} uncommitted, {wt['untracked']} untracked")
+        if r.get("partial_scan"):
+            lines.append("      (partial — worktree scan hit the time budget)")
     return "\n".join(lines)
 
 
@@ -114,7 +137,8 @@ def main() -> int:
 
     if a.root:
         root = pathlib.Path(a.root).expanduser()
-        reports = [scan_repo(str(p)) for p in sorted(root.iterdir()) if (p / ".git").exists()]
+        reports = [scan_repo(str(p)) for p in sorted(root.iterdir())
+                   if p.is_dir() and not p.is_symlink() and (p / ".git").exists()]
     else:
         reports = [scan_repo(a.repo)]
 

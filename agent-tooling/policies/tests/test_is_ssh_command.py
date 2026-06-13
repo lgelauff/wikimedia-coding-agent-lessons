@@ -15,6 +15,10 @@ def test_blocks_ssh_family():
         "rsync -avz -e ssh ./ user@host:/srv",
         "cd /tmp && ssh host uptime",      # after a separator
         "echo hi | ssh host cat",           # after a pipe
+        "x=$(ssh host hostname)",           # command substitution
+        "`ssh host id`",                    # backtick substitution
+        "(ssh host uptime)",                # subshell
+        "true & ssh host uptime",           # single-& background
     ]:
         assert p.is_ssh(cmd), f"should block: {cmd}"
 

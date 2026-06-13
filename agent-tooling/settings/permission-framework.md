@@ -17,7 +17,7 @@ Companion: [`allowlist.md`](allowlist.md) (the mechanics of writing an entry).
 ## Decisions (2026-06-11)
 
 - **Gating model: HYBRID.** Static allow-lists for safe routine ops; plugin hooks that *ask* on risky ops (writes/push/delete) and *block* the never-allowed (merge/close, ssh). dp's github-write hook is the reference for the `ask` pattern.
-- **Read scope: TIGHTEN.** Replace `Read(//Users/**)` with `Read(~/Documents/GitHub/**)` + `Read(//tmp/**)`. Restores the "nothing outside the working tree" boundary.
+- **Read scope: PERMISSIVE (revised 2026-06-11).** Reads are low-risk — don't gate or ask on them; broad read allows are fine. The confirmation gate is NOT on reads but on **per-repo config setup** (writing/editing a repo's `.claude/settings.local.json`, `dev-stack.json`, `pr-check.json`): show the proposed config and get an explicit yes before it lands. (Supersedes the initial "tighten reads to GitHub/+/tmp" call.)
 - **L1 baseline: LEAN.** Only universally-safe low-risk allows globally; everything else prompts or lives per-repo.
 
 ## The three layers
@@ -34,7 +34,7 @@ L2 is installed once and is the single source for gating hooks — never re-wire
 
 | # | Category | Home | Mode |
 |---|---|---|---|
-| 1 | Reads (path scopes) | L1 if universal, L3 if repo paths | allow |
+| 1 | Reads (path scopes) | L1, broad | allow (low-risk; never gated) |
 | 2 | VCS & GitHub ops | L2 | ask (any write) / deny (catastrophic: repo delete) |
 | 3 | Package / build / test runners | L3 | allow |
 | 4 | Dev-server / container lifecycle | L3 + L2 reminder | allow |

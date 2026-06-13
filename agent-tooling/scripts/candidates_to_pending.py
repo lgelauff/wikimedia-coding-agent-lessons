@@ -18,6 +18,7 @@ Then:  cd research-vault && uv run ingest.py --collect
 """
 import argparse
 import json
+import re
 import sys
 
 BLOCK = ("---\n"
@@ -31,7 +32,10 @@ BLOCK = ("---\n"
 
 def _query_line(c: dict) -> str:
     authors = ", ".join((c.get("authors") or [])[:3])
-    return " ".join(str(x) for x in [c.get("title", ""), authors, c.get("year", "")] if x).strip()
+    line = " ".join(str(x) for x in [c.get("title", ""), authors, c.get("year", "")] if x).strip()
+    # collapse newlines/control chars: this becomes a single `query:` line, and a
+    # stray newline could inject a spurious `url:`/`status:` field into the block.
+    return re.sub(r"[\x00-\x1f\x7f]+", " ", line).strip()
 
 
 def _existing_ids(pending_text: str) -> set[str]:
@@ -79,7 +83,8 @@ def main() -> int:
                     help="include all candidates (default: scored input -> keep only)")
     a = ap.parse_args()
 
-    cands = [json.loads(ln) for ln in open(a.infile, encoding="utf-8") if ln.strip()]
+    with open(a.infile, encoding="utf-8") as f:
+        cands = [json.loads(ln) for ln in f if ln.strip()]
     if not a.all and any("x_verdict" in c for c in cands):
         cands = [c for c in cands if c.get("x_verdict") == "keep"]
 
@@ -87,7 +92,8 @@ def main() -> int:
     prior = ""
     if a.pending:
         try:
-            prior = open(a.pending, encoding="utf-8").read()
+            with open(a.pending, encoding="utf-8") as f:
+                prior = f.read()
             existing = _existing_ids(prior)
         except FileNotFoundError:
             pass
@@ -95,8 +101,12 @@ def main() -> int:
     blocks, skipped = to_blocks(cands, a.project, a.added, existing)
     text = "".join(blocks)
     if a.pending:
+        # guarantee a block boundary: if the file has content not ending in a
+        # newline, our leading `---` would glue onto the prior line and ingest's
+        # `\n---\n` split would merge two entries.
+        sep = "\n" if (prior and not prior.endswith("\n") and text) else ""
         with open(a.pending, "a", encoding="utf-8") as f:
-            f.write(text)
+            f.write(sep + text)
         print(f"appended {len(blocks)} blocks ({skipped} skipped: dup/no-id) -> {a.pending}",
               file=sys.stderr)
         print("next: cd research-vault && uv run ingest.py --collect", file=sys.stderr)

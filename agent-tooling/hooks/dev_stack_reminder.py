@@ -22,10 +22,15 @@ FAREWELL = re.compile(r"\b(bye|good ?night|goodnight|ciao|see you|ttyl|signing o
 
 def should_remind(prompt: str, config: dict | None) -> dict | None:
     """Pure decision: returns the config if a reminder is warranted, else None.
-    (Container-running check is done by the caller — this stays testable.)"""
+    (Container-running check is done by the caller — this stays testable.)
+
+    Only fires on a *short* prompt that is genuinely a sign-off — otherwise a
+    long message that merely contains "see you" or "that's all" would trip it.
+    """
     if not config or not config.get("container_filter") or not config.get("stop_command"):
         return None
-    if not FAREWELL.search(prompt or ""):
+    p = (prompt or "").strip()
+    if len(p) > 60 or not FAREWELL.search(p):   # a real goodbye is brief
         return None
     return config
 
@@ -40,7 +45,8 @@ def main() -> int:
     config = None
     if os.path.isfile(cfg_path):
         try:
-            config = json.load(open(cfg_path, encoding="utf-8"))
+            with open(cfg_path, encoding="utf-8") as f:
+                config = json.load(f)
         except (OSError, json.JSONDecodeError):
             return 0
 

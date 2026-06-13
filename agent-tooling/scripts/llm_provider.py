@@ -22,6 +22,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import urllib.request
 
 
@@ -33,9 +34,7 @@ def _model(default: str | None = None) -> str | None:
     return os.environ.get("AGENT_LLM_MODEL") or default
 
 
-def query_llm(prompt: str, system: str | None = None, *,
-              model: str | None = None, timeout: int = 180) -> str:
-    """Single-shot completion. Returns the model's text. Raises on failure."""
+def _dispatch(prompt: str, system: str | None, model: str | None, timeout: int) -> str:
     p = _provider()
     if p == "claude-code":
         return _claude_code(prompt, system, _model(model), timeout)
@@ -48,6 +47,27 @@ def query_llm(prompt: str, system: str | None = None, *,
                           "MISTRAL_API_KEY", _model(model) or "mistral-small-latest",
                           prompt, system, timeout)
     raise ValueError(f"unknown AGENT_LLM_PROVIDER: {p!r} (claude-code|openrouter|mistral)")
+
+
+def query_llm(prompt: str, system: str | None = None, *,
+              model: str | None = None, timeout: int = 180, retries: int = 2) -> str:
+    """Single-shot completion. Returns the model's text. Raises on failure.
+
+    Bounded retry with exponential backoff so a transient rate-limit/5xx wall
+    doesn't turn into a silent batch-wide failure at the caller. A ValueError
+    (bad provider config) is not retried — it won't fix itself.
+    """
+    last = None
+    for attempt in range(retries + 1):
+        try:
+            return _dispatch(prompt, system, model, timeout)
+        except ValueError:
+            raise
+        except Exception as e:  # noqa: BLE001 — network/CLI/rate-limit, worth a retry
+            last = e
+            if attempt < retries:
+                time.sleep(2 ** attempt)
+    raise RuntimeError(f"query_llm failed after {retries + 1} attempts: {last}")
 
 
 def _claude_code(prompt: str, system: str | None, model: str | None, timeout: int) -> str:
@@ -64,8 +84,15 @@ def _claude_code(prompt: str, system: str | None, model: str | None, timeout: in
         cmd += ["--append-system-prompt", system]
     if model:
         cmd += ["--model", model]
+    # Scrub anything that would misroute the spawned CLI off the subscription
+    # OAuth: an outer session injects ANTHROPIC_BASE_URL/API_KEY; bedrock/vertex/
+    # proxy routing vars would redirect or exfil. Strip by prefix; KEEP
+    # CLAUDE_CODE_OAUTH_TOKEN (the subscription token, not an ANTHROPIC_* name).
+    _STRIP_PREFIXES = ("ANTHROPIC_", "AWS_", "CLAUDE_CODE_USE_")
+    _STRIP_EXACT = {"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy",
+                    "https_proxy", "all_proxy", "NO_PROXY"}
     env = {k: v for k, v in os.environ.items()
-           if k not in ("ANTHROPIC_BASE_URL", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
+           if not k.startswith(_STRIP_PREFIXES) and k not in _STRIP_EXACT}
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env)
     if r.returncode != 0:
         raise RuntimeError(
@@ -87,7 +114,10 @@ def _http_chat(url: str, key_env: str, model: str, prompt: str,
         "Authorization": f"Bearer {key}", "Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         data = json.loads(resp.read())
-    return data["choices"][0]["message"]["content"].strip()
+    try:
+        return data["choices"][0]["message"]["content"].strip()
+    except (KeyError, IndexError, TypeError) as e:
+        raise RuntimeError(f"unexpected LLM response shape: {str(data)[:200]}") from e
 
 
 def main() -> int:

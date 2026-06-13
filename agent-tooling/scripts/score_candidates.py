@@ -43,19 +43,33 @@ def _prompt(focus: str, c: dict) -> str:
 
 
 def score_one(focus: str, c: dict) -> dict:
-    """Return the candidate annotated with x_verdict/x_score/x_reason."""
+    """Return the candidate annotated with x_verdict/x_score/x_reason.
+
+    Verdict and score are parsed independently: a malformed *score* ("85.0",
+    "~90") must NOT downgrade an otherwise-valid `keep` to maybe/0 (which
+    --keep-only would then silently drop). x_score_failed flags a total failure
+    (LLM/JSON), so the caller can detect a poisoned batch.
+    """
+    v, failed = {}, False
     try:
         raw = query_llm(_prompt(focus, c), system=SYSTEM)
         m = re.search(r"\{.*\}", raw, re.DOTALL)
-        v = json.loads(m.group(0)) if m else {}
-        verdict = str(v.get("verdict", "maybe")).lower()
-        if verdict not in ("keep", "maybe", "drop"):
-            verdict = "maybe"
-        score = int(v.get("score", 0))
-    except Exception as e:  # a bad LLM reply shouldn't lose the candidate
-        verdict, score, v = "maybe", 0, {"reason": f"score-failed: {str(e)[:80]}"}
+        if m:
+            v = json.loads(m.group(0))
+        else:                       # model returned no JSON object — non-compliant
+            v, failed = {"reason": "score-failed: no JSON in reply"}, True
+    except Exception as e:  # LLM call / JSON-parse failure: keep the candidate, flag it
+        v, failed = {"reason": f"score-failed: {str(e)[:80]}"}, True
+
+    verdict = str(v.get("verdict", "maybe")).lower()
+    if verdict not in ("keep", "maybe", "drop"):
+        verdict = "maybe"
+    try:
+        score = int(float(v.get("score", 0)))   # tolerate "85.0", 85, "85"
+    except (TypeError, ValueError):
+        score = 0
     return {**c, "x_verdict": verdict, "x_score": max(0, min(100, score)),
-            "x_reason": str(v.get("reason", ""))[:200]}
+            "x_reason": str(v.get("reason", ""))[:200], "x_score_failed": failed}
 
 
 def run(candidates: list[dict], focus: str, limit: int | None = None) -> list[dict]:
@@ -76,22 +90,35 @@ def main() -> int:
     ap.add_argument("--limit", type=int, help="score at most N candidates")
     a = ap.parse_args()
 
-    focus = a.focus or (open(a.focus_file, encoding="utf-8").read().strip() if a.focus_file else None)
+    if a.focus_file:
+        with open(a.focus_file, encoding="utf-8") as f:
+            focus = f.read().strip()
+    else:
+        focus = a.focus
     if not focus:
         ap.error("provide --focus or --focus-file")
 
-    cands = [json.loads(ln) for ln in open(a.infile, encoding="utf-8") if ln.strip()]
+    with open(a.infile, encoding="utf-8") as f:
+        cands = [json.loads(ln) for ln in f if ln.strip()]
     scored = run(cands, focus, a.limit)
     if a.keep_only:
         scored = [c for c in scored if c["x_verdict"] == "keep"]
 
+    failed = sum(1 for c in scored if c.get("x_score_failed"))
     lines = [json.dumps(c, ensure_ascii=False) for c in scored]
     if a.out:
-        open(a.out, "w", encoding="utf-8").write("\n".join(lines) + ("\n" if lines else ""))
+        with open(a.out, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + ("\n" if lines else ""))
         kept = sum(1 for c in scored if c["x_verdict"] == "keep")
         print(f"{len(scored)} scored ({kept} keep) -> {a.out}", file=sys.stderr)
     else:
         print("\n".join(lines))
+    if failed:
+        # a rate-limit wall / model outage shouldn't pass silently as 'all maybe'
+        print(f"WARNING: {failed} candidate(s) failed to score (LLM/parse) — "
+              "results may be incomplete; check AGENT_LLM_PROVIDER / rate limits.",
+              file=sys.stderr)
+        return 2
     return 0
 
 

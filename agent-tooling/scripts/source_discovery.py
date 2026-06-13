@@ -28,6 +28,7 @@ Each output line is one candidate:
 """
 import argparse
 import html
+import ipaddress
 import json
 import os
 import re
@@ -154,6 +155,37 @@ _DDG_RESULT = re.compile(
 _TAGS = re.compile(r"<[^>]+>")
 
 
+_BLOCKED_HOST_SUFFIXES = (".local", ".internal", ".localhost")
+
+
+def _host_is_blocked(host: str) -> bool:
+    host = (host or "").strip().lower().rstrip(".")
+    if not host or host == "localhost" or host.endswith(_BLOCKED_HOST_SUFFIXES):
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False  # ordinary hostname; DNS-rebind SSRF is the fetcher's job
+    return (ip.is_private or ip.is_loopback or ip.is_link_local
+            or ip.is_reserved or ip.is_multicast or ip.is_unspecified)
+
+
+def _safe_public_url(url: str) -> bool:
+    """http/https to a non-private, non-metadata host. First-line SSRF guard
+    before a scraped URL is emitted toward the fetcher."""
+    try:
+        p = urllib.parse.urlparse(url)
+    except ValueError:
+        return False
+    return p.scheme in ("http", "https") and not _host_is_blocked(p.hostname or "")
+
+
+def _clean(text: str) -> str:
+    """Collapse newlines/control chars so a scraped value can't inject a new
+    field into a downstream line-oriented format (e.g. pending.txt `url:`)."""
+    return re.sub(r"[\x00-\x1f\x7f]+", " ", text or "").strip()
+
+
 def _ddg_unwrap(href: str) -> str:
     """DuckDuckGo wraps result links as //duckduckgo.com/l/?uddg=<encoded>."""
     if "uddg=" in href:
@@ -173,12 +205,13 @@ def search_web(query: str, per_query: int = 25) -> list[dict]:
     """
     body = urllib.parse.urlencode({"q": query}).encode()
     page = _get_text("https://html.duckduckgo.com/html/", data=body)
-    out = []
+    out, matched = [], 0
     for href, title_html in _DDG_RESULT.findall(page):
+        matched += 1
         link = _ddg_unwrap(href)
-        title = html.unescape(_TAGS.sub("", title_html)).strip()
-        if not link.startswith("http"):
+        if not _safe_public_url(link):       # SSRF guard: scheme + private/metadata hosts
             continue
+        title = _clean(html.unescape(_TAGS.sub("", title_html)))
         out.append({
             "title": title, "authors": [], "year": None, "doi": None,
             "oa_pdf_url": None, "url": link, "source_api": "web",
@@ -186,6 +219,9 @@ def search_web(query: str, per_query: int = 25) -> list[dict]:
         })
         if len(out) >= per_query:
             break
+    if page.strip() and matched == 0:        # markup drift / 429 / block page
+        print(f"WARN web backend: non-empty page but 0 results parsed for {query!r} "
+              "(DuckDuckGo markup change or rate-limit?)", file=sys.stderr)
     return out
 
 
@@ -244,8 +280,8 @@ def run(queries: list[str], per_query: int = 25, from_year: int | None = None,
 def _read_queries(args) -> list[str]:
     qs = list(args.query or [])
     if args.queries_file:
-        qs += [ln.strip() for ln in open(args.queries_file, encoding="utf-8")
-                if ln.strip() and not ln.startswith("#")]
+        with open(args.queries_file, encoding="utf-8") as f:
+            qs += [ln.strip() for ln in f if ln.strip() and not ln.startswith("#")]
     if not qs and not sys.stdin.isatty():
         qs += [ln.strip() for ln in sys.stdin if ln.strip()]
     return qs
@@ -257,7 +293,9 @@ def main() -> int:
     ap.add_argument("--query", action="append", help="a search query (repeatable)")
     ap.add_argument("--queries-file", help="file with one query per line (# comments ok)")
     ap.add_argument("--out", help="write JSONL here (default: stdout)")
-    ap.add_argument("--per-query", type=int, default=25, help="max results per query per backend")
+    ap.add_argument("--per-query", type=int, default=25,
+                    help="max results per query per backend (single page; capped by the "
+                         "API at 200 OpenAlex / 100 Crossref — no cursor paging)")
     ap.add_argument("--from-year", type=int, help="only works published on/after this year")
     ap.add_argument("--open-access-only", action="store_true", help="OpenAlex: OA works only")
     ap.add_argument("--backends", default="openalex",

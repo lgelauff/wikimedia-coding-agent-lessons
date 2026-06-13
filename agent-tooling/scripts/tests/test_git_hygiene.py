@@ -32,6 +32,18 @@ def test_summarize_lists_signals():
     assert "2 uncommitted" in s and "1 untracked" in s and "3 unpushed" in s and "stash" not in s
 
 
+def test_summarize_flags_no_upstream():
+    r = {"uncommitted": 0, "untracked": 0, "stashes": 0, "unpushed": 4,
+         "no_upstream": True, "dirty_worktrees": []}
+    assert "4 unpushed (no upstream)" in g.summarize(r)
+
+
+def test_format_report_notes_partial_scan():
+    r = {"is_repo": True, "uncommitted": 1, "untracked": 0, "stashes": 0, "unpushed": 0,
+         "branch": "main", "repo": "/r", "dirty_worktrees": [], "partial_scan": True}
+    assert "partial" in g.format_report([r])
+
+
 def test_format_report_empty_when_clean():
     clean = {"is_repo": True, "uncommitted": 0, "untracked": 0, "stashes": 0,
              "unpushed": 0, "dirty_worktrees": [], "branch": "main", "repo": "/r"}

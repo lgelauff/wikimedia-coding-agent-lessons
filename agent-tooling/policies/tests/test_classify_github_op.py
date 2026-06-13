@@ -12,6 +12,13 @@ def test_deny_catastrophic():
         assert v and v[0] == "deny", cmd
 
 
+def test_gh_api_delete_repo_is_deny_not_ask():
+    for cmd in ["gh api -X DELETE /repos/owner/name",
+                "gh api --method DELETE /repos/o/n/releases/12"]:
+        v = p.classify(cmd)
+        assert v and v[0] == "deny", cmd
+
+
 def test_ask_writes():
     for cmd in [
         "gh pr comment 5 -b hi",

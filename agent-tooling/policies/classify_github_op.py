@@ -26,6 +26,10 @@ import sys
 DENY = [
     (r"\bgh repo (delete|archive)\b", "Deletes or archives a GitHub repository — irreversible."),
     (r"\bgh release delete\b", "Deletes a GitHub release — irreversible."),
+    # gh api DELETE against a repo/release endpoint = the same irreversible op as
+    # `gh repo/release delete`; deny rather than merely ask (checked before ASK).
+    (r"\bgh api\b.*(?:-X|--method)\s*DELETE\b.*/repos/[^/\s]+/[^/\s]+",
+     "gh api DELETE against a repo endpoint — potentially irreversible deletion."),
 ]
 ASK = [
     (r"\bgh api\b.*(-X|--method)\s*(POST|PUT|PATCH|DELETE)", "gh api write (POST/PUT/PATCH/DELETE)"),
