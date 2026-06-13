@@ -7,6 +7,9 @@
       { "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/github_write_permission.py\"" }] },
       { "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/openrouter_permission.sh\"" }] }
     ],
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/git_hygiene_session.py\"" }] }
+    ],
     "UserPromptSubmit": [
       { "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/dev_stack_reminder.py\"" }] }
     ],
