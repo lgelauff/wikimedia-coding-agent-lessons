@@ -72,6 +72,58 @@ def test_unknown_backend_is_skipped_not_fatal(monkeypatch):
     assert sd.run(["q"], backends=["bogus"]) == []
 
 
+def _http_error(code, retry_after=None):
+    import email.message
+    import urllib.error
+    h = email.message.Message()
+    if retry_after is not None:
+        h["Retry-After"] = retry_after
+    return urllib.error.HTTPError("http://x", code, "err", h, None)
+
+
+def test_retry_after_honors_seconds_then_backoff():
+    assert sd._retry_after(_http_error(429, "5"), 0) == 5.0
+    assert sd._retry_after(_http_error(429, "Wed, 21 Oct 2099 07:28:00 GMT"), 2) == 4  # date -> backoff
+    assert sd._retry_after(_http_error(503, None), 3) == 8                              # 2**3
+
+
+def test_read_retries_on_429_then_succeeds(monkeypatch):
+    import urllib.request
+
+    class _Resp:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return b"OK"
+
+    calls = {"n": 0}
+
+    def fake_open(req, timeout=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise _http_error(429, "0")
+        return _Resp()
+
+    monkeypatch.setattr(sd, "_rate_limit", lambda url: None)
+    monkeypatch.setattr(sd.time, "sleep", lambda s: None)
+    monkeypatch.setattr(urllib.request, "urlopen", fake_open)
+    assert sd._read(urllib.request.Request("http://x")) == b"OK"
+    assert calls["n"] == 2   # retried once
+
+
+def test_read_raises_after_exhausting_retries(monkeypatch):
+    import urllib.request
+    monkeypatch.setattr(sd, "_rate_limit", lambda url: None)
+    monkeypatch.setattr(sd.time, "sleep", lambda s: None)
+    monkeypatch.setattr(urllib.request, "urlopen",
+                        lambda req, timeout=None: (_ for _ in ()).throw(_http_error(503, "0")))
+    import urllib.error
+    try:
+        sd._read(urllib.request.Request("http://x"))
+        assert False, "should raise"
+    except urllib.error.HTTPError as e:
+        assert e.code == 503
+
+
 def test_host_blocking_ssrf():
     for bad in ["http://localhost/x", "http://127.0.0.1/x", "http://169.254.169.254/latest",
                 "http://10.0.0.5/", "http://192.168.1.1/", "http://[::1]/", "http://foo.local/"]:

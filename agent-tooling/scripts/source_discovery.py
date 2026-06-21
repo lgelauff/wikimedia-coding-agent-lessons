@@ -34,6 +34,7 @@ import os
 import re
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -55,18 +56,56 @@ def _rate_limit(url: str) -> None:
     _last_per_host[host] = time.time()
 
 
+RETRIES = 3
+RETRYABLE = {429, 500, 502, 503, 504}
+
+
+def _retry_after(e: urllib.error.HTTPError, attempt: int) -> float:
+    """Honor the server's Retry-After header; else exponential backoff (cap 30s)."""
+    ra = e.headers.get("Retry-After") if e.headers else None
+    if ra:
+        try:
+            return min(float(ra), 60.0)          # seconds form
+        except ValueError:
+            pass                                  # HTTP-date form: fall through
+    return min(2 ** attempt, 30)
+
+
+def _read(req: urllib.request.Request) -> bytes:
+    """GET/POST with polite rate-limit + backoff on 429/5xx (Retry-After honored).
+
+    Document retrieval (Wayback/CDX) is IP-throttled and 429s under load — and an
+    auth key does NOT raise those limits, so backoff is the real fix.
+    """
+    for attempt in range(RETRIES + 1):
+        _rate_limit(req.full_url)
+        try:
+            with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+                return resp.read()
+        except urllib.error.HTTPError as e:
+            if e.code in RETRYABLE and attempt < RETRIES:
+                wait = _retry_after(e, attempt)
+                print(f"WARN {e.code} on {req.full_url} — retry in {wait:.0f}s "
+                      f"({attempt + 1}/{RETRIES})", file=sys.stderr)
+                time.sleep(wait)
+                continue
+            raise
+        except urllib.error.URLError:
+            if attempt < RETRIES:
+                time.sleep(min(2 ** attempt, 30))
+                continue
+            raise
+    raise RuntimeError(f"unreachable: retries exhausted for {req.full_url}")
+
+
 def _get_json(url: str) -> dict:
-    _rate_limit(url)
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    return json.loads(_read(req).decode("utf-8"))
 
 
 def _get_text(url: str, data: bytes | None = None) -> str:
-    _rate_limit(url)
     req = urllib.request.Request(url, data=data, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-        return resp.read().decode("utf-8", errors="replace")
+    return _read(req).decode("utf-8", errors="replace")
 
 
 def _reconstruct_abstract(inv: dict | None) -> str:
