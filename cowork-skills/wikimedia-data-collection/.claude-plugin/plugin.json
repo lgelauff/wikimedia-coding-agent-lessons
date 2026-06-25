@@ -1,0 +1,7 @@
+{
+  "name": "wikimedia-data-collection",
+  "version": "0.1.0",
+  "description": "Claude Cowork skills for collecting Wikimedia data via official APIs (MediaWiki Action API, Wikidata SPARQL, REST/AQS analytics, Phabricator Conduit) — API-first, never scraping. Designed for Cowork's sandboxed VM + /outputs/ deliverable model.",
+  "author": { "name": "Lodewijk Gelauff" },
+  "homepage": "https://github.com/lgelauff/wikimedia-coding-agent-lessons/tree/main/cowork-skills/wikimedia-data-collection"
+}
