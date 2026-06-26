@@ -1,0 +1,7 @@
+{
+  "name": "write-in-my-voice",
+  "version": "0.1.0",
+  "description": "Claude Cowork skill to draft formal letters and emails in YOUR own written voice from dictated/rough input — a bounded transcription-and-organize transform (not co-authoring), with anti-AI-tell constraints. Built for accessibility: speak/ramble, get back what you would have typed.",
+  "author": { "name": "Lodewijk Gelauff" },
+  "homepage": "https://github.com/lgelauff/wikimedia-coding-agent-lessons/tree/main/cowork-skills/write-in-my-voice"
+}

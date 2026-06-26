@@ -16,6 +16,12 @@
       "version": "0.1.0",
       "description": "Claude Cowork skills for collecting Wikimedia data via official APIs (Action API, Wikidata SPARQL, REST/AQS, Phabricator Conduit) — API-first, never scraping.",
       "source": "./cowork-skills/wikimedia-data-collection"
+    },
+    {
+      "name": "write-in-my-voice",
+      "version": "0.1.0",
+      "description": "Cowork skill: draft formal letters/emails in your own written voice from dictated/rough input — bounded organize-and-transcribe, anti-AI-tell, accessibility-oriented.",
+      "source": "./cowork-skills/write-in-my-voice"
     }
   ]
 }
