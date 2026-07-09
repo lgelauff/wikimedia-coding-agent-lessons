@@ -108,6 +108,14 @@ def gui_prompt(message, hidden=False):
 
 
 def get_credentials():
+    username, password = _prompt_credentials()
+    # The login endpoint is case-sensitive on username and rejects a capitalized
+    # one with a generic "Incorrect username or password" (looks like a wrong
+    # password, not a case mismatch) — normalize here so callers never hit that.
+    return username.lower(), password
+
+
+def _prompt_credentials():
     _agent_secrets.load_into_environ()
     username = os.environ.get("WIKIMEDIA_ENTERPRISE_USERNAME")
     password = os.environ.get("WIKIMEDIA_ENTERPRISE_PASSWORD")

@@ -97,6 +97,17 @@ def test_env_credentials_skip_prompt(monkeypatch, tmp_path):
     assert wea.get_credentials() == ("alice", "s3cret")
 
 
+def test_username_is_lowercased(monkeypatch, tmp_path):
+    _isolated_cache(str(tmp_path), monkeypatch)
+    monkeypatch.setattr(wea._agent_secrets, "load_into_environ", lambda: None)
+    monkeypatch.setenv("WIKIMEDIA_ENTERPRISE_USERNAME", "Alice")
+    monkeypatch.setenv("WIKIMEDIA_ENTERPRISE_PASSWORD", "s3cret")
+
+    username, password = wea.get_credentials()
+    assert username == "alice"
+    assert password == "s3cret"  # pragma: allowlist secret
+
+
 def test_login_caches_tokens(monkeypatch, tmp_path):
     _isolated_cache(str(tmp_path), monkeypatch)
     monkeypatch.setattr(wea._agent_secrets, "load_into_environ", lambda: None)

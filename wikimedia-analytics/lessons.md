@@ -82,6 +82,11 @@ Known instance: English Wikipedia `Requests_for_comment/%` pages show a 3–6× 
   exhausts** — refresh only takes `username` + `refresh_token`. That makes an
   interactive prompt (not a stored secret) the right default: the annoyance is rare
   (~every 90 days), so it's not worth keeping a password at rest for.
+- **The login `username` is case-sensitive and must be lowercase** — even if the
+  account name is normally capitalized elsewhere (e.g. matches a Wikipedia username
+  with a capital first letter). Sending it as typed/capitalized gets a generic
+  `401 Incorrect username or password`, which reads like a wrong password, not a
+  case mismatch — lowercase it before sending if a login unexpectedly 401s.
 - Tooling: `agent-tooling/scripts/wikimedia_enterprise_auth.py` (+ Claude Code skill
   `agent-tooling/skills/wikimedia-enterprise/`) implements the cache/refresh/login
   cascade described above.
