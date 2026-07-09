@@ -111,8 +111,16 @@ def get_credentials():
     username, password = _prompt_credentials()
     # The login endpoint is case-sensitive on username and rejects a capitalized
     # one with a generic "Incorrect username or password" (looks like a wrong
-    # password, not a case mismatch) — normalize here so callers never hit that.
-    return username.lower(), password
+    # password, not a case mismatch). Fail fast with a clear message instead of
+    # silently rewriting what the caller/user provided.
+    if username[:1].isupper():
+        raise SystemExit(
+            f"Wikimedia Enterprise username {username!r} starts with an uppercase "
+            "letter — the login endpoint is case-sensitive and expects it lowercase "
+            "(this is a common mismatch if it matches a capitalized wiki username). "
+            "Re-run with the first letter lowercased."
+        )
+    return username, password
 
 
 def _prompt_credentials():

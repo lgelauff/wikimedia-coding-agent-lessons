@@ -97,11 +97,26 @@ def test_env_credentials_skip_prompt(monkeypatch, tmp_path):
     assert wea.get_credentials() == ("alice", "s3cret")
 
 
-def test_username_is_lowercased(monkeypatch, tmp_path):
+def test_uppercase_first_letter_username_errors(monkeypatch, tmp_path):
     _isolated_cache(str(tmp_path), monkeypatch)
     monkeypatch.setattr(wea._agent_secrets, "load_into_environ", lambda: None)
     monkeypatch.setenv("WIKIMEDIA_ENTERPRISE_USERNAME", "Alice")
-    monkeypatch.setenv("WIKIMEDIA_ENTERPRISE_PASSWORD", "s3cret")
+    monkeypatch.setenv("WIKIMEDIA_ENTERPRISE_PASSWORD", "s3cret")  # pragma: allowlist secret
+
+    try:
+        wea.get_credentials()
+    except SystemExit as e:
+        assert "Alice" in str(e)
+        assert "lowercase" in str(e)
+    else:
+        raise AssertionError("expected SystemExit on an uppercase-first-letter username")
+
+
+def test_lowercase_username_passes(monkeypatch, tmp_path):
+    _isolated_cache(str(tmp_path), monkeypatch)
+    monkeypatch.setattr(wea._agent_secrets, "load_into_environ", lambda: None)
+    monkeypatch.setenv("WIKIMEDIA_ENTERPRISE_USERNAME", "alice")
+    monkeypatch.setenv("WIKIMEDIA_ENTERPRISE_PASSWORD", "s3cret")  # pragma: allowlist secret
 
     username, password = wea.get_credentials()
     assert username == "alice"

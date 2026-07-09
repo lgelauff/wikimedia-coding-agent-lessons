@@ -86,7 +86,9 @@ Known instance: English Wikipedia `Requests_for_comment/%` pages show a 3–6× 
   account name is normally capitalized elsewhere (e.g. matches a Wikipedia username
   with a capital first letter). Sending it as typed/capitalized gets a generic
   `401 Incorrect username or password`, which reads like a wrong password, not a
-  case mismatch — lowercase it before sending if a login unexpectedly 401s.
+  case mismatch. `wikimedia_enterprise_auth.py` fails fast on an uppercase first
+  letter with an explicit message rather than silently lowercasing it — a login
+  username is exact/user-supplied, so surface the mismatch instead of guessing.
 - Tooling: `agent-tooling/scripts/wikimedia_enterprise_auth.py` (+ Claude Code skill
   `agent-tooling/skills/wikimedia-enterprise/`) implements the cache/refresh/login
   cascade described above.
