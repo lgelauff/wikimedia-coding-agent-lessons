@@ -53,17 +53,39 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 Base URL: `https://api.enterprise.wikimedia.com/v2/`. Main products (pick per task):
 
-- **On-demand API** — query individual articles/entities live for structured
-  content — best fit for ad hoc analytics on specific pages.
+- **On-demand API** (`/v2/articles/{name}`) — query individual articles live,
+  returning the raw HTML/text article — best fit for ad hoc lookups.
+- **Structured Contents API** (`/v2/structured-contents/{name}`) — the same
+  on-demand/snapshot split, but returns *parsed* JSON (infoboxes, sections,
+  descriptions, tables, references) instead of raw HTML — prefer this over plain
+  On-demand for anything measurement/analytics-oriented; verified live, returns
+  `name`, `description`, `main_entity`, `additional_entities`, `infoboxes`,
+  `sections`, `tables`, `references`, etc.
 - **Snapshot API** — download full project dumps (`tar.gz` of NDJSON articles) for
-  bulk/offline analysis.
+  bulk/offline analysis; also available as Structured Contents snapshots.
 - **Realtime API** — stream article updates, or pull hourly batch files, for
   near-live analytics.
 - **Metadata API** — project codes, languages, namespaces (cheap; good for a smoke
-  test, e.g. `GET /v2/codes` needs no body).
+  test, e.g. `GET /v2/codes` or `GET /v2/projects` need no body).
 
 Consult `https://enterprise.wikimedia.com/docs/` for exact request/response shapes
 per endpoint before building a query — don't guess field names.
+
+## Access tiers
+
+The free account tier (as of 2026-07-01) covers 50,000 On-demand requests/month, 30
+Snapshot downloads/month, and Structured Contents Snapshots — often enough on its
+own. If that's not enough:
+
+- **Calls made from Wikimedia Cloud Services (PAWS/Toolforge/Cloud VPS) get
+  paid-tier limits for free, automatically, with no `Authorization` header at all**
+  — access is IP-granted there, not token-granted. Prefer routing a heavy workload
+  through Cloud Services over paying, if it can run there.
+- Otherwise, "exceptional access" (free paid-tier limits run elsewhere) can be
+  requested from `techpartnerships@wikimedia.org` for mission-aligned/non-commercial
+  use (academic research, non-profit work) — see
+  [`wikimedia-analytics/lessons.md`](../../../wikimedia-analytics/lessons.md) for the
+  full criteria.
 
 ## Don'ts
 

@@ -93,6 +93,30 @@ Known instance: English Wikipedia `Requests_for_comment/%` pages show a 3–6× 
   `agent-tooling/skills/wikimedia-enterprise/`) implements the cache/refresh/login
   cascade described above.
 
+## Wikimedia Enterprise API — access tiers, and free paid-tier access for volunteers
+
+There's no dedicated "volunteer tier," but three real paths to more than the plain
+free-signup tier — worth knowing before assuming you need to pay:
+
+- **Free tier (no request needed):** as of the 2026-07-01 update — 50,000 On-demand
+  requests/month, 30 Snapshot downloads/month (1,500 chunks), and Structured Contents
+  Snapshots included free. Often enough for a personal research/analytics project;
+  check this before assuming you need a paid or exceptional-access path.
+- **Wikimedia Cloud Services (PAWS / Toolforge / Cloud VPS) get paid-tier access for
+  free, automatically** — calls made *from within* those environments hit the
+  Enterprise API with **no `Authorization` header at all** and get full paid-tier
+  limits (unlimited requests, daily snapshots, Realtime API). Access is granted by the
+  environment's IP range, not by token. If the workload can run there, this is the
+  easiest way past the free-tier caps — no application, no waiting.
+- **"Exceptional access" request** (for paid-tier limits run *outside* Cloud
+  Services): email `techpartnerships@wikimedia.org` answering six things — who you
+  are (incl. your Enterprise API username), what exception you're requesting, why the
+  free tier is insufficient, whether custom dev/support is needed, how the use case
+  aligns with the Movement Strategy Recommendations, and how it aligns with Wikimedia
+  values (open knowledge, public benefit). Reviewed at the Foundation's discretion;
+  academic research and mission-aligned non-profit work are explicitly named as good
+  fits. Source: [meta.wikimedia.org/wiki/Wikimedia_Enterprise/Access](https://meta.wikimedia.org/wiki/Wikimedia_Enterprise/Access).
+
 ## Phabricator bug reports
 
 - Follow the standard template: **Steps to replicate**, **What happens**, **What should have happened instead**, **Other information**. Skip sections that don't apply — don't add a "Requested action" section, that's not the convention.
