@@ -65,6 +65,27 @@ Known instance: English Wikipedia `Requests_for_comment/%` pages show a 3–6× 
 - **`year_month` is a reserved word in MariaDB** — using it as a column alias causes a syntax error. Use a non-reserved alias (e.g. `ym`) or reference columns by position (`GROUP BY 1 ORDER BY 1`) instead of by alias.
 - Avoid SQL aliases that shadow MariaDB reserved words; when in doubt, use `GROUP BY 1` / `ORDER BY 1` for computed columns.
 
+## Wikimedia Enterprise API auth
+
+- Login and token-refresh are **separate endpoints with different response
+  shapes**, not one endpoint with a `grant_type` param like typical OAuth: login is
+  `POST auth.enterprise.wikimedia.com/v1/login` with `{username, password}`, returning
+  `id_token`, `access_token`, `refresh_token`, `expires_in`; refresh is
+  `POST .../v1/token-refresh` with `{username, refresh_token}` (no password), and its
+  response has **no `refresh_token` field** — keep reusing the one from login. Don't
+  assume `expires_in` is a fixed 24h either; read it from whichever response you got
+  (observed shorter on refresh in the docs' own example).
+- Refresh tokens last 90 days and are good for **up to 90 refreshes** — track a
+  refresh count, not just the expiry, or you'll get a rejected refresh well before the
+  90-day mark on a chatty caller.
+- The **password is only needed at login and again once the refresh token expires/
+  exhausts** — refresh only takes `username` + `refresh_token`. That makes an
+  interactive prompt (not a stored secret) the right default: the annoyance is rare
+  (~every 90 days), so it's not worth keeping a password at rest for.
+- Tooling: `agent-tooling/scripts/wikimedia_enterprise_auth.py` (+ Claude Code skill
+  `agent-tooling/skills/wikimedia-enterprise/`) implements the cache/refresh/login
+  cascade described above.
+
 ## Phabricator bug reports
 
 - Follow the standard template: **Steps to replicate**, **What happens**, **What should have happened instead**, **Other information**. Skip sections that don't apply — don't add a "Requested action" section, that's not the convention.
