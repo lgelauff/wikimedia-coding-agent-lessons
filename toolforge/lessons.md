@@ -75,6 +75,14 @@
 - Inbound rate limit: **100 requests/minute per source IP** across all of Toolforge.
 - **Still avoid running paid third-party LLM/API pipelines on Toolforge** — not because egress is blocked, but for secrets hygiene (no API keys on shared community infra), cost, and acceptable-use spirit. Run those stages off-infra and import the compact results.
 
+## The bastion is a login node, NOT a compute node
+
+- **Never run heavy compute (bz2/gzip decompression, large-file parsing, scans over the `/public/dumps` mount) directly on the bastion** (`tools-bastion-NN`). It is a **throttled, shared login/submit node**. A single full dump file (~0.7 GB bz2) will wedge your session:
+  - the process blocks on an **uninterruptible NFS read**, so `Ctrl-C`/`Ctrl-Z` are *queued* but don't fire until the read returns (can be minutes) — it looks hung;
+  - the load can make a **second `ssh` fail or hang** (retry — `login.toolforge.org` round-robins to other bastions);
+  - a process started after `become <tool>` is owned by the **tool user**, so from another session you must `become` again before you can `pkill -9 -f <script>`; and **bastions are host-local** — you can only kill it from the *same* `tools-bastion-NN`.
+- **Rule: on the bastion, only light commands** — `ls`, a quick `--inspect`/head of one file, and **job submission/monitoring**. Everything else → **`toolforge jobs run …`** (dedicated core, faster, and killable with `toolforge jobs delete <name>`). Even a 2-file "smoke test" belongs in a job. Symptom that you got this wrong: a `--test`/scan that runs >5 min on the bastion with no per-file progress output.
+
 ## Webservice vs jobs
 
 - **A tool can run BOTH `toolforge jobs` (batch) and a `webservice` (HTTP) under one account** — same home, same ToolsDB. Exposing a web UI does not constrain the batch build.
