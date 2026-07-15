@@ -21,13 +21,13 @@ The folders above are organized by **tech stack** (toolforge / wikimedia / flask
    Lessons: [toolforge](toolforge/lessons.md), [wikimedia](wikimedia/lessons.md), [flask](flask/lessons.md). Tooling: `pr-check`, `browser-verify`, the dev guards (`block_ssh`, `block_secret_read`, `github_write_permission`, `webfetch_content_check`, `dev_stack_reminder`, `git_hygiene_session`), policies (`is_ssh_command`, `classify_github_op`), scripts (`llm_review`, `scope`, `secrets`, `git_hygiene`, `check_inline_js`, `post_pr_screenshots`), and `git-hooks/pre-commit`.
 
 2. **Data analytics** — querying & measuring Wikimedia data.
-   Lessons: [wikimedia-analytics](wikimedia-analytics/lessons.md) (MediaWiki API parsing, PAWS / PAWS-SQL, dumps, replica schema, bot-inflation, Phabricator). Tooling: `wikimedia-enterprise` (auth + usage for the credentialed Enterprise API — On-demand/Snapshot/Realtime/Metadata). Otherwise still lesson-heavy and tooling-light — a known gap.
+   Lessons: [wikimedia-analytics](wikimedia-analytics/lessons.md) (MediaWiki API parsing, PAWS / PAWS-SQL, dumps, replica schema, bot-inflation, Phabricator). Tooling: `wikimedia-enterprise` (auth + usage for the credentialed Enterprise API — On-demand/Snapshot/Realtime/Metadata), `overnight-run` (prep → rehearse → launch → report protocol for unattended 8–10 h runs; playbook + skill). Otherwise still lesson-heavy and tooling-light — a known gap.
 
 3. **Research & writing prep** — sourcing and curation that precede a writing effort.
    Skill: `deep-research`. Playbook: `research-data-collection` ("curate, don't RAG-dump"). Pipeline: `source_discovery` → `score_candidates` → `candidates_to_pending`. Guard: `block_zotero`. Utility: `check_wayback_coverage` (citation robustness).
 
 4. **Meta** — the agent and the tooling system reasoning about *itself*: architecture, governance, memory, and economics.
-   Docs: [agent-tooling/ARCHITECTURE.md](agent-tooling/ARCHITECTURE.md), [conventions.md](agent-tooling/conventions.md), [settings/permission-framework.md](agent-tooling/settings/permission-framework.md) + [allowlist.md](agent-tooling/settings/allowlist.md), and [claude-code/lessons.md](claude-code/lessons.md) (lessons for the agent itself). Tooling: `memory_guard`, and the observability trio `tool_token_log` / `record_run` / `cost_report`.
+   Docs: [agent-tooling/ARCHITECTURE.md](agent-tooling/ARCHITECTURE.md), [conventions.md](agent-tooling/conventions.md), [settings/permission-framework.md](agent-tooling/settings/permission-framework.md) + [allowlist.md](agent-tooling/settings/allowlist.md), and [claude-code/lessons.md](claude-code/lessons.md) (lessons for the agent itself). Tooling: `memory_guard`, the observability trio `tool_token_log` / `record_run` / `cost_report`, and `budget-estimate` (time + token estimates for a proposed job — P50/P90 bands, evidence levels, rate-limit floors — built on that trio's history; feeds `overnight-run`'s go/no-go).
 
 *Straddlers:* `capture` (screenshots) serves both Development and Research prep; `check_wayback_coverage` is a general utility leaning toward Research prep.
 
