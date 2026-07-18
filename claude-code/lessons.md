@@ -126,6 +126,28 @@ interpreters).
   *above* the allowlist anyway, so allow-rules can't suppress them — fixing the
   script is the only lever.)
 
+## Verify against the artifact, not the code
+
+A "verified" claim is only as good as the thing you looked at. A styling
+bug shipped because the code *intended* distinct styles for series 7–12,
+the change looked correct in the diff, and verification stopped there — the
+rendered PNG actually showed two series pixel-identical (the style was
+applied after axes creation, a silent no-op; see
+[`matplotlib/lessons.md`](../matplotlib/lessons.md)). For anything with
+rendered output (figures, PDFs, HTML), the verification step is: open the
+exported artifact and look at it, or measure it (PDF MediaBox for sizes).
+Reading the code back is not verification.
+
+## Persona reviews want rendered artifacts, not just source
+
+When reviewing design-flavored work, spawning two parallel reviewer
+subagents with distinct personas (a UI designer; a domain-methods expert)
+and telling them to **Read the rendered PNGs**, not only the source, was
+unusually productive: between them they found a shipped rendering defect,
+an export-size contract violation, and a systematic coverage gap — none of
+which a source-only review had surfaced. Give each persona the artifact
+directory, force a severity-ranked list with concrete fixes, and merge.
+
 ## References
 
 - Permissions — subprocess internals are not re-validated; Bash rule syntax:
