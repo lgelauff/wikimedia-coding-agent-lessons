@@ -82,6 +82,7 @@
   - the load can make a **second `ssh` fail or hang** (retry — `login.toolforge.org` round-robins to other bastions);
   - a process started after `become <tool>` is owned by the **tool user**, so from another session you must `become` again before you can `pkill -9 -f <script>`; and **bastions are host-local** — you can only kill it from the *same* `tools-bastion-NN`.
 - **Rule: on the bastion, only light commands** — `ls`, a quick `--inspect`/head of one file, and **job submission/monitoring**. Everything else → **`toolforge jobs run …`** (dedicated core, faster, and killable with `toolforge jobs delete <name>`). Even a 2-file "smoke test" belongs in a job. Symptom that you got this wrong: a `--test`/scan that runs >5 min on the bastion with no per-file progress output.
+- **`toolforge jobs run --wait` gives up after 600 s (10 min) but the JOB KEEPS RUNNING.** The timeout is on the client *wait*, not the job — you get `ERROR: timed out 600 seconds waiting for job '<name>' to complete` while `toolforge jobs list` still shows it `Running`. So `--wait` is only for jobs you're confident finish in <10 min. For anything longer, launch **detached** (omit `--wait`) and poll: `toolforge jobs list` + `tail -f` the redirected `> $D/<name>.out 2>&1` log. Don't re-run on the "timeout" — you'll start a second copy. (Redirect stdout/stderr to a file so a detached job's progress is readable; job logs otherwise need `toolforge jobs logs`.)
 
 ## Webservice vs jobs
 
