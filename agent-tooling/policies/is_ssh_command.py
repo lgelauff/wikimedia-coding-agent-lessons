@@ -14,21 +14,26 @@ the command in and translates the exit/reason into the host's decision format.
 import re
 import sys
 
-# start-or-separator, then an ssh-family invocation, then arg-or-end.
-# The leading class must include every shell metachar that can begin a command:
-# whitespace, ; & |, command-substitution `$(`/backtick, and a `(` subshell — else
-# `$(ssh …)`, `` `ssh …` ``, `(ssh …)`, `cmd & ssh` slip past the gate.
-SSH_RE = re.compile(
-    r"(?:^|[\s;&|`(])"
-    r"(?:ssh|scp|sftp|rsync\s+.*-e\s+['\"]?ssh|autossh)"
-    r"(?:\s|$)",
-    re.MULTILINE,
-)
+# quoted spans (echo/prose text) — stripped before the plain check so an `ssh`
+# merely *mentioned* in a string doesn't trip the gate (the false positive a
+# security+AI panel flagged). Real command-position ssh stays outside quotes.
+_QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
+
+# plain ssh-family at a command position. Keep bare whitespace in the leading
+# class so `sudo ssh` / `time ssh` are still caught (dropping it would open a
+# bypass — worse than the cosmetic FP). Run on QUOTE-STRIPPED text.
+SSH_PLAIN = re.compile(
+    r"(?:^|[\s;&|`(])(?:ssh|scp|sftp|autossh)(?:\s|$)", re.MULTILINE)
+
+# rsync-over-ssh: matched on the ORIGINAL command, because the `ssh` in
+# `-e "ssh"` is usually quoted (so quote-stripping would miss it).
+RSYNC_SSH = re.compile(r"\brsync\b.*-e\s+['\"]?ssh", re.MULTILINE)
 
 
 def is_ssh(command: str) -> str | None:
     """Return a reason string if the command invokes SSH, else None."""
-    if SSH_RE.search(command or ""):
+    cmd = command or ""
+    if SSH_PLAIN.search(_QUOTED.sub(" ", cmd)) or RSYNC_SSH.search(cmd):
         return (
             "Command invokes SSH / a remote shell (ssh, scp, sftp, rsync-over-ssh, "
             "autossh). SSH must be initiated manually by the user, never by an "
