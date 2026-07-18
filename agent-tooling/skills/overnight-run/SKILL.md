@@ -27,6 +27,12 @@ away during PREP, every failure response pre-decided. If at any point overnight
 you are about to ask the user something — that is a prep bug; park it in
 QUESTIONS.md and continue.
 
+**The substrate rule (from the playbook): overnight compute = detached OS
+processes only.** Field record 2026-07-15→18: detached scripts 4/4 nights
+survived; in-session agentic tasks 0/3 (all session-process death). Agentic
+work is scripted during PREP, run as scheduled headless waves (below), or
+parked for morning — never assigned to a session and hoped for.
+
 ## Mode selection
 
 - "prepare an overnight run for X", hours before bed → **PREP**
@@ -59,12 +65,14 @@ report.md       the morning report
   and turn the rest into concrete scenario questions. THEN use
   `AskUserQuestion` — ONE batch covering goal/acceptance, scope edges, failure
   policy + the pre-mortem scenarios ("if X: push on, downscope, or stop?"),
-  priority order, budget, and the doubt threshold (how they price tokens
-  wasted on a rejected result vs a night lost — capture it in their own
-  words). Offer concrete options; don't dribble follow-ups. Write the runbook
-  from `references/runbook-template.md` immediately after, including §5b
-  (doubt policy: pre-mortem table + threshold + the probe→downscope→threshold
-  ladder for unforeseen doubts).
+  priority order, budget, the doubt threshold (how they price tokens wasted
+  on a rejected result vs a night lost — capture it in their own words), and —
+  for agentic/hybrid nights — the quota windows: when does the usage window
+  reset, roughly how much of the current window will be left at launch, and
+  what backlog jobs may absorb leftover window in the night queue's tail.
+  Offer concrete options; don't dribble follow-ups. Write the runbook from
+  `references/runbook-template.md` immediately after, including §5b (doubt
+  policy) and §3b (wave schedule) when agentic work is involved.
 - **Harden (Phase 1):** apply the playbook checklist to the script. The repo's
   own prior art is the standard to meet (resume support, rate-limit sleeps,
   User-Agent headers are already idiomatic in these projects).
@@ -106,14 +114,37 @@ report.md       the morning report
   fine if standing orders cover it; otherwise log to QUESTIONS.md and stop
   cleanly. Never wait on a user reply.
 
-## Agentic-run wiring
+## Night-queue wiring
 
-When the overnight work is Claude working a task list rather than one script:
+When more than one job wants the window (playbook Phase 1b): write a small
+supervisor shell script in the run directory that chains the stages —
+per-stage `rc` logging, no `set -e` across stages (one failure never stops the
+next), idempotent skip-if-output-exists per stage — and launch THAT as the one
+detached process. Each stage carries its own P50/P90 in the runbook's stage
+table; the queue tail lists backlog jobs that absorb leftover window. The
+supervisor is allowlisted by its absolute path (one entry), same as any
+runner.
 
-- The runbook's task list carries per-task acceptance criteria, time boxes,
-  and priority order; work strictly in that order.
-- After EVERY task, update `status.md` (done / result / next). A compacted or
-  crashed session resumes from `status.md`, never from memory.
+## Agentic-run wiring (waves, per the substrate rule)
+
+When the overnight work is Claude working a task list rather than one script,
+it runs as **waves**, not as this session staying alive:
+
+- **Wave 1** is this session at bedtime: work the task list in priority order
+  until the quota wall, updating `status.md` after EVERY task (done / result /
+  next). Expect to die at the wall; that's in the runbook, not a failure.
+- **Wave 2** is a fresh headless run fired by the OS scheduler at the known
+  window reset + ~5 min:
+  `claude -p "Read <run-dir>/runbook.md and <run-dir>/status.md, then continue the overnight task list from the first unchecked task, obeying the runbook."`
+  Schedule it with launchd/cron (or the harness's own scheduled-task tooling
+  where available) — never by trusting a session to still exist. The headless
+  run uses the same project allowlist; PREP must test-fire the scheduler a few
+  minutes out and observe the headless wave start, read the checkpoint, and
+  produce **zero permission prompts** — a prompt inside a headless wave hangs
+  it silently, which is the 3am question in a new costume.
+- Budget each wave in window units (budget-estimate); >~0.8 windows planned
+  for one wave → split or downscope during PREP.
+- Every wave resumes from `status.md`, never from memory or transcript.
 - Decisions: standing orders first. Reversible-and-cheap: choose, append to
   `DECISIONS.md`, continue. Irreversible or user-reserved judgment calls:
   append to `QUESTIONS.md`, skip that task, take the next. A work stream you

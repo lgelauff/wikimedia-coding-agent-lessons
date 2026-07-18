@@ -14,12 +14,16 @@ The method assumes the split the user actually works with:
 - **Overnight, nobody is watching.** Any question the run would need to ask is a
   prep failure, not a runtime event.
 
-Two run shapes are covered; most real runs are the hybrid:
+Three run shapes are covered; multi-job nights should default to the queue:
 
 - **Pipeline run** — a long-running script (usually Python) does the work; the
   agent launches, monitors, and reports.
-- **Agentic run** — the agent itself works through a task list for hours
-  (analysis, writing, multi-step work).
+- **Night queue** — a detached supervisor script chains several jobs (stages)
+  through the night with failure isolation between them (see Phase 1b). The
+  default whenever more than one job wants the window.
+- **Agentic run** — Claude itself works through a task list for hours. Subject
+  to the substrate rule below: overnight agentic work runs as scheduled
+  headless waves, not as a session left open.
 
 ---
 
@@ -32,6 +36,33 @@ Two run shapes are covered; most real runs are the hybrid:
 > Anything that still needs a human gets **parked for morning**, never asked at 3am.
 
 Everything below is machinery for enforcing this law.
+
+## The substrate rule
+
+> **Overnight compute runs as detached OS processes. A live agent session is
+> not an execution substrate for the night.**
+
+Field record across the first validation nights (2026-07-15 → 18): detached
+scripts survived **4/4**; in-session agentic tasks survived **0/3**, all lost
+to the same mode — session-process death (session limits / kills), on a machine
+that was demonstrably awake. `caffeinate` cannot fix this; the process the work
+lived in is simply gone.
+
+So overnight agentic work takes one of three forms, in preference order:
+
+1. **Script it during prep** — if the task can be expressed as a script by
+   bedtime, it moves to the reliable substrate and joins the night queue.
+2. **Run it as scheduled headless waves** — fresh, non-interactive agent
+   processes launched by the OS scheduler at planned times (see Phase 1b).
+   Nothing has to *survive* the night; each wave is born new, reads the
+   checkpoint file, works, dies.
+3. **Park it for morning** — stated plainly in the runbook as morning work.
+
+A session left open overnight may *watch* (babysit notifications, restart per
+standing orders) but nothing on the critical path may depend on it existing at
+3am. If, exceptionally, in-session work is attempted anyway, it must checkpoint
+after every increment and the runbook must state that its survival is
+unwarranted.
 
 ## Phase 0 — Intake: answer tomorrow's questions today
 
@@ -66,6 +97,11 @@ overnight session obeys. The batch must cover:
    night?" See "The doubt policy" below; the intake batch must pin down the
    user's threshold, because the two failure costs (tokens spent on a rejected
    result vs a machine idle till morning) are theirs to weigh, not the run's.
+8. **Quota windows** (agentic/hybrid nights) — when does the agent-usage
+   window reset, and how much of the current window will be left at launch?
+   These two facts fix the wave schedule (Phase 1b): what wave 1 can spend
+   before the wall, and when wave 2 fires. An unused window cannot be banked —
+   quota not spent before a reset is simply lost.
 
 **0b. Pre-mortem — make the predictable concerns boring.** Before asking the
 intake batch, imagine it is 7am and the night was wasted, and list the 3–6 most
@@ -152,6 +188,48 @@ nice-to-haves; each one maps to a documented way a night has been lost.
   `--max-hours` so the run finishes flushing checkpoints before the human wakes
   up, instead of being killed mid-write.
 
+## Phase 1b — Multi-job nights: the night queue and quota waves
+
+**The night queue.** When more than one job wants the window, don't pick one —
+chain them. A small supervisor script (itself hardened per Phase 1: detached,
+logged, idempotent) runs the stages in priority order:
+
+- **Failure isolation:** one stage's failure never stops the next (`set +e`
+  per stage; each stage logs its own rc and moves on).
+- **Per-stage estimates:** EVERY stage gets its own P50/P90 per the
+  budget-estimate method — no stage rides in on a gut figure. (Field record:
+  the only serious estimate miss across the validation nights, +147%, was the
+  one stage estimated "~1h" by feel while its siblings had measured bands.)
+- **Absorb leftover window:** the queue's tail is the backlog — jobs that are
+  worth compute but not a night of their own (e.g. "the two giants" every
+  report keeps parking). A 2-hour job in a 9-hour window wastes 7 hours only
+  if the queue is empty behind it.
+- **Idempotent stages** (skip-if-output-exists) so relaunching the whole queue
+  after a crash re-runs only what's missing.
+
+**Quota-window waves (agentic work only).** Detached scripts burn zero agent
+quota — schedule them wall-to-wall. Agentic work draws on a usage window that
+resets at a known time, so align it in waves:
+
+- **Wave 1 (bedtime):** spend the *remainder* of the current window on the
+  highest-value agentic tasks, checkpointing after every increment, expecting
+  to die at the wall. The wall is a scheduled event in the runbook, not a
+  surprise.
+- **Wave 2 (reset + a few minutes):** the OS scheduler (cron/launchd — never a
+  surviving session) launches a fresh headless agent run whose prompt is
+  "read the runbook and the checkpoint file, continue from the first
+  unchecked task." Fresh process, fresh window, immune to session death.
+- **Budget in window units:** express each wave's agentic estimate as a
+  fraction of a window; a wave planned at >~0.8 windows gets split or
+  downscoped — it will hit the wall mid-task.
+- **Rehearse the wave mechanics:** the headless launch path must be rehearsed
+  like everything else — test-fire the scheduler a few minutes out during
+  PREP and confirm the headless run starts, reads the checkpoint, and
+  produces zero permission prompts. A hung permission prompt inside an
+  unattended headless wave is the 3am question in a new costume.
+- Weekly/global caps still apply on top; waves reallocate quota across the
+  night, they don't create it.
+
 ## Phase 2 — Permission anticipation (never bypass)
 
 Permissions are **designed away**, not bypassed. Method:
@@ -234,7 +312,20 @@ Minimum gate (extend per run, never shrink):
 - [ ] Sleep prevention + power + disk verified — Verified by: <cmd>
 - [ ] Launch command written verbatim in runbook
 - [ ] Failure policy + abort conditions encoded in the script, not just prose
+- [ ] Substrate rule holds: nothing on the critical path depends on a live
+      session surviving; agentic work is scripted, waved, or parked
+- [ ] Night queue: every stage has its own P50/P90 (no gut-figure stages)
+- [ ] Waves: wave-2 scheduler installed and test-fired minutes-out during
+      prep — Verified by: <observed test firing + zero prompts headless>
 - [ ] Morning report path defined
+
+**Record the verdict either way.** If the gate ends NOT-READY and the night is
+scrubbed, write the NO-GO verdict and the red lines into the runbook before
+walking away. A run directory that just goes silent is indistinguishable at
+breakfast from a run that died — "never launched (NO-GO: rehearsal not run)"
+is one line and saves the morning session an autopsy. (Field record: one
+scrubbed night left an all-unchecked gate and no verdict; the evaluation had
+to reconstruct what happened from file timestamps.)
 
 ## Phase 5 — Launch (just before bed)
 
@@ -251,16 +342,17 @@ By design this takes five minutes; all thinking already happened.
 4. Only then say goodnight, stating: what is running, where the log is, when
    it should finish, and what the morning report will contain.
 
-**Agentic runs:** same protocol, but "the script" is the runbook's task list.
-The agent works tasks in priority order, checkpointing progress to a status
-file after each task (so a crashed/compacted session resumes from the file, not
-from memory). Standing orders govern all decisions; the unforeseen gets the
+**Agentic runs:** the substrate rule governs. At launch, wave 1 works the
+runbook's task list in priority order until the quota wall, checkpointing to
+the status file after EVERY task (each wave — and any crashed/compacted
+session — resumes from the file, never from memory). The wave-2 scheduler is
+already installed and test-fired (Phase 1b/4); confirm it's armed, then say
+goodnight. Standing orders govern all decisions; the unforeseen gets the
 reversible-choice rule and, when a work stream develops real doubt, the doubt
 policy ladder (probe → downscope → threshold). **No outward-facing actions
-overnight** —
-no sending, posting, pushing to shared branches; produce drafts for morning
-approval instead. Park human-only questions in QUESTIONS and continue with
-other tasks.
+overnight** — no sending, posting, pushing to shared branches; produce drafts
+for morning approval instead. Park human-only questions in QUESTIONS and
+continue with other tasks.
 
 ## Phase 6 — Morning report
 
@@ -300,3 +392,7 @@ subcommand's output attached.
 | Launching and immediately saying goodnight | Minute one is when it dies; watch it |
 | Progress only on stdout | Terminal is gone by morning; log to files |
 | "Probably fine" on an unchecked gate line | It was not fine |
+| Agent tasks queued as overnight compute in a live session | 0/3 survived; sessions die at limits — script it, wave it, or park it |
+| One stage of a chained night estimated by feel | The only +147% miss on record was the lone gut-figure stage |
+| Letting a known quota reset pass unspent | Windows don't bank; an unaligned night donates a full window back |
+| Scrubbing a night without writing the NO-GO | Morning can't tell "never launched" from "died"; costs an autopsy |

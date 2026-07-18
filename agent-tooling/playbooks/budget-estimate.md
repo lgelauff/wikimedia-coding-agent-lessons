@@ -64,6 +64,13 @@ Tok = N_tasks × tok_task × fanout_factor
   as they age; assume the last task costs ~1.5–2× the first unless work is
   delegated to fresh subagents.
 - Convert to money only when asked, and name the rate used.
+- **Window units for overnight/wave work:** when the consumer is a
+  quota-windowed agent (usage resets on a known cycle), also express the
+  estimate as a fraction of one window's budget. Rule of thumb: any single
+  unattended wave planned at **>~0.8 windows** gets split or downscoped — it
+  will hit the wall mid-task. Windows don't bank; quota unspent at a reset is
+  lost, which makes "how much of the current window is left at launch" an
+  input to the estimate, not trivia.
 
 ## Output format (always the same shape)
 

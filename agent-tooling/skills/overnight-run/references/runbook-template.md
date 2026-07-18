@@ -20,7 +20,7 @@
 
 ## 3. The run
 
-- **Shape:** pipeline / agentic / hybrid
+- **Shape:** pipeline / night queue / agentic waves / hybrid
 - **Launch command (verbatim — this exact string, no variations):**
   ```
   caffeinate -i nohup <absolute command with flags> > <run-dir>/run.log 2>&1
@@ -33,6 +33,16 @@
   measured sample / history / arithmetic)
 - **Log:** `<run-dir>/run.log` · **Outputs:** <paths>
 
+### Night queue only — stage table (supervisor: `<run-dir>/night_queue.sh`)
+
+| # | Stage (command) | P50 / P90 (evidence level) | On failure | Output sentinel |
+|---|-----------------|----------------------------|------------|-----------------|
+| 1 | <cmd> | <X h / Y h> (measured / history / arithmetic) | log rc, next stage | <path the stage skips on if present> |
+| … | *tail: backlog jobs that absorb leftover window* | | | |
+
+Every stage has its own band — **no gut-figure stages**. One stage's failure
+never stops the next.
+
 ### Agentic runs only — task list
 
 | # | Task | Acceptance criterion | Time box | Priority |
@@ -40,6 +50,20 @@
 | 1 | <task> | <how the session knows it's done> | <max h> | <1..n> |
 
 Checkpoint after every task → `status.md`.
+
+## 3b. Wave schedule (agentic/hybrid nights only)
+
+- **Window reset time(s) tonight:** <HH:MM, HH:MM> · **left at launch:** <~X%>
+- **Wave 1 (bedtime, this session):** tasks <#…>, budget ≤<X> window
+  (<tokens>); expected to die at the <HH:MM> wall — planned, not a failure.
+- **Wave 2 (reset + 5 min, OS-scheduled headless):**
+  - Scheduler: <launchd plist / crontab line, verbatim>
+  - Command: `claude -p "Read <run-dir>/runbook.md and status.md, continue from the first unchecked task, obeying the runbook."`
+  - Budget ≤<X> window · resumes from `status.md` only.
+- **Test-fired during PREP:** <timestamp> — wave started, read checkpoint,
+  zero prompts — Verified by: <observed firing>
+- Detached scripts are quota-free and ignore this section — they run
+  wall-to-wall.
 
 ## 4. Failure policy
 
@@ -107,9 +131,18 @@ thing; park anything you doubt at >20%">
 - [ ] Launch command above is verbatim-tested (rehearsal used the same string
       with `--limit`)
 - [ ] Abort conditions implemented in the script, not just in this document
+- [ ] Substrate rule: nothing on the critical path needs a live session at 3am
+      (agentic work scripted / waved / parked)
+- [ ] Night queue: every stage has its own P50/P90 in §3 (no gut figures)
+- [ ] Wave 2 scheduler installed + test-fired, zero prompts headless —
+      Verified by: <§3b test firing>
 - [ ] Morning report path: `<run-dir>/report.md`
 
 **Gate verdict:** READY / NOT READY (<which lines are red, plainly>)
+
+**If NOT READY and the night is scrubbed, this verdict stays here as the
+run's final record** — one line ("never launched — NO-GO: <red lines>") so
+morning can tell a scrubbed night from a dead one without an autopsy.
 
 ## 8. Launch log (filled at bedtime)
 
