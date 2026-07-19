@@ -84,6 +84,31 @@
 - **Rule: on the bastion, only light commands** — `ls`, a quick `--inspect`/head of one file, and **job submission/monitoring**. Everything else → **`toolforge jobs run …`** (dedicated core, faster, and killable with `toolforge jobs delete <name>`). Even a 2-file "smoke test" belongs in a job. Symptom that you got this wrong: a `--test`/scan that runs >5 min on the bastion with no per-file progress output.
 - **`toolforge jobs run --wait` gives up after 600 s (10 min) but the JOB KEEPS RUNNING.** The timeout is on the client *wait*, not the job — you get `ERROR: timed out 600 seconds waiting for job '<name>' to complete` while `toolforge jobs list` still shows it `Running`. So `--wait` is only for jobs you're confident finish in <10 min. For anything longer, launch **detached** (omit `--wait`) and poll: `toolforge jobs list` + `tail -f` the redirected `> $D/<name>.out 2>&1` log. Don't re-run on the "timeout" — you'll start a second copy. (Redirect stdout/stderr to a file so a detached job's progress is readable; job logs otherwise need `toolforge jobs logs`.)
 
+## Jobs: memory caps, sizing & multi-wiki runtime estimation
+
+- **Per-container memory cap is small — plan for it, don't discover it at launch.** On the
+  `wikimedia-policies` namespace the max is **6 Gi/container**: `--mem 8Gi` is rejected outright
+  (`ERROR: Requested memory 8.0Gi is over maximum allowed per container (6Gi)`). Design jobs to fit
+  ≤6 Gi (stream, don't accumulate — O(1) memory per input row beats holding a table in RAM). If a job
+  *needs* more, restructure the algorithm before asking for a quota bump. Check your own namespace's
+  cap early; don't assume the number.
+- **Do NOT extrapolate a multi-wiki (or multi-shard) job's runtime from the smallest wiki.** A
+  *correctness canary* and a *runtime estimate* need **different samples**: the smallest wiki
+  (e.g. simplewiki) is right for the canary — it catches parser/schema bugs cheaply — but is a
+  terrible size proxy. `enwiki` alone is typically **50–80× larger** than simplewiki (pagelinks:
+  ~25 M rows vs ~1.5–2 B), and `de/ja/es/ru/zh` are each large too. Real miss (2026-07-18 inlink
+  dump job): estimated "~1–2 h" from the simplewiki canary, **actual ~9 h** (4–5×), with **en ≈
+  60–70 % of total wall-clock**. Budget from the **largest** shard's size (or measure en directly on
+  a fraction and scale by row count), never from the canary's rate. State the estimate as a band and
+  say which shard dominates.
+- **For an unattended multi-shard sweep, prefer ONE chained `one-off` job that loops over all shards**
+  over N separate jobs: it sidesteps the namespace concurrency limit entirely (it's one container),
+  needs no re-launching between shards, and — if each shard is made **resumable** (per-shard `.done`
+  marker, skip-if-output-exists) — a mid-run eviction restarts only the unfinished shard, not the
+  whole loop. Put the biggest shard (en) **last** so the many quick wins are secured first. Launch
+  detached (no `--wait`; it will exceed 600 s) and `tail` the redirected log. (Field data: a 15-edition
+  loop ran ~9 h unattended this way; 14 editions landed before en even started stage 2.)
+
 ## Webservice vs jobs
 
 - **A tool can run BOTH `toolforge jobs` (batch) and a `webservice` (HTTP) under one account** — same home, same ToolsDB. Exposing a web UI does not constrain the batch build.
