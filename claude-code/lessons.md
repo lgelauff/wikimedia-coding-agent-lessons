@@ -125,6 +125,23 @@ interpreters).
   (And recall from the core principle: the cd+redirect and newline-`#` checks fire
   *above* the allowlist anyway, so allow-rules can't suppress them — fixing the
   script is the only lever.)
+- **Exact-string accretion is the slow-motion version of the same failure.**
+  Approving each prompt "with allowlist" as its literal command (a specific curl
+  URL, a one-off `cp` with quoted filenames) builds a long list that covers
+  *nothing* the next session — every new URL/filename prompts again. Field case
+  (2026-07-19): a ~40-entry accreted list provided near-zero coverage of a
+  day's analysis work; the day ran on manual approvals and the friction delayed
+  an overnight run's prep past its launch window. At grant time, generalize to
+  the narrowest **reusable** shape instead: a script's absolute path with `:*`
+  for its flags, `WebFetch(domain:…)` rather than per-URL curl, `--out`-style
+  subcommands rather than shell redirects. If no reusable shape exists, that's a
+  script-design smell (see "Writing CLI scripts Claude will drive").
+- **Route read-only exploration through dedicated tools, not Bash.** `Read`,
+  `Grep`, and `Glob` don't touch the Bash permission layer; `cat`/`grep`/`ls`/
+  `head` pipelines do, and each novel pipeline shape is a fresh prompt. In
+  approval-per-call sessions, an agent that habitually explores via Bash
+  generates dozens of avoidable prompts a day — the cumulative attention cost
+  lands on the human, not the agent.
 
 ## Verify against the artifact, not the code
 
