@@ -49,8 +49,12 @@ session wrap-up", mcpmarket.com). The multi-session *integrator* role is the new
    - ONE consolidated numbered decision list (dedup across all handoffs; batched-questions rule)
    - proposed work packages: self-contained prompts, salvage/unfinished items first
    - restructuring / staleness observations (highest level only)
-9. Confirm clean tree + pushed state everywhere; retire merged worktrees only if authorized.
-10. Append a dated entry to this file: what the protocol failed to anticipate.
+9. **External-compute collects are user-action requests, not agent actions.** If overnight jobs ran
+   on remote infrastructure (e.g. Toolforge), the integrator assembles the exact retrieval commands
+   (scp targets, integrity checks, on-remote cleanup) from the relevant runbook and asks the user to
+   run them — SSH/scp is human-only. Include the request in the overview's user-action section.
+10. Confirm clean tree + pushed state everywhere; retire merged worktrees only if authorized.
+11. Append a dated entry to this file: what the protocol failed to anticipate.
 
 ## Field log
 
@@ -65,6 +69,14 @@ session wrap-up", mcpmarket.com). The multi-session *integrator* role is the new
 - **Handoffs that point instead of restate are cheap to integrate.** The first handoff in
   (hypothesis-review) linked entry-point files and a shared question file rather than duplicating
   content — integration cost near zero. Encourage this in the worker prompt.
+- **Designate exactly ONE integrator, by name, in every worker's wind-down prompt.** In trial 1 a
+  worker session went beyond its own handoff and committed a *combined* morning brief to main while
+  the designated integrator was in Phase 0 — two combiners, duplicated dedup work, and the risk of
+  two conflicting decision lists. The worker contract should say: "write YOUR handoff only; the
+  integrator session <name> combines."
+- **Worktree/session naming confuses handoffs.** Worktree directories get reused by later sessions on
+  new branches; two handoffs flagged "stoic-bhabha at risk" after that worktree's occupant had
+  changed and the flag was stale. Identify sessions by BRANCH, not worktree directory name.
 - **A shared batched-question file beats per-handoff question lists.** One worker maintained
   `private/reviews/cleanup-morning-questions.md` and other handoffs appended numbered items
   beyond it — dedup was trivial because numbering continued (items 10–12).
