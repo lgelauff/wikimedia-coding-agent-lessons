@@ -125,6 +125,13 @@ handoffs, data, and the brief all live there, and every cross-checkout touch oth
   worktree/branch-relative and dead by click time (multi-checkout repos). End any link-bearing
   handoff message with a "Links:" bullet list, each path valid where the file currently lives
   (main-checkout absolute path once merged; name the branch for branch-only files).
+- **Every Phase-1 checklist item needs exactly one owner — and a just-in-time re-check.** In trial 1
+  the integrator and a lingering worker session both executed the brief's deposit step minutes apart:
+  duplicate registry version entries, one with a conflicting vintage label. Before any
+  state-mutating checklist item (deposit, merge, retire), re-read the shared state (registry,
+  git log) in the same minute you act; and after the go-signal the integrator should confirm all
+  worker sessions have actually STOPPED, not just handed off. The producing session's metadata
+  label beats the integrator's inference — when both exist, keep the producer's.
 - **Keyword-based guard hooks can false-positive on prose.** A commit that merely *mentioned* a
   remote-copy command inside a heredoc tripped the SSH-blocking hook. Workaround: write file content
   with the editor tool, keep Bash for git only.
