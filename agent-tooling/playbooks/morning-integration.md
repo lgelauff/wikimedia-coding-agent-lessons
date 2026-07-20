@@ -29,6 +29,11 @@ session wrap-up", mcpmarket.com). The multi-session *integrator* role is the new
 
 ### Phase 0 — passive prep (session start; read-only toward others' work)
 
+0. **Announce your identity first**: state your branch (and worktree) in your first message, e.g.
+   "Morning session identifier: branch `<branch>`", and repeat it in status messages. The user uses
+   it to route wind-down instructions and to distinguish you from workers. Until the go-signal the
+   integrator makes NO commits/merges/pushes in the project repo — workers self-merge in this window,
+   and an integrator that merges early races them.
 1. `git fetch`; list branches by recency, worktrees + dirty state, `.claude/handoff-<today>-*.md`.
 2. Report at-risk work (uncommitted / unpushed / unmerged) per session — but do NOT fix it;
    each worker resolves its own. (Trial 1: both at-risk items self-resolved within minutes;
