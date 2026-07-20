@@ -34,7 +34,13 @@ session wrap-up", mcpmarket.com). The multi-session *integrator* role is the new
 The auto-archive gate exists so the user never has to make the retire call per session; the
 merged+pushed+clean conjunction is what makes it safe to automate.
 
-**Integrator session** (one, the recipient) — two phases separated by an explicit user go-signal:
+**Integrator session** (one, the recipient) — two phases separated by an explicit user go-signal.
+**Model tier: mid-tier (Sonnet-class) from turn one.** The role is execution-shaped — inventory,
+verification, report assembly against this playbook — not open-ended reasoning; official Claude Code
+guidance recommends Sonnet for coordination/verification. Escalate a single step (work-package
+design / decision-list judgment) to a bigger model only if it proves thin. A mid-session model
+switch costs one full uncached context pass, so pick the tier at session start (trial 1: the
+integrator ran on the top tier and consumed most of a 5-hour usage window on relay work).
 
 ### Phase 0 — passive prep (session start; read-only toward others' work)
 
