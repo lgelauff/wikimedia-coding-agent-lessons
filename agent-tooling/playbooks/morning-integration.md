@@ -121,6 +121,10 @@ handoffs, data, and the brief all live there, and every cross-checkout touch oth
   complete) and the deposit proceeded from the registry path. Never guess a vintage identifier —
   derive it from the artifact's own README/log, and dry-run the deposit first. Watch for pre-existing
   HF vintage tags (409) when appending a completion to an existing vintage.
+- **Repeat every document link in a footer with resolvable paths.** Mid-message links are often
+  worktree/branch-relative and dead by click time (multi-checkout repos). End any link-bearing
+  handoff message with a "Links:" bullet list, each path valid where the file currently lives
+  (main-checkout absolute path once merged; name the branch for branch-only files).
 - **Keyword-based guard hooks can false-positive on prose.** A commit that merely *mentioned* a
   remote-copy command inside a heredoc tripped the SSH-blocking hook. Workaround: write file content
   with the editor tool, keep Bash for git only.
