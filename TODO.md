@@ -2,6 +2,13 @@
 
 Tracked follow-ups for this repo. Newest intent at top.
 
+## Promote `morning-integration` draft to a skill if trials hold
+
+`agent-tooling/playbooks/morning-integration.md` (added 2026-07-20) is a DRAFT
+playbook for the multi-session morning wrap-up (integrator = recipient + verifier,
+two phases split by an explicit user go-signal). After 2–3 real mornings with
+field-log entries, decide: fourth mode of `overnight-run`, or a sibling skill.
+
 ## Validate `overnight-run` and `budget-estimate` on a real run
 
 The new `agent-tooling/skills/overnight-run/` skill (+ `playbooks/overnight-run.md`)
