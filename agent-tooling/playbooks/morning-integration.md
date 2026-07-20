@@ -74,6 +74,12 @@ merged+pushed+clean conjunction is what makes it safe to automate.
     are append-only; never overwrite a recorded version.
 11. Confirm clean tree + pushed state everywhere; retire merged worktrees only if authorized.
 12. Append a dated entry to this file: what the protocol failed to anticipate.
+13. **Apply pending agent-app updates at the seam** (optional, last): after everything is wrapped,
+    verified, and merged — and before launching the day's new sessions — restart the agent app /
+    run its update command. Rationale (Claude Code, verified 2026-07-20): updates take effect on
+    restart; conversations survive a restart but background tasks and monitors are killed and NOT
+    restored, so never restart mid-wrap-up while a watcher is armed. Re-arm any monitor you still
+    need after the restart. A `stable` release channel suits overnight-dependent setups.
 
 ## Field log
 
