@@ -58,8 +58,13 @@ session wrap-up", mcpmarket.com). The multi-session *integrator* role is the new
    on remote infrastructure (e.g. Toolforge), the integrator assembles the exact retrieval commands
    (scp targets, integrity checks, on-remote cleanup) from the relevant runbook and asks the user to
    run them — SSH/scp is human-only. Include the request in the overview's user-action section.
-10. Confirm clean tree + pushed state everywhere; retire merged worktrees only if authorized.
-11. Append a dated entry to this file: what the protocol failed to anticipate.
+10. **Deposit new half-fabricates (intermediate artifacts) to the shared working-data repo** if the
+    project has a sharing agreement / deposit registry. The registry (e.g. `registry.json`,
+    source of truth) says what's pending: deposit `local`-status artifacts, append a new vintage for
+    rebuilt ones (e.g. freshly collected external-compute outputs, after integrity checks). Deposits
+    are append-only; never overwrite a recorded version.
+11. Confirm clean tree + pushed state everywhere; retire merged worktrees only if authorized.
+12. Append a dated entry to this file: what the protocol failed to anticipate.
 
 ## Field log
 
