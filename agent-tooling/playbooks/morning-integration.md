@@ -42,6 +42,13 @@ design / decision-list judgment) to a bigger model only if it proves thin. A mid
 switch costs one full uncached context pass, so pick the tier at session start (trial 1: the
 integrator ran on the top tier and consumed most of a 5-hour usage window on relay work).
 
+**Permission prep (once per project):** the morning session's operation set is predictable — git
+read/merge/push, file listing/stat, integrity checks (`gzip -t`, `cmp`), the deposit script, and a
+file-stability monitor — so it should run with **zero permission prompts**. Pre-allow those patterns
+in the project/worktree settings (Claude Code: a `fewer-permission-prompts`-style allowlist), and if
+the integrator runs in a worktree, add the MAIN checkout to `permissions.additionalDirectories` —
+handoffs, data, and the brief all live there, and every cross-checkout touch otherwise prompts.
+
 ### Phase 0 — passive prep (session start; read-only toward others' work)
 
 0. **Announce your identity first**: state your branch (and worktree) in your first message, e.g.
