@@ -108,6 +108,15 @@ integrator ran on the top tier and consumed most of a 5-hour usage window on rel
 - **Worktree/session naming confuses handoffs.** Worktree directories get reused by later sessions on
   new branches; two handoffs flagged "stoic-bhabha at risk" after that worktree's occupant had
   changed and the flag was stale. Identify sessions by BRANCH, not worktree directory name.
+- **Deposit-time path/vintage discrepancies are the norm, not the exception.** Trial 1: the collect
+  runbook's retrieval target and the deposit registry's `source_glob` were different directories; the
+  landing set overlapped an older partial build. Byte-compare (`cmp`) settled it (same build, now
+  complete) and the deposit proceeded from the registry path. Never guess a vintage identifier —
+  derive it from the artifact's own README/log, and dry-run the deposit first. Watch for pre-existing
+  HF vintage tags (409) when appending a completion to an existing vintage.
+- **Keyword-based guard hooks can false-positive on prose.** A commit that merely *mentioned* a
+  remote-copy command inside a heredoc tripped the SSH-blocking hook. Workaround: write file content
+  with the editor tool, keep Bash for git only.
 - **A shared batched-question file beats per-handoff question lists.** One worker maintained
   `private/reviews/cleanup-morning-questions.md` and other handoffs appended numbered items
   beyond it — dedup was trivial because numbering continued (items 10–12).
