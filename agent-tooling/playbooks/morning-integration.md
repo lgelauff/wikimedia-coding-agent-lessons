@@ -16,14 +16,23 @@ session wrap-up", mcpmarket.com). The multi-session *integrator* role is the new
 
 ## Roles and contract
 
-**Worker sessions** (each, at wrap-up — the "wind-down prompt"):
+**Worker sessions** (each, at wrap-up — the "WIND-DOWN command", paste-ready):
 
-> Slowly wrap up: no new angles of inquiry. Commit and push your branch; merge into main if the
-> merge is clean, otherwise leave the branch and say why. Write a handoff at
-> `.claude/handoff-<YYYY-MM-DD>-<slug>.md` (timestamped, naming your branch/worktree) with:
-> (1) what you delivered, with file entry points; (2) still-running/unfinished, with restart
-> commands; (3) your open questions as a NUMBERED list, deduplicated against the shared question
-> file if one exists; (4) coordination notes for other sessions. Leave your worktree clean.
+> **WIND-DOWN.** Wrap up now. No new angles of inquiry. Do not kill or break ongoing long-running
+> work: let short jobs finish; for anything still running, record what it is, where it logs, and
+> the restart command in your handoff instead of waiting. Commit and push your branch; merge into
+> main only if the merge is clean, otherwise leave the branch and say why. Write your handoff at
+> `.claude/handoff-<YYYY-MM-DD>-<slug>.md`, identifying yourself by BRANCH: (1) delivered, with
+> file entry points; (2) still running/unfinished + restart commands; (3) all open questions as a
+> numbered list, deduplicated against the shared question file; (4) coordination notes. Write YOUR
+> handoff only — the integrator session `<integrator-branch>` combines. Everything non-destructive:
+> never delete data or outputs; archive with a breadcrumb instead. Then AUTO-ARCHIVE yourself:
+> if and only if your branch is merged into main, pushed, and your worktree is clean, remove your
+> worktree and archive this session — no need to ask. If any condition fails, leave everything in
+> place and flag it in the handoff instead.
+
+The auto-archive gate exists so the user never has to make the retire call per session; the
+merged+pushed+clean conjunction is what makes it safe to automate.
 
 **Integrator session** (one, the recipient) — two phases separated by an explicit user go-signal:
 
