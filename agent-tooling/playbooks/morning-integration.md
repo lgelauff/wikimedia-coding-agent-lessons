@@ -132,6 +132,13 @@ handoffs, data, and the brief all live there, and every cross-checkout touch oth
   git log) in the same minute you act; and after the go-signal the integrator should confirm all
   worker sessions have actually STOPPED, not just handed off. The producing session's metadata
   label beats the integrator's inference — when both exist, keep the producer's.
+- **Parallel agents sharing ONE checkout must stage by explicit path.** With several subagents
+  writing to the same working copy, the git index is shared state: in trial 1 one agent's `git add`
+  swept up a sibling agent's file that appeared between its add and commit (it caught this via
+  `git show --stat`, did `reset --soft HEAD~1`, re-staged selectively — no loss, but only because it
+  checked). Rule for every parallel-agent prompt: stage ONLY your own files by full path, never
+  `git add -A/.`, and verify with `git show --stat` before pushing. Push races themselves are
+  benign — `pull --rebase` once and retry.
 - **Keyword-based guard hooks can false-positive on prose.** A commit that merely *mentioned* a
   remote-copy command inside a heredoc tripped the SSH-blocking hook. Workaround: write file content
   with the editor tool, keep Bash for git only.
