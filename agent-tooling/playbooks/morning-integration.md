@@ -139,6 +139,14 @@ handoffs, data, and the brief all live there, and every cross-checkout touch oth
   checked). Rule for every parallel-agent prompt: stage ONLY your own files by full path, never
   `git add -A/.`, and verify with `git show --stat` before pushing. Push races themselves are
   benign — `pull --rebase` once and retry.
+- **"Agent completed" ≠ task done — the background-compute stall.** A subagent that launches its
+  own long-running job (a Monitor, a detached script) can hit its turn boundary while that job is
+  still running and report as *completed* with the work unfinished. Trial 1: 2 of 5 parallel agents
+  stalled this way, both mid-pipeline. Detection: the return text says "still running / I'll pick
+  back up" instead of a deliverable. Fix: resume the agent by message (its context is intact) — do
+  NOT respawn, which re-does the compute. Prevention: tell compute-launching agents to wait for
+  their own job in-turn, and always read an agent's returned deliverable before marking a step done.
+  Corollary: never report a step complete on the strength of a completion notification alone.
 - **Keyword-based guard hooks can false-positive on prose.** A commit that merely *mentioned* a
   remote-copy command inside a heredoc tripped the SSH-blocking hook. Workaround: write file content
   with the editor tool, keep Bash for git only.
