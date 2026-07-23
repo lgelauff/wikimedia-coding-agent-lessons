@@ -146,6 +146,10 @@ handoffs, data, and the brief all live there, and every cross-checkout touch oth
   fan-out belongs to a top-level session (which has the Agent tool), not a nested subagent. If you
   do delegate orchestration, tell the agent to REPORT BACK a dispatch plan rather than assume it can
   spawn — and always run the second-agent fact-check from a level that can spawn.
+- **Some stalls are just flaky WiFi, not agent bugs (user, 2026-07-23).** When an agent dies on a
+  connection/watchdog error, first check whether its deliverable already landed on disk — the work
+  often finished and only the report was lost. Give network `curl`/fetch a hard `--max-time`, and
+  prefer in-thread checks against local committed files when the option exists.
 - **"Agent completed" ≠ task done — the background-compute stall.** A subagent that launches its
   own long-running job (a Monitor, a detached script) can hit its turn boundary while that job is
   still running and report as *completed* with the work unfinished. Trial 1: 2 of 5 parallel agents
