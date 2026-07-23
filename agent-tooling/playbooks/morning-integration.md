@@ -139,6 +139,13 @@ handoffs, data, and the brief all live there, and every cross-checkout touch oth
   checked). Rule for every parallel-agent prompt: stage ONLY your own files by full path, never
   `git add -A/.`, and verify with `git show --stat` before pushing. Push races themselves are
   benign — `pull --rebase` once and retry.
+- **An "orchestrator" subagent may not be able to spawn subagents.** Trial 1: an Opus agent spun
+  up to *orchestrate* workers found no subagent-spawning tool in its context, so it silently became
+  a solo worker — doing the analysis itself and, critically, being unable to run the mandatory
+  independent fact-check (an agent must not verify its own work). Lesson: orchestration that needs
+  fan-out belongs to a top-level session (which has the Agent tool), not a nested subagent. If you
+  do delegate orchestration, tell the agent to REPORT BACK a dispatch plan rather than assume it can
+  spawn — and always run the second-agent fact-check from a level that can spawn.
 - **"Agent completed" ≠ task done — the background-compute stall.** A subagent that launches its
   own long-running job (a Monitor, a detached script) can hit its turn boundary while that job is
   still running and report as *completed* with the work unfinished. Trial 1: 2 of 5 parallel agents
