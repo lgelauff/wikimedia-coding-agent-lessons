@@ -14,6 +14,33 @@ Prior art: `overnight-run` MORNING mode covers a *single* detached run's report.
 wrap-up (commit, push, handoff file) exists as a third-party skill pattern ("agent-handoff
 session wrap-up", mcpmarket.com). The multi-session *integrator* role is the new piece.
 
+## Separate DOING from DISCUSSING (refinement, 2026-07-27)
+
+Three roles, deliberately on different substrates. The split emerged from a week's trial and every
+significant correction in it came from someone other than the author.
+
+| Role | Substrate | Lifetime | Reads | Produces |
+|---|---|---|---|---|
+| **Implement** | subagent for a bounded build; **session + worktree** only when it's long compute or multi-day | ephemeral — discard after | whatever it needs | one evidence snippet + artifacts |
+| **Fact-check** | **subagent** (not a session — it's bounded: verify these numbers against these sources) | ephemeral | the snippet + its cited sources | verdict, in-place fixes, flags |
+| **Discuss / integrate** | **durable session** | spans many packages | **snippets only** | framing, decisions, next packages |
+
+**Why the asymmetry matters.** Implementation wants depth on one thing, then disposal — it's what
+burns context. Discussion wants *continuity across packages*, because the real insights are only
+visible from there. In the trial, none of these could have come from inside a single package:
+two collaborator figures failing to reconcile (needed both), "heterogeneity is the paper's frame"
+(needed five separate results), the channel-divergence reframing (needed three paragraphs at once).
+
+**Never let the author verify their own work.** Already a rule for fact-checking; it applies just as
+much to *interpretation* — an agent that spent three hours building a figure is invested in that
+figure being good.
+
+**The discussion role's failure mode: CITE, DON'T COMPUTE.** A snippet-only session drifts into
+plausible-sounding wrongness. Trial case: the integrator computed a trend inline during discussion,
+never persisted it, stated it to the user — and the fact-check could neither corroborate it nor
+sustain the reading (it was seasonally confounded). If discussion needs a number that isn't already
+in a snippet, that is a new work package, not an aside.
+
 ## Roles and contract
 
 **Worker sessions** (each, at wrap-up — the "WIND-DOWN command", paste-ready):
