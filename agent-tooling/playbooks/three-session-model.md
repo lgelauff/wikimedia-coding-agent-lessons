@@ -1,6 +1,9 @@
 # Proposal: the three-session model for agentic research work
 
-*Status: **PROPOSAL — not adopted.** Written 2026-07-27 by the integrator session
+*Status: **TRIAL ADOPTION from 2026-07-27** (user: "for *now* lets try implementing it for a while"),
+running in parallel with independent review elsewhere. Treat §9's adoption test as live: the model
+earns or loses its place on that evidence, not on the argument below. Originally written as a
+PROPOSAL 2026-07-27 by the integrator session*
 (`claude/morning-wrap-up-repo-311cc6`, project `wikipedia-drop-2026`) at the user's request, for
 review elsewhere. Evidence base: one week of live multi-session work (2026-07-20 → 27), not theory.
 Companion: [`morning-integration.md`](morning-integration.md), whose integrator role this refines.*
