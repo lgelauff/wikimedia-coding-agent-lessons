@@ -28,6 +28,47 @@
 
 - Wikimedia servers expect a descriptive `User-Agent` header identifying your tool and contact point. Without it you risk being rate-limited or blocked. Conventional format: `ProjectName/1.0 (https://github.com/you/repo; brief description)`.
 
+## robots.txt checks fail CLOSED — "blocked by robots.txt" usually isn't
+
+`urllib.robotparser.RobotFileParser` denies everything when it could not read robots.txt. Its
+`can_fetch()` returns `False` while `last_checked == 0`, on the documented principle that an
+unread robots.txt means nothing is allowable. So the usual defensive wrapper
+
+```python
+rp = urllib.robotparser.RobotFileParser()
+rp.set_url(f"{domain}/robots.txt")
+try:
+    rp.read()
+except Exception:
+    pass  # "fail-open: if robots.txt unreachable, assume allowed"   <- WRONG
+```
+
+fails **closed**, and the comment is a lie the code will happily tell for years. A DNS NXDOMAIN,
+a TLS `CERTIFICATE_VERIFY_FAILED`, a connect timeout, and a real `Disallow:` line all surface as
+one indistinguishable message. `read()` also maps HTTP **401/403 on robots.txt itself** to
+`disallow_all = True` — so a WAF that rejects your client reads as a site-wide prohibition even
+when parsing works correctly.
+
+Two consequences:
+
+- **Never record a "site forbids automated access" finding from this message.** Re-test the host
+  first — one `requests.get(host + "/robots.txt")` tells you which of the four it was. Measured
+  case (2026-08-01, national-curriculum sourcing across 14 government hosts): **11 failures, 0 of
+  them an actual robots directive** — 6 network/TLS/DNS, 5 WAF/bot filtering.
+- **If you want fail-open, write it explicitly**: treat "robots.txt unreachable" as allowed only
+  when the fetch failed for transport reasons, and keep 401/403/`Disallow` as deny. Don't rely on
+  the `try/except` around `read()` to produce it.
+
+Reaching for `--ignore-robots` is the wrong repair in both directions: for transport failures the
+connection still fails, and for 403s it means pushing past a server actively refusing you.
+
+**Corollary — Latin American government PDF hosts.** In that same measurement, every northern
+host (BOE, NCERT, SEP, educ.ar CDN) worked first try, while `curriculumnacional.cl`,
+`mineducacion.gov.co`, `mineduc.cl` subdomains, `dof.gob.mx`, `bnm.me.gov.ar` and
+`entrama.educacion.gob.ar` failed on DNS, incomplete TLS chains, connect timeouts, or Check
+Point/WAF 403s. Budget for a Wayback (`/web/<ts>id_/<url>` returns original bytes) or
+different-exit-node route when a collection depends on them.
+
 ## Archival bot activity inflates page counts in recent years
 
 When counting `DISTINCT rev_page` per year from the `revision` table, archival/maintenance bots that touch old pages in a given year will inflate that year's page count — the old pages were not opened that year, they were just touched. Fix: group by the **first edit per page** (`MIN(rev_timestamp)`) and aggregate by that, so each page is counted once in the year it was created:
