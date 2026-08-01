@@ -109,7 +109,69 @@ concurrency escape. 500 items = 5 h; 1,000 = 10 h. That means:
   repo (`block_ssh` hook). Prepare the tool-account job (Jobs framework — the
   bastion is for quick interactive calls only, never sustained work), then hand
   the user the exact commands, per the morning-integration external-compute
-  pattern.
+  pattern. Set `AGENT_RATE_DISABLE=1` there — the local bucket exists to
+  protect a cap that no longer applies.
+
+  ⚠️ **Toolforge is for PUBLIC wiki data only.** Research corpora with human
+  participants — deliberation transcripts, survey responses, conversation
+  comments — do not go to a shared WMF tool account to dodge a rate limit.
+  Those stay local under the 100/h budget (batched per request, run overnight),
+  which is a constraint on throughput, not a reason to relocate the data.
+
+## What to use it for
+
+**The decision rule:** if a wrong answer is caught cheaply by the next step,
+LiftWing; if a wrong answer silently propagates into a conclusion, Claude.
+LiftWing produces **inputs** to your reasoning, never the reasoning itself.
+
+Because it cannot browse or retrieve, it knows nothing you don't paste — your
+pipeline retrieves, the model only judges what it's handed. That is the
+cite-don't-compute rule with a different hat on.
+
+**Good fits** — mechanical judgments over text you already hold, with a small
+output space (a label, a score, a yes/no, a code, a short list):
+
+| Task | Why it fits |
+|---|---|
+| Relevance triage of search hits ("bears on question N? y/n + one line") | tiny output space, wrong answers caught on review |
+| Term-scanning long texts, chunked ("does this passage discuss X?") | the input is past 32K anyway and must be chunked |
+| Vocabulary / synonym / spelling-variant generation | verified by whether the searches then work |
+| Language ID, gist translation of a passage | genuinely multilingual training |
+| Field extraction into CSL-JSON | cheap to validate mechanically |
+| Candidate dedup ("same work?") | binary, checkable |
+| Fixed-form chunk summaries | output is an input to a later human read |
+
+**Poor fits:** anything needing current facts (no browsing → confident
+confabulation); multi-step work (no tool calling); scanned PDFs (no multimodal
+— OCR'd *text* is fine, page images are not); and final synthesis, framing, or
+quality verdicts — both the weak spot of a 14B/27B open model and the work you
+shouldn't be outsourcing.
+
+**Don't use an LLM where a purpose-built classifier exists.** For revert risk,
+article quality, readability, or topic classification, LiftWing's `:predict`
+models are better *and* ~500× less rate-limited. The LLM is for judgments no
+existing model covers.
+
+### Batch items per request — the cap is on REQUESTS, not tokens
+
+This is the single biggest lever and it inverts the naive design. With 16–32K
+of context and only ~90 requests/hour, **never send one item per call**:
+
+- Send 10–20 numbered items in one prompt; ask for one labelled line each.
+  A 300-item triage goes from ~3 hours to ~20 calls — inside a single hour.
+- **Number the items and require the number back**, so a misaligned or short
+  answer is detectable rather than silently shifting every label by one.
+- Keep batches modest: a failed batch loses all its items at once, and long
+  outputs risk truncation.
+- Budget the validation retries too — a re-ask costs a request from the same
+  bucket as the original.
+
+### Measure the error rate, every pass
+
+A bulk pass that reports no error rate has traded token cost for unmeasured
+quality risk. Spot-check a sample (n≈10–20), record correct/incorrect and the
+parse-failure count, and put both in the feedback log. That number is what
+tells you whether the next pass of this shape can skip review.
 
 ## What it cannot do (design around, don't discover at 3am)
 
