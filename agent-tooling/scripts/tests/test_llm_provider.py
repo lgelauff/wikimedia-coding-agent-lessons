@@ -1,4 +1,5 @@
 """Offline tests for llm_provider dispatch (no real LLM calls)."""
+import json
 import os
 import sys
 
@@ -34,6 +35,70 @@ def test_http_provider_requires_key(monkeypatch):
         assert False, "should have raised"
     except RuntimeError as e:
         assert "MISTRAL_API_KEY" in str(e)
+
+
+def test_liftwing_needs_no_key_and_sends_no_auth_header(monkeypatch):
+    monkeypatch.setenv("AGENT_LLM_PROVIDER", "liftwing")
+    monkeypatch.delenv("AGENT_LLM_MODEL", raising=False)
+    cap = {}
+
+    def fake_http(url, key_env, model, prompt, system, timeout):
+        cap.update(url=url, key_env=key_env, model=model)
+        return "ok"
+
+    monkeypatch.setattr(lp, "_http_chat", fake_http)
+    assert lp.query_llm("hi") == "ok"
+    assert cap["key_env"] is None                      # keyless: no Bearer at all
+    assert cap["model"] == lp.LIFTWING_DEFAULT_MODEL
+    # the model name appears in the URL path as well as the body
+    assert cap["url"].endswith("/models/llm-qwen3-14b/openai/v1/chat/completions")
+    assert cap["url"].startswith("https://api.wikimedia.org/")
+
+
+def test_liftwing_model_override_flows_into_url(monkeypatch):
+    monkeypatch.setenv("AGENT_LLM_PROVIDER", "liftwing")
+    monkeypatch.setenv("AGENT_LLM_MODEL", "llm-qwen36-27b")
+    cap = {}
+    monkeypatch.setattr(lp, "_http_chat",
+                        lambda u, k, m, p, s, t: (cap.update(url=u, model=m), "ok")[1])
+    lp.query_llm("hi")
+    assert cap["model"] == "llm-qwen36-27b"
+    assert "/models/llm-qwen36-27b/openai/" in cap["url"]
+
+
+def test_strip_reasoning_removes_only_leading_think_block():
+    assert lp.strip_reasoning("<think>weighing it</think>Answer: 42") == "Answer: 42"
+    assert lp.strip_reasoning("  <think>a\nb</think>\n\nfinal") == "final"
+    assert lp.strip_reasoning("plain answer") == "plain answer"
+    # a later </think> is content, not a reasoning wrapper — don't eat the answer
+    kept = lp.strip_reasoning("Answer mentions </think> inline")
+    assert kept == "Answer mentions </think> inline"
+
+
+def test_http_chat_sets_user_agent_and_omits_auth_when_keyless(monkeypatch):
+    cap = {}
+
+    class FakeResp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return json.dumps(
+                {"choices": [{"message": {"content": "<think>x</think>hi"}}]}).encode()
+
+    def fake_urlopen(req, timeout=None):
+        cap["headers"] = dict(req.headers)
+        return FakeResp()
+
+    monkeypatch.setattr(lp.urllib.request, "urlopen", fake_urlopen)
+    out = lp._http_chat("https://example.invalid/v1/chat", None, "m", "p", None, 10)
+    assert out == "hi"                                   # reasoning block stripped
+    hdrs = {k.lower(): v for k, v in cap["headers"].items()}
+    assert "authorization" not in hdrs
+    assert hdrs["user-agent"] == lp.USER_AGENT
 
 
 def test_claude_code_strips_routing_env_keeps_oauth(monkeypatch):

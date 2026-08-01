@@ -8,6 +8,9 @@ usage in one place:
     AGENT_LLM_PROVIDER = claude-code   (DEFAULT) — uses your Claude Code
                                         subscription via `claude -p`. No API key,
                                         no per-token billing.
+                       = liftwing      — Wikimedia LiftWing open-weight models.
+                                        No API key. Free. WMF-hosted, so wiki
+                                        content stays on Wikimedia infra.
                        = openrouter    — needs OPENROUTER_API_KEY
                        = mistral        — needs MISTRAL_API_KEY
     AGENT_LLM_MODEL    optional model override for the chosen provider.
@@ -16,14 +19,50 @@ For now we stay within the Claude Code subscription (the default). To move to a
 paid API later, set AGENT_LLM_PROVIDER (e.g. export it in ~/.claude/settings env
 or your shell) — nothing in the calling code changes.
 
+LiftWing notes (https://wikitech.wikimedia.org/wiki/Machine_Learning/LiftWing/
+Large_Language_Models/Wikimania_2026 — page is a DRAFT; endpoint may move):
+  * Models: llm-qwen3-14b (16K ctx, default), llm-qwen36-27b (32K ctx).
+  * OpenAI-compatible chat-completions; the model name goes in BOTH the URL
+    path and the request body.
+  * **100 requests/hour anonymously** — a hard floor, not a soft limit: 1k
+    items ≈ 10h minimum. Bulk work over the anonymous endpoint is an
+    overnight-run by arithmetic (see playbooks/budget-estimate.md). The
+    unlimited tier requires running FROM Toolforge (tool account + Jobs
+    framework), which is a user-action request — SSH is human-only here.
+  * No tool/function calling, no JSON mode: structured output must be prompted
+    and then validated by the caller. Responses may open with a
+    <think>…</think> reasoning block, which this module strips.
+
   query_llm("Generate 3 search queries for: ...", system="You are a librarian")
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import time
 import urllib.request
+
+# Per the project's web-access rules, every HTTP request identifies itself.
+USER_AGENT = os.environ.get(
+    "AGENT_LLM_USER_AGENT",
+    "WikimediaAnalysis/1.0 (personal research project; "
+    "https://github.com/lgelauff/wikimedia-analysis)")
+
+LIFTWING_BASE = ("https://api.wikimedia.org/service/lw/inference/v1/models/"
+                 "{model}/openai/v1/chat/completions")
+LIFTWING_DEFAULT_MODEL = "llm-qwen3-14b"
+
+_THINK_RE = re.compile(r"^\s*<think>.*?</think>\s*", re.DOTALL | re.IGNORECASE)
+
+
+def strip_reasoning(text: str) -> str:
+    """Drop a leading <think>…</think> block (LiftWing Qwen models emit one).
+
+    Pure + exported so callers that stream or post-process elsewhere can reuse
+    it. Only strips a LEADING block: a </think> appearing later is content.
+    """
+    return _THINK_RE.sub("", text).strip()
 
 
 def _provider() -> str:
@@ -38,6 +77,11 @@ def _dispatch(prompt: str, system: str | None, model: str | None, timeout: int) 
     p = _provider()
     if p == "claude-code":
         return _claude_code(prompt, system, _model(model), timeout)
+    if p == "liftwing":
+        m = _model(model) or LIFTWING_DEFAULT_MODEL
+        # The model name is part of the URL path AND the body for this service.
+        return _http_chat(LIFTWING_BASE.format(model=m), None, m,
+                          prompt, system, timeout)
     if p == "openrouter":
         return _http_chat("https://openrouter.ai/api/v1/chat/completions",
                           "OPENROUTER_API_KEY", _model(model) or "anthropic/claude-3.5-haiku",
@@ -46,7 +90,8 @@ def _dispatch(prompt: str, system: str | None, model: str | None, timeout: int) 
         return _http_chat("https://api.mistral.ai/v1/chat/completions",
                           "MISTRAL_API_KEY", _model(model) or "mistral-small-latest",
                           prompt, system, timeout)
-    raise ValueError(f"unknown AGENT_LLM_PROVIDER: {p!r} (claude-code|openrouter|mistral)")
+    raise ValueError(
+        f"unknown AGENT_LLM_PROVIDER: {p!r} (claude-code|liftwing|openrouter|mistral)")
 
 
 def query_llm(prompt: str, system: str | None = None, *,
@@ -102,20 +147,28 @@ def _claude_code(prompt: str, system: str | None, model: str | None, timeout: in
     return r.stdout.strip()
 
 
-def _http_chat(url: str, key_env: str, model: str, prompt: str,
+def _http_chat(url: str, key_env: str | None, model: str, prompt: str,
                system: str | None, timeout: int) -> str:
-    key = os.environ.get(key_env)
-    if not key:
-        raise RuntimeError(f"{key_env} not set (required for AGENT_LLM_PROVIDER={_provider()})")
+    """POST an OpenAI-shaped chat completion.
+
+    `key_env` is None for keyless services (LiftWing's public endpoint), in
+    which case no Authorization header is sent at all — an empty Bearer is
+    worse than none.
+    """
+    headers = {"Content-Type": "application/json", "User-Agent": USER_AGENT}
+    if key_env is not None:
+        key = os.environ.get(key_env)
+        if not key:
+            raise RuntimeError(f"{key_env} not set (required for AGENT_LLM_PROVIDER={_provider()})")
+        headers["Authorization"] = f"Bearer {key}"
     msgs = ([{"role": "system", "content": system}] if system else []) + \
            [{"role": "user", "content": prompt}]
     body = json.dumps({"model": model, "messages": msgs}).encode()
-    req = urllib.request.Request(url, data=body, headers={
-        "Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+    req = urllib.request.Request(url, data=body, headers=headers)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         data = json.loads(resp.read())
     try:
-        return data["choices"][0]["message"]["content"].strip()
+        return strip_reasoning(data["choices"][0]["message"]["content"])
     except (KeyError, IndexError, TypeError) as e:
         raise RuntimeError(f"unexpected LLM response shape: {str(data)[:200]}") from e
 

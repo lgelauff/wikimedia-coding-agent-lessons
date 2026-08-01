@@ -205,3 +205,8 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Provider feedback logs are local-only (candid, project-specific).
+# The README + template stay committed; the per-provider logs do not.
+agent-tooling/feedback/*.md
+!agent-tooling/feedback/README.md
