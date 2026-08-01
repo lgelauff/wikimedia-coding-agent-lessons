@@ -60,6 +60,39 @@ limits for OAuth-authenticated and known clients. Whether an OAuth bearer token
 also lifts the LLM's 100/h cap is **untested** — measure before relying on it,
 and log the answer in the feedback file.
 
+## The rate budget is enforced, not remembered
+
+Concurrent sessions are separate OS processes that cannot see each other's API
+usage, so the 100/h ceiling is **enforced at the chokepoint**: every LiftWing
+call through `llm_provider` first takes a token from a file-backed bucket
+(`scripts/rate_budget.py`), guarded by an `flock` so two sessions can never
+take the same token.
+
+| Knob | Default | Why |
+|---|---|---|
+| refill | 1 token / 40 s (= 90/h) | headroom under the documented 100/h |
+| burst | 8 tokens | small bursts when quota is idle; no session can hoard the hour |
+| hourly backstop | 95 calls/60 min | matches the documented number; catches clock jumps or bucket-math bugs |
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/rate_budget.py" --status   # headroom + who used it
+```
+
+- **Fail-fast by default** — an exhausted budget raises with the seconds until
+  the next token, rather than sleeping (a silently sleeping agent looks hung).
+- **`AGENT_RATE_WAIT=1` paces instead** — for scripted and overnight callers,
+  which should be throttled, not aborted.
+- **`AGENT_RATE_DISABLE=1`** turns the budget off — for running *from
+  Toolforge*, where the cap doesn't apply. Never set it to "get more calls".
+- **429 is expected, not exceptional:** `Retry-After` is honoured, the event is
+  recorded in the ledger, and the generic retry does not hammer the wall.
+- **Attribution:** `~/.claude/liftwing-usage.jsonl` holds one line per call
+  (session, project, pid, model, outcome) — that ledger is the answer to
+  "which sessions are using this API", and the evidence for tuning the knobs.
+- **Budget before you batch.** `--status` is the pre-flight check for any
+  multi-call pass; a study that needs 40 triage calls should see that number
+  against the hour's headroom *before* starting, not at call 9.
+
 ## The rate limit is the design constraint
 
 **100 requests/hour anonymously — a hard floor, not a soft limit.** Before

@@ -41,6 +41,7 @@ import re
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 
 # Per the project's web-access rules, every HTTP request identifies itself.
@@ -79,9 +80,16 @@ def _dispatch(prompt: str, system: str | None, model: str | None, timeout: int) 
         return _claude_code(prompt, system, _model(model), timeout)
     if p == "liftwing":
         m = _model(model) or LIFTWING_DEFAULT_MODEL
+        # Cross-session rate budget: concurrent sessions share one 100/h quota
+        # and cannot see each other, so every call passes the file-backed
+        # token bucket. AGENT_RATE_WAIT=1 paces instead of failing (scripted /
+        # overnight callers); interactive callers fail fast on purpose.
+        budget = _liftwing_budget()
+        if budget is not None:
+            budget.acquire(model=m, wait=os.environ.get("AGENT_RATE_WAIT") == "1")
         # The model name is part of the URL path AND the body for this service.
         return _http_chat(LIFTWING_BASE.format(model=m), None, m,
-                          prompt, system, timeout)
+                          prompt, system, timeout, budget=budget)
     if p == "openrouter":
         return _http_chat("https://openrouter.ai/api/v1/chat/completions",
                           "OPENROUTER_API_KEY", _model(model) or "anthropic/claude-3.5-haiku",
@@ -108,6 +116,11 @@ def query_llm(prompt: str, system: str | None = None, *,
             return _dispatch(prompt, system, model, timeout)
         except ValueError:
             raise
+        except Exception as e:  # noqa: BLE001
+            # A budget refusal is a deliberate decision, not a transient fault:
+            # retrying it just burns the backoff and reports the same answer.
+            if type(e).__name__ == "RateBudgetExceeded":
+                raise
         except Exception as e:  # noqa: BLE001 — network/CLI/rate-limit, worth a retry
             last = e
             if attempt < retries:
@@ -147,8 +160,21 @@ def _claude_code(prompt: str, system: str | None, model: str | None, timeout: in
     return r.stdout.strip()
 
 
+def _liftwing_budget():
+    """The shared LiftWing rate budget, or None if disabled/unavailable.
+
+    AGENT_RATE_DISABLE=1 turns it off (single-session bulk work that is being
+    metered some other way, e.g. running from Toolforge where the cap lifts).
+    """
+    if os.environ.get("AGENT_RATE_DISABLE") == "1":
+        return None
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from rate_budget import RateBudget          # local module, same dir
+    return RateBudget("liftwing")
+
+
 def _http_chat(url: str, key_env: str | None, model: str, prompt: str,
-               system: str | None, timeout: int) -> str:
+               system: str | None, timeout: int, budget=None) -> str:
     """POST an OpenAI-shaped chat completion.
 
     `key_env` is None for keyless services (LiftWing's public endpoint), in
@@ -165,8 +191,27 @@ def _http_chat(url: str, key_env: str | None, model: str, prompt: str,
            [{"role": "user", "content": prompt}]
     body = json.dumps({"model": model, "messages": msgs}).encode()
     req = urllib.request.Request(url, data=body, headers=headers)
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        data = json.loads(resp.read())
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        # 429 is expected on a shared quota, not exceptional: honour
+        # Retry-After rather than letting the generic retry hammer the wall,
+        # and record it — the ledger is the evidence for tuning the bucket.
+        if e.code == 429:
+            try:
+                wait = float(e.headers.get("Retry-After") or 30)
+            except (TypeError, ValueError):
+                wait = 30.0
+            if budget is not None:
+                budget.record("429", model=model, retry_after=wait)
+            time.sleep(min(wait, 120.0))
+            raise RuntimeError(
+                f"rate limited (429) by {url.split('/')[2]}; waited {min(wait, 120.0):.0f}s. "
+                "The anonymous pool is shared — for bulk work run from Toolforge.") from e
+        if budget is not None:
+            budget.record("error", model=model, status=e.code)
+        raise
     try:
         return strip_reasoning(data["choices"][0]["message"]["content"])
     except (KeyError, IndexError, TypeError) as e:
