@@ -1,6 +1,6 @@
 ---
 name: session-close
-description: Wrap up a working session on any repo — secure at-risk work that `git status` cannot see (gitignored files in worktrees, orphanable background jobs), evaluate what the session actually established, surface open ends by who is blocked, and route the resulting actions into the project's own queues (overnight runs, remote/Toolforge job packets, worklist). Use when the user says "let's wrap up", "close the session", "end of session", "what did we do today", "/session-close", or before stepping away from a long session. Do NOT use mid-task.
+description: Wrap up a working session on any repo — secure at-risk work that `git status` cannot see (gitignored files in worktrees, orphanable background jobs), evaluate what the session actually established, surface open ends by who is blocked, and route the resulting actions into the project's own queues (overnight runs, remote/Toolforge job packets, worklist). Use when the user signals they are ending the session — "let's wrap up", "close the session", "end of session", "/session-close", "that's it for today", "picking this up tomorrow". A bare "what did we do today" is usually a recap request, not a session end: just answer it. Do NOT use mid-task, and do NOT use for "wrap up this PR/feature" — finishing one piece of work inside an ongoing session is a commit and a short summary, not a session close.
 ---
 
 # Session close
@@ -16,10 +16,14 @@ Run the phases in order. Do not skip Phase 1 because the tree "looks clean" — 
 ## Phase 1 — Secure (always first, never skipped)
 
 ```bash
-python3 agent-tooling/scripts/git_hygiene.py --repo . --ignored
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/git_hygiene.py" --repo . --ignored
 ```
 
-Exit 0 = clean. Exit 1 = decisions needed. **It only reports — it never commits, pushes, or deletes.**
+`${CLAUDE_PLUGIN_ROOT}` is required — a bare `agent-tooling/...` path resolves against the *consuming* repo, where that directory does not exist. Every sibling skill uses this form.
+
+**Exit codes: 0 = clean and the scan completed · 1 = at-risk work found · 2 = THE SCAN COULD NOT COMPLETE.** Treat 2 as worse than 1: a repo whose scan failed is *unverified*, not clean, and you cannot act on what you could not see. Never report "nothing at risk" on a 2.
+
+**It only reports — it never commits, pushes, or deletes.**
 
 `--ignored` is the flag that matters and it is **off by default**, because walking ignored trees can mean tens of GB and must never sit on the SessionStart critical path. At session close you want it on.
 
@@ -81,18 +85,20 @@ Anything raised and not resolved is either **filed** in the worklist or **explic
 
 **This is what makes a session close productive rather than administrative.** Actions do not go into prose nobody re-reads — they go into the queues the project runs from. Find the repo's actual queue files first.
 
-### 4a. Remote / cluster job packets (Toolforge, HPC, CI-run batch work)
+⚠ **4a and 4b are CONDITIONAL.** Many repos have no remote compute and no unattended runs. Check whether this one does; if not, skip them, say so in one line, and go to 4c. Do not manufacture work to fill them.
+
+### 4a. Remote / cluster job packets — ONLY if this repo uses them
 
 Everything needing a shell the agent cannot open goes here, written **batch-launchable**, because the scarce resource is the user's terminal time.
 
 Every packet states:
 - **Gates** — what must be true before launch, each independently checkable, load-bearing one first. A packet whose first gate fails should cost nothing.
-- **Resource limits**, explicitly. On shared clusters, over-quota jobs may be **silently refused with empty logs** — so the packet must say how to confirm the job actually *started*, not just that a command returned.
+- **Resource limits**, explicitly, in whatever form the scheduler enforces. ⚠ Find out how *this* scheduler fails when you exceed them — on some (Toolforge's job framework, for one) an over-quota job is **silently refused with empty logs**, so the packet must say how to confirm the job actually *started*, not merely that a command returned 0.
 - **The right submission mode** — batch/job submission rather than an interactive shell, where inline runs can hang unkillably.
 - **Verification on content, not exit code.** Logs are often gone once a one-off completes, and file size proves nothing: a job dying two-thirds through leaves a plausibly-sized file.
-- A **unique packet id**, checked against the shared index for collisions before use.
+- **If the repo numbers its job packets**, a unique id checked against that index for collisions before use. (Skip if it has no such scheme — do not invent one at session close.)
 
-### 4b. Overnight / unattended runs
+### 4b. Overnight / unattended runs — ONLY if this repo has them
 
 **Keep this queue stocked.** Bedtime should be a five-minute pick from a menu; a night is lost whenever the run has to be *prepared* at bedtime. Prep by day. (See the `overnight-run` skill for the full prep → rehearse → launch → report protocol.)
 
@@ -110,6 +116,12 @@ Any new package satisfies:
 Each entry self-contained enough to act on without this conversation: paths, ids, and why it matters.
 
 ---
+
+## Output — persist it, or this skill contradicts itself
+
+⚠ **Phases 2, 3 and 5 produce findings that exist only as chat text unless you write them down — which makes them exactly as loseable as the gitignored files Phase 1 exists to rescue.** Persist them.
+
+Write a dated close-out note wherever the repo's own convention points (**discover it — do not invent a path**; if there is no convention, say so and propose one). It carries: the labelled findings from Phase 2, the open-ends table from Phase 3, what was routed where in Phase 4, and Phase 5's verdict plus the one recommended next action. **Self-contained enough for a cold agent with no memory of this session.** Then give the same content in chat as the close-out summary — the file is what the next session reads first.
 
 ## Phase 5 — Big picture
 

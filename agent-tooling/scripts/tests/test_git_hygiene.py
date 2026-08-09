@@ -111,3 +111,48 @@ def test_report_names_the_biggest_ignored_path():
     out = g.format_report([r])
     assert "GITIGNORED" in out and ".claude/" in out
     assert "invisible to git status" in out
+
+
+# --- regressions: "could not verify" must never render as "verified clean" -------------------
+
+def test_noise_matching_is_component_anchored_not_substring():
+    """Unanchored substring matching dropped real content whose name merely CONTAINED a token."""
+    for real in ("analysis/.toxicity_scores/results.json",      # contains ".tox"
+                 "corpus.toxicity/data.json",                   # contains ".tox"
+                 "docs/node_modules_scrape_2026/README.md",     # contains "node_modules"
+                 "notes/my.gradlenotes/data.csv",               # contains ".gradle"
+                 "cache/reproducibility.venv-snapshot/env.lock"):  # contains ".venv"
+        assert not g._is_noise(real), f"real content wrongly filtered as noise: {real}"
+    for noise in ("a/__pycache__/x.pyc", "node_modules/pkg/i.js", ".venv/lib/py", "x/.tox/py39/z"):
+        assert g._is_noise(noise), f"genuine noise leaked through: {noise}"
+
+
+def test_git_records_failure_instead_of_silently_returning_empty():
+    """A failed git call must be distinguishable from a genuinely empty result."""
+    errs = []
+    out = g._git("/definitely/not/a/repo", "status", "--porcelain", timeout=5.0, errors=errs)
+    assert out == ""
+    assert len(errs) == 1, "failure was swallowed — this is the false-all-clear bug"
+    assert "args" in errs[0] and "why" in errs[0]
+
+
+def test_scan_failed_and_report_refuse_to_claim_clean():
+    """The core contract: inability to verify is NOT verified-clean."""
+    r = {"repo": "/x", "is_repo": True, "branch": "main", "uncommitted": 0, "untracked": 0,
+         "stashes": 0, "unpushed": 0, "dirty_worktrees": [], "ignored_main": [],
+         "errors": [{"repo": "/x", "args": ["status", "--porcelain"], "why": "timeout after 5.0s"}],
+         "scan_complete": False}
+    assert g.scan_failed(r)
+    assert not g.is_dirty(r)          # nothing was OBSERVED dirty ...
+    out = g.format_report([r])
+    assert out, "a failed scan produced an empty report — reads as clean"
+    assert "SCAN INCOMPLETE" in out and "UNVERIFIED" in out
+
+
+def test_clean_scan_still_reports_nothing():
+    """No false alarms: a genuinely clean, complete scan stays silent."""
+    r = {"repo": "/x", "is_repo": True, "branch": "main", "uncommitted": 0, "untracked": 0,
+         "stashes": 0, "unpushed": 0, "dirty_worktrees": [], "ignored_main": [],
+         "errors": [], "scan_complete": True}
+    assert not g.scan_failed(r) and not g.is_dirty(r)
+    assert g.format_report([r]) == ""

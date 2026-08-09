@@ -20,16 +20,36 @@ import sys
 import time
 
 
-def _git(repo: str, *args: str, timeout: float = 5.0) -> str:
+def _git(repo: str, *args: str, timeout: float = 5.0, errors: list | None = None) -> str:
+    """Run a git command. Returns stdout, or "" on ANY failure.
+
+    ⚠ A failure and a genuinely empty result BOTH return "". That ambiguity was a real
+    false-all-clear bug: every caller parses "" as zero-of-everything, so a timed-out or errored
+    scan read exactly like a clean one. `errors` is the fix — pass a list and any failure is
+    appended to it, so the caller can report "could not verify" instead of "nothing found".
+    INABILITY TO VERIFY IS NOT VERIFIED-CLEAN. Callers that skip `errors` keep the old lenient
+    behaviour, so this stays backward compatible for pure-parser tests.
+    """
     # --no-optional-locks: never take index.lock (read-only safety on a busy repo).
-    # timeout: this runs on the SessionStart critical path — a hung cred helper,
-    # NFS worktree, or stale lock must not block the session. A hang reads as "".
+    # timeout: this can run on the SessionStart critical path — a hung cred helper, NFS worktree
+    # or stale lock must not block the session.
     try:
         r = subprocess.run(["git", "--no-optional-locks", "-C", repo, *args],
                            capture_output=True, text=True, timeout=timeout)
-    except (subprocess.TimeoutExpired, OSError):
+    except subprocess.TimeoutExpired:
+        if errors is not None:
+            errors.append({"repo": repo, "args": list(args), "why": f"timeout after {timeout}s"})
         return ""
-    return r.stdout if r.returncode == 0 else ""
+    except OSError as e:
+        if errors is not None:
+            errors.append({"repo": repo, "args": list(args), "why": f"OSError: {e}"})
+        return ""
+    if r.returncode != 0:
+        if errors is not None:
+            errors.append({"repo": repo, "args": list(args),
+                           "why": f"exit {r.returncode}: {(r.stderr or '').strip()[:120]}"})
+        return ""
+    return r.stdout
 
 
 def _classify_porcelain(text: str) -> tuple[int, int]:
@@ -68,15 +88,28 @@ def _unpushed(repo: str) -> tuple[int, bool]:
 
 # Directories whose ignored contents are effectively always regenerable. Kept short on purpose:
 # a false alarm costs a glance, a false all-clear costs the work.
-_IGNORE_NOISE = ("__pycache__", ".pytest_cache", ".ruff_cache", "node_modules", ".mypy_cache",
-                 ".ipynb_checkpoints", ".DS_Store", ".venv", "venv/", ".tox", ".gradle")
+# Whole path COMPONENTS (see _is_noise) whose contents are effectively always regenerable.
+# Deliberately short: a false alarm costs a glance, a false all-clear costs the work.
+_IGNORE_NOISE = frozenset({"__pycache__", ".pytest_cache", ".ruff_cache", "node_modules",
+                           ".mypy_cache", ".ipynb_checkpoints", ".DS_Store", ".venv", "venv",
+                           ".tox", ".gradle", "env", ".eggs", ".next", ".parcel-cache"})
 
 
 def _is_noise(rel: str) -> bool:
-    return any(tok in rel for tok in _IGNORE_NOISE)
+    """True only if a whole PATH COMPONENT is a known-regenerable dir.
+
+    ⚠ Was `any(tok in rel ...)` — unanchored substring matching, which silently dropped real
+    content whose name merely CONTAINED a token: `analysis/.toxicity_scores/` matched ".tox",
+    and a frozen `reproducibility.venv-snapshot/` (which this project's own provenance rule tells
+    you to create) matched ".venv". Both are exactly the irreplaceable kind of path this tool
+    exists to surface, so the filter was hiding its own quarry.
+    """
+    parts = [c for c in rel.replace(os.sep, "/").split("/") if c]
+    return any(c in _IGNORE_NOISE for c in parts)
 
 
-def _ignored_present(path: str, deadline: float | None = None) -> list[dict]:
+def _ignored_present(path: str, deadline: float | None = None,
+                     errors: list | None = None) -> tuple[list[dict], bool]:
     """Gitignored paths that EXIST on disk, largest first.
 
     THE blind spot: `git status` is structurally silent about ignored files, so a worktree can
@@ -88,18 +121,24 @@ def _ignored_present(path: str, deadline: float | None = None) -> list[dict]:
     the SessionStart critical path.
     """
     raw = _git(path, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory",
-               timeout=30.0)
-    rows = []
+               timeout=30.0, errors=errors)
+    rows, truncated = [], False
     for rel in filter(None, (ln.strip() for ln in raw.splitlines())):
         if _is_noise(rel):
             continue
         if deadline is not None and time.monotonic() > deadline:
+            # ⚠ Signal it. Returning a short list silently is how a partial scan reads as a
+            # complete one — the exact false-all-clear this tool exists to prevent.
+            truncated = True
             break
         full = pathlib.Path(path) / rel
         try:
             if full.is_dir():
                 total = nfiles = 0
-                for dirpath, dirnames, filenames in os.walk(full):
+                def _walk_err(e, _p=rel):
+                    if errors is not None:
+                        errors.append({"repo": path, "args": ["walk", _p], "why": f"{e}"})
+                for dirpath, dirnames, filenames in os.walk(full, onerror=_walk_err):
                     dirnames[:] = [d for d in dirnames if not _is_noise(d + "/")]
                     for fn in filenames:
                         try:
@@ -113,7 +152,7 @@ def _ignored_present(path: str, deadline: float | None = None) -> list[dict]:
                 rows.append({"path": rel, "bytes": full.stat().st_size, "files": 1, "dir": False})
         except OSError:
             continue
-    return sorted(rows, key=lambda r: -r["bytes"])
+    return sorted(rows, key=lambda r: -r["bytes"]), truncated
 
 
 def _human(n: float) -> str:
@@ -125,23 +164,28 @@ def _human(n: float) -> str:
 
 
 def scan_repo(repo: str, deadline: float | None = None, with_ignored: bool = False) -> dict:
+    errors: list = []
     repo = str(pathlib.Path(repo).resolve())
-    inside = _git(repo, "rev-parse", "--is-inside-work-tree").strip()
+    inside = _git(repo, "rev-parse", "--is-inside-work-tree", errors=errors).strip()
     if inside != "true":
-        return {"repo": repo, "is_repo": False}
-    tracked, untracked = _classify_porcelain(_git(repo, "status", "--porcelain"))
-    stashes = _count_lines(_git(repo, "stash", "list"))
+        return {"repo": repo, "is_repo": False, "errors": errors,
+                "scan_complete": not errors}
+    tracked, untracked = _classify_porcelain(_git(repo, "status", "--porcelain", errors=errors))
+    stashes = _count_lines(_git(repo, "stash", "list", errors=errors))
     unpushed, no_upstream = _unpushed(repo)
     dirty_worktrees, partial = [], False
-    for wt in _parse_worktrees(_git(repo, "worktree", "list", "--porcelain")):
+    for wt in _parse_worktrees(_git(repo, "worktree", "list", "--porcelain", errors=errors)):
         if deadline is not None and time.monotonic() > deadline:
             partial = True
             break
-        wt_tracked, wt_untracked = _classify_porcelain(_git(wt, "status", "--porcelain"))
-        wt_ignored = _ignored_present(wt, deadline) if with_ignored else []
+        wt_tracked, wt_untracked = _classify_porcelain(_git(wt, "status", "--porcelain", errors=errors))
+        wt_ignored, wt_trunc = _ignored_present(wt, deadline, errors) if with_ignored else ([], False)
+        partial = partial or wt_trunc
         if wt_tracked or wt_untracked or wt_ignored:
             dirty_worktrees.append({"path": wt, "uncommitted": wt_tracked,
                                     "untracked": wt_untracked, "ignored": wt_ignored})
+    ign_main, main_trunc = _ignored_present(repo, deadline, errors) if with_ignored else ([], False)
+    partial = partial or main_trunc
     return {
         "repo": repo, "is_repo": True,
         "branch": _git(repo, "rev-parse", "--abbrev-ref", "HEAD").strip(),
@@ -151,7 +195,9 @@ def scan_repo(repo: str, deadline: float | None = None, with_ignored: bool = Fal
         # Main-checkout ignored content is reported but NEVER counts as at-risk: it is the normal
         # build/data store and a session ending cannot hurt it. Only a WORKTREE's ignored content
         # is at-risk, because collapsing a worktree is routine cleanup that takes it along.
-        "ignored_main": _ignored_present(repo, deadline) if with_ignored else [],
+        "ignored_main": ign_main,
+        # A scan that could not complete MUST NOT read as a clean one.
+        "errors": errors, "scan_complete": not errors and not partial,
     }
 
 
@@ -182,11 +228,32 @@ def summarize(r: dict) -> str:
     return ", ".join(bits)
 
 
+def scan_failed(r: dict) -> bool:
+    """Scan could not be completed -> its 'clean' means nothing."""
+    return not r.get("scan_complete", True)
+
+
 def format_report(reports: list[dict]) -> str:
     dirty = [r for r in reports if is_dirty(r)]
-    if not dirty:
+    broken = [r for r in reports if scan_failed(r) and r not in dirty]
+    if not dirty and not broken:
         return ""
-    lines = ["⚠️  UNSAVED / AT-RISK GIT WORK"]
+    lines = []
+    # Report unverifiable repos FIRST and separately. "I could not check" must never be
+    # displayed as, or mistaken for, "I checked and it was fine".
+    for r in broken + dirty:
+        if scan_failed(r):
+            name = pathlib.Path(r["repo"]).name
+            errs = r.get("errors") or []
+            lines.append(f"⛔ SCAN INCOMPLETE — {name}: {len(errs)} git operation(s) failed. "
+                         f"This repo's result is UNVERIFIED, not clean.")
+            for e in errs[:3]:
+                lines.append(f"      {' '.join(e['args'])[:48]} -> {e['why'][:70]}")
+            if len(errs) > 3:
+                lines.append(f"      ... and {len(errs) - 3} more (--json for all)")
+    if not dirty:
+        return "\n".join(lines)
+    lines.append("⚠️  UNSAVED / AT-RISK GIT WORK")
     for r in dirty:
         name = pathlib.Path(r["repo"]).name
         lines.append(f"  • {name} [{r['branch']}]: {summarize(r)}")
@@ -215,11 +282,20 @@ def format_report(reports: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _deadline(budget: float | None) -> float | None:
+    return None if budget is None else time.monotonic() + budget
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--repo", default=os.getcwd(), help="repo to scan (default: cwd)")
     ap.add_argument("--root", help="scan every immediate child git repo under this dir")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--budget", type=float, default=None, metavar="SEC",
+                    help="wall-clock budget for the scan. Without it there is NO time limit and "
+                         "the partial-scan guard never fires — it was previously unreachable from "
+                         "the CLI entirely. Set it for unattended/hook use; omit at session close "
+                         "when you want completeness over speed.")
     ap.add_argument("--ignored", action="store_true",
                     help="also scan for GITIGNORED-BUT-PRESENT files — the blind spot git status "
                          "cannot see. Off by default: it can walk tens of GB, so it must never sit "
@@ -228,20 +304,24 @@ def main() -> int:
 
     if a.root:
         root = pathlib.Path(a.root).expanduser()
-        reports = [scan_repo(str(p), with_ignored=a.ignored) for p in sorted(root.iterdir())
+        reports = [scan_repo(str(p), deadline=_deadline(a.budget), with_ignored=a.ignored) for p in sorted(root.iterdir())
                    if p.is_dir() and not p.is_symlink() and (p / ".git").exists()]
     else:
-        reports = [scan_repo(a.repo, with_ignored=a.ignored)]
+        reports = [scan_repo(a.repo, deadline=_deadline(a.budget), with_ignored=a.ignored)]
 
     if a.json:
         print(json.dumps(reports, indent=2))
+        if any(scan_failed(r) for r in reports):
+            return 2
         return 1 if any(is_dirty(r) for r in reports) else 0
 
     report = format_report(reports)
     if report:
         print(report)
-        return 1
-    print("✓ git clean (nothing uncommitted/stashed/unpushed)")
+        # 2 outranks 1: an unverifiable scan is a worse state than a known-dirty one, because
+        # you cannot act on what you could not see.
+        return 2 if any(scan_failed(r) for r in reports) else 1
+    print("✓ git clean (nothing uncommitted/stashed/unpushed; scan completed)")
     return 0
 
 
