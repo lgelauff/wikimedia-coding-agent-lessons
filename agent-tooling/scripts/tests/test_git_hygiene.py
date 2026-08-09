@@ -192,3 +192,37 @@ def test_script_has_no_write_primitives():
     for pat in (r"shutil\.", r"os\.remove", r"os\.unlink", r"os\.rmdir", r"os\.rename",
                 r"os\.makedirs", r"\.write_text\(", r"\.write\("):
         assert not _re.search(pat, src), f"write primitive found in a read-only tool: {pat}"
+
+
+# --- unknown-flagging: anything unrecognised must surface, never read as "nothing there" -----
+
+def test_unrecognised_porcelain_code_is_flagged_not_silently_bucketed():
+    unk = []
+    tracked, untracked = g._classify_porcelain(" M a.txt\n?? b.txt\nZZ weird.txt\n", unk, "/x")
+    assert (tracked, untracked) == (2, 1)          # still counted, conservatively
+    assert any("ZZ" in u["what"] for u in unk), "unknown status code was swallowed"
+
+
+def test_known_porcelain_codes_do_not_produce_noise():
+    unk = []
+    g._classify_porcelain(" M a\nM  b\n?? c\nUU d\nA  e\nR  f\n", unk, "/x")
+    assert unk == [], f"known codes wrongly flagged as unknown: {unk}"
+
+
+def test_unknowns_force_a_report_even_when_nothing_is_dirty():
+    """The third state: not an error, not dirt, but 'I cannot vouch for this repo'."""
+    r = {"repo": "/x", "is_repo": True, "branch": "main", "uncommitted": 0, "untracked": 0,
+         "stashes": 0, "unpushed": 0, "dirty_worktrees": [], "ignored_main": [],
+         "errors": [], "scan_complete": True, "conditions": [],
+         "unknowns": [{"repo": "/x", "what": "1 submodule(s)", "why": "not scanned"}]}
+    assert g.has_unknowns(r) and not g.is_dirty(r) and not g.scan_failed(r)
+    out = g.format_report([r])
+    assert "UNKNOWN" in out, "an unknown produced an empty report — reads as clean"
+
+
+def test_inprogress_conditions_are_surfaced():
+    r = {"repo": "/x", "is_repo": True, "branch": "main", "uncommitted": 1, "untracked": 0,
+         "stashes": 0, "unpushed": 0, "dirty_worktrees": [], "ignored_main": [],
+         "errors": [], "scan_complete": True, "unknowns": [],
+         "conditions": ["merge in progress"]}
+    assert "merge in progress" in g.format_report([r])

@@ -88,16 +88,91 @@ def _git(repo: str, *args: str, timeout: float = 5.0, errors: list | None = None
     return r.stdout
 
 
-def _classify_porcelain(text: str) -> tuple[int, int]:
-    """Return (uncommitted_tracked, untracked) from `git status --porcelain`."""
+# ---------------------------------------------------------------------------------------------
+# KNOWN-CONDITIONS REGISTRY  —  flag everything this tool does not claim to understand
+# ---------------------------------------------------------------------------------------------
+# Design inversion (owner, 2026-08-09). Detecting known-bad cases one at a time means every
+# situation nobody anticipated reads as "nothing there" — which is the tool's whole failure mode
+# in one sentence. Every open review finding (submodules, symlinked repos, bare repos, mid-rebase
+# state) was an instance of it.
+#
+# So: enumerate what we DO handle, and surface anything else as UNKNOWN. A new git feature, an
+# exotic repo layout or an unrecognised status code then produces a visible "I don't know what
+# this is" instead of silence. Unknown is not an error and not dirt — it is a third state meaning
+# "a human should look, because I cannot vouch for this repo".
+#
+# Adding a condition here is a deliberate act: you are asserting the scan handles it correctly.
+
+# Porcelain XY codes this tool's classifier understands. Anything else -> UNKNOWN.
+_KNOWN_PORCELAIN = frozenset({
+    "??",              # untracked
+    " M", "M ", "MM", "AM", " D", "D ", "MD", "AD",   # ordinary add/modify/delete
+    "A ", "AA", "R ", "RM", "C ", " R", " C", "T ", " T", "MT", "TM",
+    "UU", "AU", "UA", "DU", "UD", "DD",               # unmerged / conflicted
+    "!!",              # ignored (only appears with --ignored)
+})
+
+# In-progress operations. Present => the repo is mid-operation and walking away is riskier than a
+# plain edit. We detect and NAME them; we do not pretend to assess their safety.
+_INPROGRESS_MARKERS = (
+    ("MERGE_HEAD", "merge in progress"),
+    ("rebase-merge", "rebase in progress"),
+    ("rebase-apply", "rebase/am in progress"),
+    ("CHERRY_PICK_HEAD", "cherry-pick in progress"),
+    ("REVERT_HEAD", "revert in progress"),
+    ("BISECT_LOG", "bisect in progress"),
+)
+
+
+def _repo_conditions(repo: str, errors: list, unknowns: list) -> list[str]:
+    """Probe for states we either handle explicitly or must declare we cannot assess."""
+    notes = []
+    gitdir_raw = _git(repo, "rev-parse", "--git-dir", errors=errors).strip()
+    gitdir = pathlib.Path(repo, gitdir_raw) if gitdir_raw and not os.path.isabs(gitdir_raw) else pathlib.Path(gitdir_raw or "")
+
+    for marker, label in _INPROGRESS_MARKERS:
+        try:
+            if gitdir and (gitdir / marker).exists():
+                notes.append(label)
+        except OSError:
+            pass
+
+    if _git(repo, "rev-parse", "--is-bare-repository", errors=errors).strip() == "true":
+        unknowns.append({"repo": repo, "what": "bare repository",
+                         "why": "no working tree — this tool's dirty/ignored checks do not apply; "
+                                "unpushed refs are NOT assessed here"})
+
+    if _git(repo, "rev-parse", "--abbrev-ref", "HEAD", errors=errors).strip() == "HEAD":
+        notes.append("detached HEAD")
+
+    # Submodules: a KNOWN blind spot. git ls-files does not cross the boundary, so ignored content
+    # inside a submodule is invisible. Declare it rather than quietly missing it.
+    mods = [l for l in _git(repo, "ls-files", "--stage", errors=errors).splitlines()
+            if l.startswith("160000")]
+    if mods:
+        unknowns.append({"repo": repo, "what": f"{len(mods)} submodule(s)",
+                         "why": "ignored content INSIDE a submodule is not scanned — `git ls-files` "
+                                "does not cross the boundary. Check them separately."})
+    return notes
+
+
+def _classify_porcelain(text: str, unknowns: list | None = None, repo: str = "") -> tuple[int, int]:
+    """(tracked_changes, untracked). Unrecognised XY codes are reported, never silently bucketed."""
     tracked = untracked = 0
+    seen_unknown = set()
     for ln in text.splitlines():
         if not ln.strip():
             continue
-        if ln.startswith("??"):
+        code = ln[:2]
+        if code == "??":
             untracked += 1
         else:
             tracked += 1
+        if unknowns is not None and code not in _KNOWN_PORCELAIN and code not in seen_unknown:
+            seen_unknown.add(code)
+            unknowns.append({"repo": repo, "what": f"unrecognised status code {code!r}",
+                             "why": "counted as a tracked change, but this tool has no rule for it "
+                                    "— verify by hand"})
     return tracked, untracked
 
 
@@ -201,12 +276,15 @@ def _human(n: float) -> str:
 
 def scan_repo(repo: str, deadline: float | None = None, with_ignored: bool = False) -> dict:
     errors: list = []
+    unknowns: list = []
     repo = str(pathlib.Path(repo).resolve())
     inside = _git(repo, "rev-parse", "--is-inside-work-tree", errors=errors).strip()
     if inside != "true":
+        _repo_conditions(repo, errors, unknowns)   # still probe: a bare repo lands here
         return {"repo": repo, "is_repo": False, "errors": errors,
-                "scan_complete": not errors}
-    tracked, untracked = _classify_porcelain(_git(repo, "status", "--porcelain", errors=errors))
+                "scan_complete": not errors, "unknowns": unknowns, "conditions": []}
+    tracked, untracked = _classify_porcelain(_git(repo, "status", "--porcelain", errors=errors), unknowns, repo)
+    conditions = _repo_conditions(repo, errors, unknowns)
     stashes = _count_lines(_git(repo, "stash", "list", errors=errors))
     unpushed, no_upstream = _unpushed(repo)
     dirty_worktrees, partial = [], False
@@ -214,7 +292,7 @@ def scan_repo(repo: str, deadline: float | None = None, with_ignored: bool = Fal
         if deadline is not None and time.monotonic() > deadline:
             partial = True
             break
-        wt_tracked, wt_untracked = _classify_porcelain(_git(wt, "status", "--porcelain", errors=errors))
+        wt_tracked, wt_untracked = _classify_porcelain(_git(wt, "status", "--porcelain", errors=errors), unknowns, wt)
         wt_ignored, wt_trunc = _ignored_present(wt, deadline, errors) if with_ignored else ([], False)
         partial = partial or wt_trunc
         if wt_tracked or wt_untracked or wt_ignored:
@@ -234,6 +312,9 @@ def scan_repo(repo: str, deadline: float | None = None, with_ignored: bool = Fal
         "ignored_main": ign_main,
         # A scan that could not complete MUST NOT read as a clean one.
         "errors": errors, "scan_complete": not errors and not partial,
+        # Third state: not an error, not dirt — "a human should look, because I cannot
+        # vouch for this". Anything the tool does not claim to understand lands here.
+        "unknowns": unknowns, "conditions": conditions,
     }
 
 
@@ -264,6 +345,11 @@ def summarize(r: dict) -> str:
     return ", ".join(bits)
 
 
+def has_unknowns(r: dict) -> bool:
+    """Encountered something it has no rule for — cannot vouch for this repo."""
+    return bool(r.get("unknowns"))
+
+
 def scan_failed(r: dict) -> bool:
     """Scan could not be completed -> its 'clean' means nothing."""
     return not r.get("scan_complete", True)
@@ -272,12 +358,19 @@ def scan_failed(r: dict) -> bool:
 def format_report(reports: list[dict]) -> str:
     dirty = [r for r in reports if is_dirty(r)]
     broken = [r for r in reports if scan_failed(r) and r not in dirty]
-    if not dirty and not broken:
+    unsure = [r for r in reports if has_unknowns(r) and r not in dirty and r not in broken]
+    if not dirty and not broken and not unsure:
         return ""
     lines = []
     # Report unverifiable repos FIRST and separately. "I could not check" must never be
     # displayed as, or mistaken for, "I checked and it was fine".
-    for r in broken + dirty:
+    for r in broken + unsure + dirty:
+        for u in (r.get("unknowns") or []):
+            lines.append(f"❓ UNKNOWN — {pathlib.Path(u['repo']).name}: {u['what']}")
+            lines.append(f"      {u['why']}")
+        for c in (r.get("conditions") or []):
+            lines.append(f"❗ {pathlib.Path(r['repo']).name}: {c} — higher risk to walk away from "
+                         f"than a plain edit")
         if scan_failed(r):
             name = pathlib.Path(r["repo"]).name
             errs = r.get("errors") or []
@@ -340,14 +433,25 @@ def main() -> int:
 
     if a.root:
         root = pathlib.Path(a.root).expanduser()
-        reports = [scan_repo(str(p), deadline=_deadline(a.budget), with_ignored=a.ignored) for p in sorted(root.iterdir())
-                   if p.is_dir() and not p.is_symlink() and (p / ".git").exists()]
+        reports = []
+        for child in sorted(root.iterdir()):
+            if not child.is_dir() or not (child / ".git").exists():
+                continue
+            if child.is_symlink():
+                # Was silently skipped — a whole repo absent from the sweep with no trace.
+                reports.append({"repo": str(child), "is_repo": False, "errors": [],
+                                "scan_complete": True, "conditions": [],
+                                "unknowns": [{"repo": str(child), "what": "symlinked repo — NOT SCANNED",
+                                              "why": "skipped to avoid double-counting/loops; scan it "
+                                                     "directly with --repo if it holds real work"}]})
+                continue
+            reports.append(scan_repo(str(child), deadline=_deadline(a.budget), with_ignored=a.ignored))
     else:
         reports = [scan_repo(a.repo, deadline=_deadline(a.budget), with_ignored=a.ignored)]
 
     if a.json:
         print(json.dumps(reports, indent=2))
-        if any(scan_failed(r) for r in reports):
+        if any(scan_failed(r) or has_unknowns(r) for r in reports):
             return 2
         return 1 if any(is_dirty(r) for r in reports) else 0
 
@@ -356,7 +460,7 @@ def main() -> int:
         print(report)
         # 2 outranks 1: an unverifiable scan is a worse state than a known-dirty one, because
         # you cannot act on what you could not see.
-        return 2 if any(scan_failed(r) for r in reports) else 1
+        return 2 if any(scan_failed(r) or has_unknowns(r) for r in reports) else 1
     print("✓ git clean (nothing uncommitted/stashed/unpushed; scan completed)")
     return 0
 
