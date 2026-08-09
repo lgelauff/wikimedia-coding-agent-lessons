@@ -67,9 +67,26 @@ For each flagged path decide explicitly: **regenerable, or irreplaceable?** **Si
 
 🔒 **Advisory mode:** for anything you judge irreplaceable, **do not copy, move or commit it.** Say which path, why you believe it is irreplaceable, and give the exact command that would secure it — then stop and let the user run it. A wrong `cp` at session close overwrites the thing you were trying to save.
 
-Then check for background jobs that closing would orphan. ⚠ **The scanner does not do this** — it is git-only. Check by hand (`ps`, the job scheduler, any run/PID files the repo uses) and **report** what is running; do not kill anything.
+### The escape routes — work leaves by more than one door
 
-⚠ Two further blind spots the scanner cannot see, worth a sentence each rather than silence: **unsaved editor buffers**, and **work written outside any repo** (scratch dirs, `/tmp`, output paths the project deliberately keeps out of tree).
+The scanner covers the first two. **The rest it cannot see, and they are not optional to check** — they are where the expensive losses happen, because nothing warns you.
+
+| # | Route | How to check | If you cannot verify |
+|---|---|---|---|
+| 1 | **Uncommitted / unpushed / stashed** | scanner | — |
+| 2 | **Gitignored files, esp. in worktrees** | scanner `--ignored` | — |
+| 3 | **Processes started from here** — a script left running in this session | `ps`, the repo's run/PID files | report it; **never kill it** |
+| 4 | **Other terminals, other agents, other worktrees** | you cannot see them. **Ask.** | list what you know was started and ask the user to confirm each is finished |
+| 5 | **Remote / detached compute** — cluster or Toolforge jobs, CI runs, cloud batch, anything dispatched elsewhere | usually needs credentials the agent does not have | **enumerate every job this session dispatched** and get each one's state |
+| 6 | **Undocumented intentions** — a TODO, a defect or a follow-up that was only ever *said* | sweep the session for stated-but-unfiled items | file them in Phase 2, or name them as dropped |
+
+**The rule for 3–6: anything that cannot be verified FINISHED is either explicitly handed off — to a person, a queue, or a scheduled job, named — or explicitly abandoned, out loud. Never left implicit.** A job still running when the session ends has no owner unless you give it one, and "it was probably done" is how a half-written output file becomes next week's mystery.
+
+⚠ **Route 5 deserves its own paragraph** because it fails quietly and expensively. A dispatched job outlives the session that started it. If it is still running, say so, say where its output lands, and say who or what checks it. If it finished, say whether anything verified the *content* — an exit code and a plausible file size prove nothing, and logs are often gone once a one-off completes.
+
+⚠ **Route 6 is the one that looks like nothing.** Things said in passing during a session — "that number looks wrong", "we should check X", "this needs a test" — are gone when the transcript is. If it was worth saying, it is worth filing or explicitly dropping. **Flag anything that may still need documenting rather than assuming someone wrote it down.**
+
+⚠ Two blind spots no check covers: **unsaved editor buffers**, and **work written outside any repo** (scratch dirs, `/tmp`, deliberately out-of-tree output paths). Name them if either is plausible.
 
 ---
 
