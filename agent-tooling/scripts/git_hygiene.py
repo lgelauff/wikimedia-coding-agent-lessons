@@ -36,6 +36,33 @@ _READ_ONLY_GIT = {
 }
 
 
+# ⚠ The allowlist inspects OUR argv. It cannot see what git itself decides to execute, and git
+# can be told to run arbitrary commands by the TARGET REPO'S OWN CONFIG. Verified 2026-08-09: a
+# repo with `core.fsmonitor` set to a script executes that script during `git status` and
+# `git ls-files` — the two calls this tool makes most — and `--no-optional-locks` does NOT
+# suppress it. That is arbitrary code execution from a repo you merely scanned, which matters
+# because the advertised use is an unattended sweep over every repo under a root.
+#
+# `-c <key>=` on the command line overrides repo config for that invocation. Anything here is a
+# git feature whose value is a COMMAND git will run; none is needed to read repo state.
+_HARDENING = (
+    "--no-optional-locks",       # never take index.lock
+    "-c", "core.fsmonitor=",     # THE one: runs an external binary during status/ls-files
+    "-c", "core.hooksPath=/dev/null",   # belt-and-braces; read commands should not fire hooks
+    "-c", "diff.external=",      # would run on any diff-producing path
+    "-c", "core.pager=cat",      # never hand output to a pager the repo chose
+    "-c", "core.sshCommand=",    # no network here, but never inherit a repo-chosen command
+    "-c", "credential.helper=",  # never invoke a repo-specified credential helper
+)
+
+# Flags that make an otherwise read-only subcommand write to disk. Checked per-subcommand because
+# the same short flag means different things: `ls-files -o` is --others (harmless), while for
+# `log` an --output is a file write.
+_DENIED_FLAGS = {
+    "log": ("--output", "-o"),
+}
+
+
 class UnsafeGitCommand(RuntimeError):
     """Raised when a non-read-only git command is attempted. A bug, never a runtime condition."""
 
@@ -53,6 +80,13 @@ def _assert_read_only(args: tuple) -> None:
     if required is not None and (len(args) < 2 or args[1] != required):
         raise UnsafeGitCommand(
             f"'git {sub}' is only read-only as 'git {sub} {required}'; got: git {' '.join(args)}")
+    # The verb being safe is not enough — some read-only verbs take a flag that writes a file.
+    for bad in _DENIED_FLAGS.get(sub, ()):
+        for a in args[1:]:
+            if a == bad or a.startswith(bad + "="):
+                raise UnsafeGitCommand(
+                    f"'git {sub} {bad}' writes to disk. The allowlist validates flags as well as "
+                    f"the subcommand, because a safe verb with an unsafe flag is still a write.")
 
 
 def _git(repo: str, *args: str, timeout: float = 5.0, errors: list | None = None) -> str:
@@ -70,7 +104,7 @@ def _git(repo: str, *args: str, timeout: float = 5.0, errors: list | None = None
     # timeout: this can run on the SessionStart critical path — a hung cred helper, NFS worktree
     # or stale lock must not block the session.
     try:
-        r = subprocess.run(["git", "--no-optional-locks", "-C", repo, *args],
+        r = subprocess.run(["git", *_HARDENING, "-C", repo, *args],
                            capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         if errors is not None:
