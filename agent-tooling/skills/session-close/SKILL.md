@@ -5,7 +5,29 @@ description: Wrap up a working session on any repo — secure at-risk work that 
 
 # Session close
 
-A session ends in one of two states: the work is **secured and routed**, or it is **quietly lost**. Evaluating work that is about to be deleted is worthless, so securing comes first.
+> ## 🔒 ADVISORY MODE — PROBATIONARY, IN FORCE
+>
+> **This skill REPORTS and RECOMMENDS. It does not change anything.** Until it has run flawlessly
+> enough times to earn it, it makes **no edits, no commits, no pushes, no file writes, no moves, no
+> deletions** — in the repo or anywhere else.
+>
+> Everything below that reads like an instruction to act is an instruction to **propose the action
+> and stop**. Present it, say exactly what you would run or write, and wait for the user to say yes.
+> The user performs the change, or explicitly tells you to.
+>
+> **Why:** a session close runs precisely when unsaved work is at its most exposed and least
+> recoverable. A tool that is wrong here is worse than no tool. It earns write access by first
+> demonstrating it reads correctly — not the other way round.
+>
+> The scanner enforces its half in code: `git_hygiene.py` accepts only an allowlist of read-only
+> git subcommands and raises `UnsafeGitCommand` on anything else, so it *cannot* mutate a repo even
+> if edited carelessly. This block is the other half — the part that governs **you**.
+>
+> **To lift:** the user says so explicitly. Do not infer it from a single approval, from "go ahead"
+> on one item, or from the skill having worked last time.
+
+A session ends in one of two states: the work is **identified and routed**, or it is **quietly
+lost**. Evaluating work that is about to be deleted is worthless, so the securing scan comes first.
 
 Run the phases in order. Do not skip Phase 1 because the tree "looks clean" — that is precisely the state in which the losses happen.
 
@@ -41,9 +63,13 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/git_hygiene.py" --repo . --ignored
 - **Main-checkout ignored content is reported but never counted as at-risk.** It is the normal build/data store; a session ending cannot hurt it. Flagging it would drown the signal.
 - **Worktree ignored content is at-risk**, because collapsing a worktree is routine cleanup that takes it along silently.
 
-For each flagged path decide explicitly: **regenerable, or irreplaceable?** **Size is not the guide** — an 800 MB cache may be regenerable while a 12 KB scan output is not. Anything irreplaceable is copied into the main checkout or committed **before** you continue.
+For each flagged path decide explicitly: **regenerable, or irreplaceable?** **Size is not the guide** — an 800 MB cache may be regenerable while a 12 KB scan output is not.
 
-Then confirm no background job is still running that closing would orphan.
+🔒 **Advisory mode:** for anything you judge irreplaceable, **do not copy, move or commit it.** Say which path, why you believe it is irreplaceable, and give the exact command that would secure it — then stop and let the user run it. A wrong `cp` at session close overwrites the thing you were trying to save.
+
+Then check for background jobs that closing would orphan. ⚠ **The scanner does not do this** — it is git-only. Check by hand (`ps`, the job scheduler, any run/PID files the repo uses) and **report** what is running; do not kill anything.
+
+⚠ Two further blind spots the scanner cannot see, worth a sentence each rather than silence: **unsaved editor buffers**, and **work written outside any repo** (scratch dirs, `/tmp`, output paths the project deliberately keeps out of tree).
 
 ---
 
@@ -85,6 +111,8 @@ Anything raised and not resolved is either **filed** in the worklist or **explic
 
 **This is what makes a session close productive rather than administrative.** Actions do not go into prose nobody re-reads — they go into the queues the project runs from. Find the repo's actual queue files first.
 
+🔒 **Advisory mode:** identify the queue file and **draft the exact entry**, then show it and wait. Do not append to, reorder, or edit any queue file yourself.
+
 ⚠ **4a and 4b are CONDITIONAL.** Many repos have no remote compute and no unattended runs. Check whether this one does; if not, skip them, say so in one line, and go to 4c. Do not manufacture work to fill them.
 
 ### 4a. Remote / cluster job packets — ONLY if this repo uses them
@@ -121,7 +149,7 @@ Each entry self-contained enough to act on without this conversation: paths, ids
 
 ⚠ **Phases 2, 3 and 5 produce findings that exist only as chat text unless you write them down — which makes them exactly as loseable as the gitignored files Phase 1 exists to rescue.** Persist them.
 
-Write a dated close-out note wherever the repo's own convention points (**discover it — do not invent a path**; if there is no convention, say so and propose one). It carries: the labelled findings from Phase 2, the open-ends table from Phase 3, what was routed where in Phase 4, and Phase 5's verdict plus the one recommended next action. **Self-contained enough for a cold agent with no memory of this session.** Then give the same content in chat as the close-out summary — the file is what the next session reads first.
+🔒 **Advisory mode — draft it, do not write it.** Compose the dated close-out note and present it in chat, naming the path you would put it at, wherever the repo's own convention points (**discover it — do not invent a path**; if there is no convention, say so and propose one). It carries: the labelled findings from Phase 2, the open-ends table from Phase 3, what was routed where in Phase 4, and Phase 5's verdict plus the one recommended next action. **Self-contained enough for a cold agent with no memory of this session.** The user decides whether it is written. If they decline, the chat summary IS the deliverable — say so plainly rather than leaving them thinking a file exists.
 
 ## Phase 5 — Big picture
 

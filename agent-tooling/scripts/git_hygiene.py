@@ -20,6 +20,41 @@ import sys
 import time
 
 
+# ---------------------------------------------------------------------------------------------
+# READ-ONLY ENFORCEMENT
+# ---------------------------------------------------------------------------------------------
+# This tool must never be able to change a repo. It is run at session close, on repos holding
+# unsaved work, precisely when a destructive mistake would be least recoverable — so "we only
+# happen to call read-only commands" is not good enough. The allowlist makes the property
+# ENFORCED rather than incidental: adding a mutating call is a loud failure, not a silent
+# regression. Subcommands that are read-only only in some forms (`stash`, `worktree`) must name
+# the safe verb explicitly.
+_READ_ONLY_GIT = {
+    "status": None, "log": None, "rev-parse": None, "ls-files": None,
+    "stash": "list",        # `git stash` alone MUTATES — only `stash list` is safe
+    "worktree": "list",     # `git worktree add/remove/prune` MUTATE — only `list` is safe
+}
+
+
+class UnsafeGitCommand(RuntimeError):
+    """Raised when a non-read-only git command is attempted. A bug, never a runtime condition."""
+
+
+def _assert_read_only(args: tuple) -> None:
+    if not args:
+        raise UnsafeGitCommand("empty git command")
+    sub = args[0]
+    if sub not in _READ_ONLY_GIT:
+        raise UnsafeGitCommand(
+            f"'git {sub}' is not on the read-only allowlist. This tool must not modify repos. "
+            f"If a new read-only subcommand is genuinely needed, add it to _READ_ONLY_GIT "
+            f"deliberately — and add a test.")
+    required = _READ_ONLY_GIT[sub]
+    if required is not None and (len(args) < 2 or args[1] != required):
+        raise UnsafeGitCommand(
+            f"'git {sub}' is only read-only as 'git {sub} {required}'; got: git {' '.join(args)}")
+
+
 def _git(repo: str, *args: str, timeout: float = 5.0, errors: list | None = None) -> str:
     """Run a git command. Returns stdout, or "" on ANY failure.
 
@@ -30,6 +65,7 @@ def _git(repo: str, *args: str, timeout: float = 5.0, errors: list | None = None
     INABILITY TO VERIFY IS NOT VERIFIED-CLEAN. Callers that skip `errors` keep the old lenient
     behaviour, so this stays backward compatible for pure-parser tests.
     """
+    _assert_read_only(args)   # hard stop before anything reaches the shell
     # --no-optional-locks: never take index.lock (read-only safety on a busy repo).
     # timeout: this can run on the SessionStart critical path — a hung cred helper, NFS worktree
     # or stale lock must not block the session.

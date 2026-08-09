@@ -156,3 +156,39 @@ def test_clean_scan_still_reports_nothing():
          "errors": [], "scan_complete": True}
     assert not g.scan_failed(r) and not g.is_dirty(r)
     assert g.format_report([r]) == ""
+
+
+# --- read-only enforcement: the tool must not be ABLE to change a repo ----------------------
+
+def test_mutating_git_subcommands_are_rejected():
+    """Enforced, not incidental: a future edit adding a write call fails loudly."""
+    for cmd in (("checkout", "main"), ("clean", "-fdx"), ("reset", "--hard"), ("push",),
+                ("commit", "-m", "x"), ("rm", "-r", "."), ("fetch",), ("merge", "x")):
+        try:
+            g._git("/tmp", *cmd)
+        except g.UnsafeGitCommand:
+            continue
+        raise AssertionError(f"mutating command was permitted: git {' '.join(cmd)}")
+
+
+def test_partially_safe_subcommands_require_the_safe_verb():
+    """`git stash list` is read-only; bare `git stash` MUTATES. Same for worktree."""
+    for unsafe in (("stash",), ("stash", "pop"), ("worktree",), ("worktree", "remove", "x"),
+                   ("worktree", "prune")):
+        try:
+            g._git("/tmp", *unsafe)
+        except g.UnsafeGitCommand:
+            continue
+        raise AssertionError(f"unsafe form permitted: git {' '.join(unsafe)}")
+    # and the safe forms must still be reachable
+    for safe in (("stash", "list"), ("worktree", "list", "--porcelain"), ("status", "--porcelain")):
+        g._assert_read_only(safe)   # must not raise
+
+
+def test_script_has_no_write_primitives():
+    """No file writes, deletes or moves anywhere in the module source."""
+    import pathlib as _pl, re as _re
+    src = _pl.Path(g.__file__).read_text()
+    for pat in (r"shutil\.", r"os\.remove", r"os\.unlink", r"os\.rmdir", r"os\.rename",
+                r"os\.makedirs", r"\.write_text\(", r"\.write\("):
+        assert not _re.search(pat, src), f"write primitive found in a read-only tool: {pat}"
