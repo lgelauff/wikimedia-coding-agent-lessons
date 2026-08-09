@@ -282,7 +282,8 @@ def _is_noise(rel: str) -> bool:
 
 
 def _ignored_present(path: str, deadline: float | None = None,
-                     errors: list | None = None) -> tuple[list[dict], bool]:
+                     errors: list | None = None,
+                     unknowns: list | None = None) -> tuple[list[dict], bool]:
     """Gitignored paths that EXIST on disk, largest first.
 
     THE blind spot: `git status` is structurally silent about ignored files, so a worktree can
@@ -312,6 +313,31 @@ def _ignored_present(path: str, deadline: float | None = None,
                     if errors is not None:
                         errors.append({"repo": path, "args": ["walk", _p], "why": f"{e}"})
                 for dirpath, dirnames, filenames in os.walk(full, onerror=_walk_err):
+                    # ⚠ os.walk does not follow directory symlinks (followlinks=False), and a
+                    # symlinked dir lands in dirnames, not filenames — so its contents are neither
+                    # walked nor counted. An ignored directory containing ONLY a symlink therefore
+                    # scored nfiles=0 and was dropped entirely: "✓ git clean" over a link pointing
+                    # at real work. `data -> /mnt/...` is a completely ordinary layout, and this
+                    # defeats the very incident the tool was built for.
+                    #
+                    # We do NOT start following links — that invites loops and double-counting.
+                    # We DECLARE them, which is the same contract as everything else here: report
+                    # what cannot be assessed rather than scoring it zero.
+                    for d in list(dirnames):
+                        dp = pathlib.Path(dirpath) / d
+                        if dp.is_symlink() and unknowns is not None:
+                            try:
+                                target = os.path.realpath(dp)
+                            except OSError:
+                                target = "<unresolvable>"
+                            unknowns.append({
+                                "repo": path,
+                                "what": "symlinked directory inside ignored path: "
+                                        f"{rel.rstrip('/')}/{d}",
+                                "why": f"NOT walked or sized (points at {target}). If real work "
+                                       f"lives there it is invisible to this scan — check it "
+                                       f"directly."})
+                            nfiles += 1   # so the parent dir is never dropped as "empty"
                     dirnames[:] = [d for d in dirnames if not _is_noise(d + "/")]
                     for fn in filenames:
                         try:
@@ -355,12 +381,23 @@ def scan_repo(repo: str, deadline: float | None = None, with_ignored: bool = Fal
             partial = True
             break
         wt_tracked, wt_untracked = _classify_porcelain(_git(wt, "status", "--porcelain", errors=errors), unknowns, wt)
-        wt_ignored, wt_trunc = _ignored_present(wt, deadline, errors) if with_ignored else ([], False)
+        wt_ignored, wt_trunc = _ignored_present(wt, deadline, errors, unknowns) if with_ignored else ([], False)
         partial = partial or wt_trunc
-        if wt_tracked or wt_untracked or wt_ignored:
+        # ⚠ These two ran ONLY on the main checkout, which produced two confirmed false all-clears:
+        #   - a linked worktree holding a real COMMITTED feature branch, never pushed, reported
+        #     "✓ git clean" — and that commit dies with the worktree. No corruption needed; this is
+        #     the ordinary branch-per-worktree workflow.
+        #   - an interactive rebase paused mid-flight inside a worktree, likewise invisible.
+        # A worktree is where this project actually keeps unfinished work, so the checks have to
+        # run there too, not only at the top.
+        wt_unpushed, wt_no_upstream = _unpushed(wt, errors)
+        wt_conditions = _repo_conditions(wt, errors, unknowns)
+        if wt_tracked or wt_untracked or wt_ignored or wt_unpushed or wt_conditions:
             dirty_worktrees.append({"path": wt, "uncommitted": wt_tracked,
-                                    "untracked": wt_untracked, "ignored": wt_ignored})
-    ign_main, main_trunc = _ignored_present(repo, deadline, errors) if with_ignored else ([], False)
+                                    "untracked": wt_untracked, "ignored": wt_ignored,
+                                    "unpushed": wt_unpushed, "no_upstream": wt_no_upstream,
+                                    "conditions": wt_conditions})
+    ign_main, main_trunc = _ignored_present(repo, deadline, errors, unknowns) if with_ignored else ([], False)
     partial = partial or main_trunc
     return {
         "repo": repo, "is_repo": True,
@@ -459,7 +496,15 @@ def format_report(reports: list[dict]) -> str:
             if ign:
                 tot = sum(x["bytes"] for x in ign)
                 bits += f", {len(ign)} GITIGNORED path(s) {_human(tot)}"
+            # A commit that exists only in a worktree dies with the worktree — say so loudly.
+            if wt.get("unpushed"):
+                where = "no upstream" if wt.get("no_upstream") else "ahead of upstream"
+                bits += f", ⚠ {wt['unpushed']} UNPUSHED commit(s) ({where})"
             lines.append(f"      ↳ worktree {wtn}: {bits}")
+            for c in (wt.get("conditions") or []):
+                risky = c in {lbl for _, lbl in _INPROGRESS_MARKERS} or c == "detached HEAD"
+                lines.append(f"          ❗ {c}"
+                             f"{' — higher risk to walk away from' if risky else ''}")
             # Ignored content is the losable kind: git status never shows it, and collapsing the
             # worktree deletes it silently. Name the biggest so the decision is concrete.
             for row in ign[:4]:

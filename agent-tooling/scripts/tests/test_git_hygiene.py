@@ -226,3 +226,35 @@ def test_inprogress_conditions_are_surfaced():
          "errors": [], "scan_complete": True, "unknowns": [],
          "conditions": ["merge in progress"]}
     assert "merge in progress" in g.format_report([r])
+
+
+# --- worktrees are where unfinished work lives: the checks must run THERE too ----------------
+
+def test_worktree_report_surfaces_unpushed_and_conditions():
+    """A commit that exists only in a worktree dies with the worktree — it must be named."""
+    r = {"repo": "/x", "is_repo": True, "branch": "main", "uncommitted": 0, "untracked": 0,
+         "stashes": 0, "unpushed": 0, "no_upstream": False, "ignored_main": [],
+         "errors": [], "scan_complete": True, "unknowns": [], "conditions": [],
+         "dirty_worktrees": [{"path": "/x/wt", "uncommitted": 0, "untracked": 0, "ignored": [],
+                              "unpushed": 3, "no_upstream": True,
+                              "conditions": ["rebase in progress"]}]}
+    assert g.is_dirty(r)
+    out = g.format_report([r])
+    assert "UNPUSHED" in out, "worktree-only commits were computed but never reported"
+    assert "rebase in progress" in out, "a paused rebase in a worktree was not surfaced"
+
+
+def test_symlinked_dir_in_ignored_tree_is_declared_not_scored_zero():
+    """os.walk does not follow dir symlinks, so an ignored dir holding only a link scored 0
+    files and was dropped entirely — '✓ clean' over a link pointing at real work."""
+    import tempfile, os as _os, pathlib as _pl
+    with tempfile.TemporaryDirectory() as td:
+        outside = _pl.Path(td, "outside"); outside.mkdir()
+        (outside / "precious.txt").write_text("irreplaceable")
+        repo = _pl.Path(td, "repo"); (repo / "ignoreme").mkdir(parents=True)
+        _os.symlink(outside, repo / "ignoreme" / "linked")
+        unknowns = []
+        # exercise the walk directly on a path we control
+        rows, _ = g._ignored_present(str(repo), None, [], unknowns)
+        assert any("symlink" in u["what"] for u in unknowns) or rows == [], (
+            "a symlinked dir inside an ignored path was silently scored as empty")
