@@ -176,8 +176,21 @@ def _repo_conditions(repo: str, errors: list, unknowns: list) -> list[str]:
                          "why": "no working tree — this tool's dirty/ignored checks do not apply; "
                                 "unpushed refs are NOT assessed here"})
 
-    if _git(repo, "rev-parse", "--abbrev-ref", "HEAD", errors=errors).strip() == "HEAD":
+    # ⚠ Deliberately NOT passing errors= here. An UNBORN HEAD (fresh `git init`, no commit yet) makes
+    # this exit 128 — a completely benign, very common state. Recording that as an error made every
+    # fresh repo in a --root sweep report "SCAN INCOMPLETE", which is crying wolf on precisely the
+    # signal that has to stay trustworthy. Distinguish the benign case from a real failure instead.
+    head_ref = _git(repo, "rev-parse", "--abbrev-ref", "HEAD").strip()
+    if head_ref == "HEAD":
         notes.append("detached HEAD")
+    elif not head_ref:
+        # Could be unborn, or a genuine failure to read HEAD. If `log` also finds nothing, the repo
+        # simply has no commits; if `log` works, we really could not read HEAD and that IS an error.
+        if _git(repo, "log", "--oneline", "-1").strip():
+            errors.append({"repo": repo, "args": ["rev-parse", "--abbrev-ref", "HEAD"],
+                           "why": "could not read HEAD on a repo that has commits"})
+        else:
+            notes.append("no commits yet (unborn HEAD)")
 
     # Submodules: a KNOWN blind spot. git ls-files does not cross the boundary, so ignored content
     # inside a submodule is invisible. Declare it rather than quietly missing it.
@@ -220,15 +233,30 @@ def _parse_worktrees(text: str) -> list[str]:
     return paths[1:] if len(paths) > 1 else []
 
 
-def _unpushed(repo: str) -> tuple[int, bool]:
+def _unpushed(repo: str, errors: list | None = None) -> tuple[int, bool]:
     """(count, no_upstream). With an upstream: commits ahead of it. Without one:
     commits not reachable from any remote — the 'forgot to push a new branch' case
-    a plain @{u} check reports as 0."""
+    a plain @{u} check reports as 0.
+
+    ⚠ `errors` is not optional in practice. These two `git log` calls were the ONE place that
+    bypassed the failure-propagation mechanism: a timeout, corrupted ref or slow NFS made this
+    return 0, which read as "nothing unpushed" and left scan_complete=True. That is the tool's
+    signature false-all-clear, sitting on the signal most directly tied to work that exists only
+    locally. Callers must pass the list.
+    """
+    # An UNBORN HEAD (no commits yet) makes every form below exit 128. Nothing can be unpushed
+    # when nothing has been committed, so short-circuit — otherwise wiring errors= into this
+    # function just relocates the fresh-repo false alarm instead of removing it.
+    if not _git(repo, "rev-parse", "--verify", "HEAD").strip():
+        return 0, True
+    # No errors= on the @{u} probe: "no upstream configured" legitimately exits non-zero and is
+    # the normal case for a fresh branch — that is what the no_upstream return value is FOR.
     has_upstream = bool(_git(repo, "rev-parse", "--abbrev-ref",
                              "--symbolic-full-name", "@{u}").strip())
     if has_upstream:
-        return _count_lines(_git(repo, "log", "--oneline", "@{u}..HEAD")), False
-    return _count_lines(_git(repo, "log", "--oneline", "HEAD", "--not", "--remotes")), True
+        return _count_lines(_git(repo, "log", "--oneline", "@{u}..HEAD", errors=errors)), False
+    return _count_lines(_git(repo, "log", "--oneline", "HEAD", "--not", "--remotes",
+                             errors=errors)), True
 
 
 # Directories whose ignored contents are effectively always regenerable. Kept short on purpose:
@@ -320,7 +348,7 @@ def scan_repo(repo: str, deadline: float | None = None, with_ignored: bool = Fal
     tracked, untracked = _classify_porcelain(_git(repo, "status", "--porcelain", errors=errors), unknowns, repo)
     conditions = _repo_conditions(repo, errors, unknowns)
     stashes = _count_lines(_git(repo, "stash", "list", errors=errors))
-    unpushed, no_upstream = _unpushed(repo)
+    unpushed, no_upstream = _unpushed(repo, errors)
     dirty_worktrees, partial = [], False
     for wt in _parse_worktrees(_git(repo, "worktree", "list", "--porcelain", errors=errors)):
         if deadline is not None and time.monotonic() > deadline:
@@ -403,8 +431,12 @@ def format_report(reports: list[dict]) -> str:
             lines.append(f"❓ UNKNOWN — {pathlib.Path(u['repo']).name}: {u['what']}")
             lines.append(f"      {u['why']}")
         for c in (r.get("conditions") or []):
-            lines.append(f"❗ {pathlib.Path(r['repo']).name}: {c} — higher risk to walk away from "
-                         f"than a plain edit")
+            # Not every condition is dangerous — an unborn HEAD is merely a fact. Only the
+            # in-progress operations genuinely raise the cost of walking away, so only they get
+            # the warning. Labelling everything "higher risk" trains the reader to ignore it.
+            risky = c in {lbl for _, lbl in _INPROGRESS_MARKERS} or c == "detached HEAD"
+            suffix = " — higher risk to walk away from than a plain edit" if risky else ""
+            lines.append(f"❗ {pathlib.Path(r['repo']).name}: {c}{suffix}")
         if scan_failed(r):
             name = pathlib.Path(r["repo"]).name
             errs = r.get("errors") or []
@@ -469,7 +501,15 @@ def main() -> int:
         root = pathlib.Path(a.root).expanduser()
         reports = []
         for child in sorted(root.iterdir()):
-            if not child.is_dir() or not (child / ".git").exists():
+            if not child.is_dir():
+                continue
+            # A BARE repo has no `.git` entry — it IS the git dir — so a `.git` test skipped it
+            # entirely, with no trace in the output. That is the same silent-omission class this
+            # tool exists to eliminate, so detect the bare layout structurally and let it through
+            # to scan_repo, which declares it as an unknown rather than dropping it.
+            looks_bare = ((child / "HEAD").exists() and (child / "objects").is_dir()
+                          and (child / "refs").is_dir())
+            if not (child / ".git").exists() and not looks_bare:
                 continue
             if child.is_symlink():
                 # Was silently skipped — a whole repo absent from the sweep with no trace.
