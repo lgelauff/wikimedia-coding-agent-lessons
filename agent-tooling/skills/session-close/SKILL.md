@@ -136,6 +136,8 @@ Everything else that happened this session belongs in the commit log, not here.
 
 ### 4a. Remote / cluster job packets — ONLY if this repo uses them
 
+🔒 **Describe what a compliant packet would contain and where it would go. Do not create it.**
+
 Everything needing a shell the agent cannot open goes here, written **batch-launchable**, because the scarce resource is the user's terminal time.
 
 Every packet states:
@@ -147,7 +149,9 @@ Every packet states:
 
 ### 4b. Overnight / unattended runs — ONLY if this repo has them
 
-**Keep this queue stocked.** Bedtime should be a five-minute pick from a menu; a night is lost whenever the run has to be *prepared* at bedtime. Prep by day. (See the `overnight-run` skill for the full prep → rehearse → launch → report protocol.)
+🔒 **Same: draft the package spec, do not build or file it.** The requirements below are the bar a package must meet — they are what you check a *proposal* against, not a licence to write one.
+
+**A stocked queue is the goal — recommend what would stock it.** Bedtime should be a five-minute pick from a menu; a night is lost whenever the run has to be *prepared* at bedtime. Prep by day. (See the `overnight-run` skill for the full prep → rehearse → launch → report protocol.)
 
 Any new package satisfies:
 - A **`--test` mode exercising the full pipeline** on a small subset, for anything over ~5 minutes.
