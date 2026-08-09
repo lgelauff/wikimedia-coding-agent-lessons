@@ -73,41 +73,43 @@ Then check for background jobs that closing would orphan. ⚠ **The scanner does
 
 ---
 
-## Phase 2 — Evaluate what the session established
+## Phase 2 — What still needs doing (the primary output)
 
-Not an activity log. The question is **what is known now that was not known at the start**, and at what grade.
+**This is the part that earns the session close.** A close-out is read by whoever picks the work up — usually the user tomorrow, sometimes a cold agent with no memory of any of this. What they need is *what to do next and what is in the way*, not a narrative of what happened.
 
-Label every non-trivial claim **[confirmed]** (directly observed — say where), **[concluded]** (inferred — state the inference), or **[guess]** (unverified). An unlabelled conclusion is a violation.
-
-State what **changed status**, in either direction:
-
-- A finding that got **stronger** — and what verified it.
-- A finding that got **weaker or died**. Say so as readily as a success. Nulls, withdrawn claims and refuted hypotheses are results. A static audit whose honest headline was "zero live bugs" is a finding; so is a dose-response that turned out to be a null.
-- A number that **moved** — and whether anything downstream still quotes the old one.
-- Anything now **stale**, usually because an upstream input was recomputed.
-
-⚠ **Always check propagation.** When an input is found stale, enumerate everything that reads it before declaring the problem scoped. A single stale intermediate table once turned out to underlie *three* of four reported findings, not one. A staleness discovery is not complete until every consumer is listed.
-
-⚠ **Distinguish candidates from confirmed.** Static-analysis and detector counts are candidates. One audit's raw output showed >1,000 hits that narrowed to **nine** real ones. Report both numbers, and never let the raw count travel alone.
-
----
-
-## Phase 3 — Open ends, sorted by who is blocked
-
-That sort order is what determines which items can move without the user.
+Sort by **who is blocked**, because that is what determines what can move without the user:
 
 | class | meaning |
 |---|---|
-| **Blocked on the user** | anything needing their terminal, credentials, an account, or a decision only they can make. Often the scarce resource — not CPU. |
-| **Blocked on a decision** | needs a judgement call, not work. Give the options **and a recommendation**. |
-| **Ready, no decisions** | could start immediately. |
-| **Blocked externally** | third-party access, a collaborator's workstream. |
+| **Blocked on the user** | needs their terminal, credentials, an account, or a decision only they can make. Frequently the real bottleneck. |
+| **Blocked on a decision** | needs a judgement call, not work. Give the options **and a recommendation** — an unrecommended choice list just moves the work to them. |
+| **Ready, no decisions** | could start immediately. Name the first command. |
+| **Blocked externally** | third-party access, a collaborator's workstream, a pending request. |
 
-Anything raised and not resolved is either **filed** in the worklist or **explicitly dropped**. Silent disappearance is the failure mode. Queue doubts; don't block on them.
+Anything raised this session and not resolved is either **listed here** or **explicitly dropped, out loud**. Silent disappearance is the failure mode. Queue doubts rather than blocking on them.
+
+**Where to look**, so this is discovery and not recall: uncommitted/unpushed work from Phase 1, `git log` for this session's commits, the repo's own worklist or issue tracker, and anything the transcript raised and left hanging. Prefer artifacts over memory — you will misremember.
 
 ---
 
-## Phase 4 — Route actions into the project's queues
+## Phase 3 — What changed that alters what someone should do next
+
+⚠ **Bounded on purpose.** A full retrospective is expensive and mostly redundant — `git log` already records what happened. Include a past-tense item **only if it changes a future decision**. If you cannot name what someone would do differently knowing it, leave it out.
+
+That test admits four things, and they are the ones that actually bite:
+
+- **A number moved** — and something downstream still quotes the old one. Name the consumers.
+- **Something went stale**, usually because an upstream input was recomputed. ⚠ **Enumerate every consumer before declaring it scoped** — a single stale intermediate table once turned out to underlie *three* of four reported findings, not one.
+- **A finding got weaker or died.** Say so as readily as a success; nulls and withdrawn claims are results, and someone will otherwise cite the dead version.
+- **A candidate was mistaken for a confirmation.** Detector and static-analysis counts are candidates: one raw output showed >1,000 hits that narrowed to **nine**. Report both numbers; never let the raw count travel alone.
+
+Label anything non-trivial **[confirmed]** (observed — say where), **[concluded]** (inferred — state the inference), or **[guess]**. An unlabelled conclusion is a violation.
+
+Everything else that happened this session belongs in the commit log, not here.
+
+## Phase 4 — Route the Phase 2 actions into the project's queues
+
+⚠ **Session types differ, and this skill does not try to classify them.** A data-pipeline session, a writing session and a bug hunt close differently, but *guessing which one this was* is unreliable and the guess would drive everything downstream. Instead, **let the artifacts say what kind of session it was**: what did it produce — commits, a data artifact, prose, a failed run, an unanswered question? Route each by what it actually is. A repo with no queues at all still has Phase 2's table, which is the part that generalises.
 
 **This is what makes a session close productive rather than administrative.** Actions do not go into prose nobody re-reads — they go into the queues the project runs from. Find the repo's actual queue files first.
 
@@ -145,12 +147,6 @@ Each entry self-contained enough to act on without this conversation: paths, ids
 
 ---
 
-## Output — persist it, or this skill contradicts itself
-
-⚠ **Phases 2, 3 and 5 produce findings that exist only as chat text unless you write them down — which makes them exactly as loseable as the gitignored files Phase 1 exists to rescue.** Persist them.
-
-🔒 **Advisory mode — draft it, do not write it.** Compose the dated close-out note and present it in chat, naming the path you would put it at, wherever the repo's own convention points (**discover it — do not invent a path**; if there is no convention, say so and propose one). It carries: the labelled findings from Phase 2, the open-ends table from Phase 3, what was routed where in Phase 4, and Phase 5's verdict plus the one recommended next action. **Self-contained enough for a cold agent with no memory of this session.** The user decides whether it is written. If they decline, the chat summary IS the deliverable — say so plainly rather than leaving them thinking a file exists.
-
 ## Phase 5 — Big picture
 
 Three or four sentences, not a report. Where does **the actual deliverable** stand — the paper, the release, the tool — not the repo and not the pipeline.
@@ -174,3 +170,11 @@ End with **one recommended next action** and why. A recommendation, not a menu. 
 - **Beware weak guards.** A check that passes on "not *all* values identical" will pass when 87% are identical. State what a guard actually discriminates, and whether its threshold has ever been exercised.
 - **Never fabricate an identifier** (DOI, ISBN, ticket, arXiv id). Use a `VERIFY` placeholder unless the user supplied it.
 - Put all questions for the user in **one numbered list**.
+
+---
+
+## Output — persist it, or this skill contradicts itself
+
+⚠ **Phases 2, 3 and 5 produce findings that exist only as chat text unless you write them down — which makes them exactly as loseable as the gitignored files Phase 1 exists to rescue.** Persist them.
+
+🔒 **Advisory mode — draft it, do not write it.** Compose the dated close-out note and present it in chat, naming the path you would put it at, wherever the repo's own convention points (**discover it — do not invent a path**; if there is no convention, say so and propose one). It leads with **Phase 2's what-still-needs-doing table**, then what was routed where, then only the Phase 3 items that change a future decision, then the one recommended next action. **Self-contained enough for a cold agent with no memory of this session.** The user decides whether it is written. If they decline, the chat summary IS the deliverable — say so plainly rather than leaving them thinking a file exists.
