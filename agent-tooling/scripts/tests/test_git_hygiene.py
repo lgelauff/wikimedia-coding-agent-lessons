@@ -57,3 +57,57 @@ def test_format_report_lists_dirty_repo_and_worktrees():
     out = g.format_report([r])
     assert "wiki-polis [feat]" in out and "1 uncommitted" in out
     assert "worktree wiki-polis-wt" in out and "2 uncommitted, 1 untracked" in out
+
+
+# --- ignored-content detection (the `git status` blind spot) --------------------------------
+
+def test_is_noise_filters_regenerable_dirs_but_keeps_real_paths():
+    assert g._is_noise("a/__pycache__/x.pyc")
+    assert g._is_noise("node_modules/pkg/index.js")
+    # Scratch dirs holding real deliverables must NOT be filtered — this is the whole point.
+    assert not g._is_noise(".claude/audit-2026-08-09/scan.json")
+    assert not g._is_noise("data/interim/s1_full/")
+
+
+def test_human_readable_sizes():
+    assert g._human(512) == "512B"
+    assert g._human(1536).endswith("KB")
+    assert g._human(5 * 1024 ** 3).endswith("GB")
+
+
+def test_worktree_with_only_ignored_content_counts_as_dirty():
+    """The regression this capability exists for.
+
+    A worktree with 0 uncommitted and 0 untracked is INVISIBLE to a tracked-state-only scan,
+    yet may hold the only copy of real work. Observed live: a worktree carrying a bug detector
+    and its 367-file scan output in an ignored scratch dir was collapsed mid-session.
+    """
+    base = {"is_repo": True, "uncommitted": 0, "untracked": 0, "stashes": 0,
+            "unpushed": 0, "dirty_worktrees": []}
+    assert not g.is_dirty(base)
+    wt = {"path": "/repo/wt-a", "uncommitted": 0, "untracked": 0,
+          "ignored": [{"path": ".claude/", "bytes": 97_000_000, "files": 12, "dir": True}]}
+    assert g.is_dirty({**base, "dirty_worktrees": [wt]})
+
+
+def test_at_risk_ignored_excludes_main_checkout():
+    """Main-checkout ignored content is the normal data store — reported, never at-risk."""
+    wt = {"path": "/repo/wt-a", "uncommitted": 0, "untracked": 0,
+          "ignored": [{"path": "scratch/", "bytes": 10, "files": 1, "dir": True}]}
+    r = {"is_repo": True, "uncommitted": 0, "untracked": 0, "stashes": 0, "unpushed": 0,
+         "dirty_worktrees": [wt],
+         "ignored_main": [{"path": "data/", "bytes": 88_000_000_000, "files": 4000, "dir": True}]}
+    at_risk = g.at_risk_ignored(r)
+    assert len(at_risk) == 1
+    assert at_risk[0]["path"] == "scratch/"
+    assert all(row["path"] != "data/" for row in at_risk)
+
+
+def test_report_names_the_biggest_ignored_path():
+    wt = {"path": "/repo/wt-a", "uncommitted": 0, "untracked": 0,
+          "ignored": [{"path": ".claude/", "bytes": 97_000_000, "files": 12, "dir": True}]}
+    r = {"is_repo": True, "repo": "/repo", "branch": "main", "uncommitted": 0, "untracked": 0,
+         "stashes": 0, "unpushed": 0, "dirty_worktrees": [wt], "ignored_main": []}
+    out = g.format_report([r])
+    assert "GITIGNORED" in out and ".claude/" in out
+    assert "invisible to git status" in out

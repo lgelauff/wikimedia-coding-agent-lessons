@@ -66,7 +66,65 @@ def _unpushed(repo: str) -> tuple[int, bool]:
     return _count_lines(_git(repo, "log", "--oneline", "HEAD", "--not", "--remotes")), True
 
 
-def scan_repo(repo: str, deadline: float | None = None) -> dict:
+# Directories whose ignored contents are effectively always regenerable. Kept short on purpose:
+# a false alarm costs a glance, a false all-clear costs the work.
+_IGNORE_NOISE = ("__pycache__", ".pytest_cache", ".ruff_cache", "node_modules", ".mypy_cache",
+                 ".ipynb_checkpoints", ".DS_Store", ".venv", "venv/", ".tox", ".gradle")
+
+
+def _is_noise(rel: str) -> bool:
+    return any(tok in rel for tok in _IGNORE_NOISE)
+
+
+def _ignored_present(path: str, deadline: float | None = None) -> list[dict]:
+    """Gitignored paths that EXIST on disk, largest first.
+
+    THE blind spot: `git status` is structurally silent about ignored files, so a worktree can
+    report perfectly clean while holding the only copy of something. Real incidents this exists
+    for: 1,120 MB of derived analysis fields deleted with a "clean" worktree; a bug-detector and
+    its scan output living only in a worktree's ignored scratch dir.
+
+    Opt-in only (--ignored): walking ignored trees can mean tens of GB, which must never sit on
+    the SessionStart critical path.
+    """
+    raw = _git(path, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory",
+               timeout=30.0)
+    rows = []
+    for rel in filter(None, (ln.strip() for ln in raw.splitlines())):
+        if _is_noise(rel):
+            continue
+        if deadline is not None and time.monotonic() > deadline:
+            break
+        full = pathlib.Path(path) / rel
+        try:
+            if full.is_dir():
+                total = nfiles = 0
+                for dirpath, dirnames, filenames in os.walk(full):
+                    dirnames[:] = [d for d in dirnames if not _is_noise(d + "/")]
+                    for fn in filenames:
+                        try:
+                            total += (pathlib.Path(dirpath) / fn).stat().st_size
+                            nfiles += 1
+                        except OSError:
+                            pass
+                if nfiles:
+                    rows.append({"path": rel, "bytes": total, "files": nfiles, "dir": True})
+            elif full.exists():
+                rows.append({"path": rel, "bytes": full.stat().st_size, "files": 1, "dir": False})
+        except OSError:
+            continue
+    return sorted(rows, key=lambda r: -r["bytes"])
+
+
+def _human(n: float) -> str:
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024 or unit == "TB":
+            return f"{n:.0f}{unit}" if unit == "B" else f"{n:.1f}{unit}"
+        n /= 1024.0
+    return f"{n:.1f}TB"
+
+
+def scan_repo(repo: str, deadline: float | None = None, with_ignored: bool = False) -> dict:
     repo = str(pathlib.Path(repo).resolve())
     inside = _git(repo, "rev-parse", "--is-inside-work-tree").strip()
     if inside != "true":
@@ -80,20 +138,32 @@ def scan_repo(repo: str, deadline: float | None = None) -> dict:
             partial = True
             break
         wt_tracked, wt_untracked = _classify_porcelain(_git(wt, "status", "--porcelain"))
-        if wt_tracked or wt_untracked:
-            dirty_worktrees.append({"path": wt, "uncommitted": wt_tracked, "untracked": wt_untracked})
+        wt_ignored = _ignored_present(wt, deadline) if with_ignored else []
+        if wt_tracked or wt_untracked or wt_ignored:
+            dirty_worktrees.append({"path": wt, "uncommitted": wt_tracked,
+                                    "untracked": wt_untracked, "ignored": wt_ignored})
     return {
         "repo": repo, "is_repo": True,
         "branch": _git(repo, "rev-parse", "--abbrev-ref", "HEAD").strip(),
         "uncommitted": tracked, "untracked": untracked,
         "stashes": stashes, "unpushed": unpushed, "no_upstream": no_upstream,
         "dirty_worktrees": dirty_worktrees, "partial_scan": partial,
+        # Main-checkout ignored content is reported but NEVER counts as at-risk: it is the normal
+        # build/data store and a session ending cannot hurt it. Only a WORKTREE's ignored content
+        # is at-risk, because collapsing a worktree is routine cleanup that takes it along.
+        "ignored_main": _ignored_present(repo, deadline) if with_ignored else [],
     }
 
 
 def is_dirty(r: dict) -> bool:
     return bool(r.get("is_repo") and (
         r["uncommitted"] or r["untracked"] or r["stashes"] or r["unpushed"] or r["dirty_worktrees"]))
+
+
+def at_risk_ignored(r: dict) -> list[dict]:
+    """Worktree ignored content — the losable kind. Excludes the main checkout deliberately."""
+    return [{"worktree": wt["path"], **row}
+            for wt in r.get("dirty_worktrees", []) for row in wt.get("ignored", [])]
 
 
 def summarize(r: dict) -> str:
@@ -122,7 +192,24 @@ def format_report(reports: list[dict]) -> str:
         lines.append(f"  • {name} [{r['branch']}]: {summarize(r)}")
         for wt in r["dirty_worktrees"]:
             wtn = pathlib.Path(wt["path"]).name
-            lines.append(f"      ↳ worktree {wtn}: {wt['uncommitted']} uncommitted, {wt['untracked']} untracked")
+            bits = f"{wt['uncommitted']} uncommitted, {wt['untracked']} untracked"
+            ign = wt.get("ignored") or []
+            if ign:
+                tot = sum(x["bytes"] for x in ign)
+                bits += f", {len(ign)} GITIGNORED path(s) {_human(tot)}"
+            lines.append(f"      ↳ worktree {wtn}: {bits}")
+            # Ignored content is the losable kind: git status never shows it, and collapsing the
+            # worktree deletes it silently. Name the biggest so the decision is concrete.
+            for row in ign[:4]:
+                kind = "dir " if row["dir"] else "file"
+                lines.append(f"          {_human(row['bytes']):>9}  {kind}  {row['path']}"
+                             f"{'  <-- invisible to git status' if row is ign[0] else ''}")
+            if len(ign) > 4:
+                lines.append(f"          ... and {len(ign) - 4} more (--json for all)")
+        if r.get("ignored_main"):
+            tot = sum(x["bytes"] for x in r["ignored_main"])
+            lines.append(f"      (main checkout also holds {len(r['ignored_main'])} ignored path(s), "
+                         f"{_human(tot)} — reported for awareness, NOT at risk from closing)")
         if r.get("partial_scan"):
             lines.append("      (partial — worktree scan hit the time budget)")
     return "\n".join(lines)
@@ -133,14 +220,18 @@ def main() -> int:
     ap.add_argument("--repo", default=os.getcwd(), help="repo to scan (default: cwd)")
     ap.add_argument("--root", help="scan every immediate child git repo under this dir")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--ignored", action="store_true",
+                    help="also scan for GITIGNORED-BUT-PRESENT files — the blind spot git status "
+                         "cannot see. Off by default: it can walk tens of GB, so it must never sit "
+                         "on the SessionStart critical path. Use at session close.")
     a = ap.parse_args()
 
     if a.root:
         root = pathlib.Path(a.root).expanduser()
-        reports = [scan_repo(str(p)) for p in sorted(root.iterdir())
+        reports = [scan_repo(str(p), with_ignored=a.ignored) for p in sorted(root.iterdir())
                    if p.is_dir() and not p.is_symlink() and (p / ".git").exists()]
     else:
-        reports = [scan_repo(a.repo)]
+        reports = [scan_repo(a.repo, with_ignored=a.ignored)]
 
     if a.json:
         print(json.dumps(reports, indent=2))
