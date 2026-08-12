@@ -201,6 +201,42 @@ Live sources: `https://platform.claude.com/docs/en/about-claude/models/overview.
 and `.../about-claude/pricing` (note: **not** `/docs/en/pricing`, which 404s);
 `client.models.retrieve(id)` for per-model capability flags.
 
+## "Most capable tier" and "best at your task" are different axes
+
+Model families are marketed as a ladder, and the ladder is real for *capability
+in general* — but routing by tier alone picks the wrong model, in both
+directions. Two failure modes, both observed 2026-08-12:
+
+**Reaching too high.** The flagship tier is not automatically the coding
+leader. At the time: the top tier led one repository-level benchmark by a point
+(noise) while the tier below it led single-task coding *and* beat it decisively
+on terminal-style agentic coding — at half the price, faster, and without the
+flagship's operational costs (couldn't disable thinking, safety classifiers that
+*refuse* requests, a 30-day data-retention floor that rules it out under ZDR).
+The tier name is a capability claim, not a benchmark result.
+
+**Reaching too low, which is the expensive one.** A mid-tier model scored
+**85.2% on single-task SWE-bench Verified but 63.2% on repository-level
+SWE-bench Pro.** *Single-task competence does not predict repository-scale
+competence*, and the two benchmarks are reported in the same breath as if
+interchangeable. A cross-file investigation routed to the mid tier because it
+"looked like analysis" lands in that 22-point hole — and the failure is silent,
+because the model answers confidently either way.
+
+**Route by task SHAPE, not by importance:**
+
+| shape | tier |
+|---|---|
+| Repository-scale reasoning — trace across many files, decide whether the check or the data is wrong, refactor broadly | top coding tier |
+| Planning, judgement, reconciling contradictory docs | top coding tier |
+| Scoped execution — run a prepared script, watch a log, single-file edits | mid tier |
+| Bulk classification, routing, high-volume subagent fan-out | cheap tier — **but check its context window**, which is often a fraction of the others' and silently rules it out for wide scans |
+| Multi-hour autonomous runs where one session is the unit of work | flagship tier, if anything |
+
+**Check two benchmarks, not one.** Ask for a single-task score *and* a
+repository-level score before routing anything cross-file. If only one is
+published, assume the other is worse.
+
 ## References
 
 - Permissions — subprocess internals are not re-validated; Bash rule syntax:
