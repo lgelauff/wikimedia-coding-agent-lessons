@@ -165,6 +165,42 @@ an export-size contract violation, and a systematic coverage gap — none of
 which a source-only review had surfaced. Give each persona the artifact
 directory, force a severity-ranked list with concrete fixes, and merge.
 
+## Model facts have three tiers of freshness — and the middle one looks authoritative
+
+Asked which model to run a session on, an agent can answer from three places, and
+they are **not** equally current:
+
+1. **Training data** — always stale for model facts; a model released after the
+   cutoff is invisible except as a name handed over in the system prompt.
+2. **The `claude-api` skill's cached tables** — dated (`cached: <date>` in
+   `SKILL.md`), and stale between refreshes. *This is the dangerous tier*: it is
+   specific, tabular, and reads as authoritative, so it gets quoted verbatim.
+3. **The live docs / Models API** — the only current source.
+
+**Observed 2026-08-12.** The skill's cached table listed Claude Sonnet 5 at
+`$3/$15 per MTok, with $2/$10 introductory pricing through 2026-08-31`. The live
+pricing page said the opposite: *"The $2/$10 … announced at launch as
+introductory pricing … is now the standard price. The previously scheduled
+increase to $3/$15 … will not occur."* Quoting the cache produced a wrong price
+**and** a phantom deadline three weeks out — the sort of thing that ends up in a
+budget estimate.
+
+The same fetch surfaced a fact the cache omitted entirely and that nobody would
+guess: **the top-capability model can have an older knowledge cutoff than the
+tier below it** (at the time: Opus 5 reliable-knowledge May 2026, Fable 5
+Jan 2026). "Most capable" and "best informed" are separate axes.
+
+**Rule:** for any model-selection, pricing, or capability answer, WebFetch the
+live docs (or query the Models API) in the same turn you answer. The skill's own
+trigger says "never answer from memory" — treat its cached tables as memory too.
+Do **not** copy the resulting numbers into this repo: they are in the official
+docs (CONTRIBUTING rule 1), and a second stale copy is the failure mode this
+lesson is about. Record the *lookup route*, not the values.
+
+Live sources: `https://platform.claude.com/docs/en/about-claude/models/overview.md`
+and `.../about-claude/pricing` (note: **not** `/docs/en/pricing`, which 404s);
+`client.models.retrieve(id)` for per-model capability flags.
+
 ## References
 
 - Permissions — subprocess internals are not re-validated; Bash rule syntax:
