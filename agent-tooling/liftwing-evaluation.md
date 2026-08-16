@@ -8,12 +8,23 @@
 > - **Small n.** Most tasks have 30–340 items. Confidence intervals run roughly
 >   ±5 points at the largest and **±18 points** at the smallest. Nothing here
 >   separates two models that are a few points apart.
-> - **Everything here is ZERO-SHOT.** No few-shot examples were given on any
->   task. Read an implied "zero-shot" on every number below. This matters more
->   than it might sound: the dominant failure was a *boundary* problem, not a
->   capability one — the largest class was recognised with precision 1.00 but
->   recall 0.13, i.e. the model knew the concept and not where it ends. That is
->   the failure few-shot prompting most directly addresses, and it is untested.
+> - **The classification "gold" was itself LLM-generated.** Not one human-verified
+>   label. So those accuracy figures are **agreement with an unnamed model**, not
+>   accuracy, and the human ceiling is unknown. Validating it against hand
+>   labels is the first thing we would now do — and we would not repeat this
+>   order of operations.
+> - **We gave the model no category definitions — except on the one task it
+>   won.** Three of four tasks presented a bare list of rubric terms. The single
+>   task that defined its categories in one line each is the single task that
+>   cleanly beat its baseline. We probably built the failure we then measured.
+> - **Forced choice, no abstention.** A model that cannot answer "unclear" must
+>   place every hard case somewhere, and it picks the vaguest bucket. Part of the
+>   reported pathology is an answer-format artifact.
+> - **Everything here is ZERO-SHOT.** No few-shot examples on any task. The
+>   dominant failure was a *boundary* problem, not a capability one — the largest
+>   class was recognised at precision 1.00 but recall 0.13, i.e. the model knew
+>   the concept and not where it ends. That is what definitions and examples
+>   address, and neither was tested.
 > - **Our own prompts, our own rubrics.** Several tasks are homemade taxonomies
 >   with fuzzy category boundaries — close to the worst case for any model. A
 >   different prompt might move these substantially; we did not test prompt
@@ -85,6 +96,13 @@ apply from Toolforge** — that alone changes what is feasible.
 **In our tasks it lost to a trivial baseline more often than it beat one.**
 Always compute the dumb baseline first — majority class, a regex, BM25. Twice
 here a score that looked respectable was below always-guessing.
+
+> **How much of this is the model, and how much is us?** The four classification
+> rows are scored against LLM-generated labels, from prompts that mostly gave no
+> category definitions, with no option to answer "unclear". The rows that do
+> *not* depend on any of that — quote fabrication (checked against the source
+> text itself) and source rerank (against BM25, a real baseline) — are the ones
+> we would defend. **Read the classification rows as provisional.**
 
 **One pathology showed in both models:** loose categories act as sinks. A vague
 class drew precision 0.14–0.22 at recall 0.91, while the largest class got
