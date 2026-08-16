@@ -203,11 +203,37 @@ first: until it runs, none of the others have a meaningful yardstick.**
 agent per page"). Every round-1 accuracy figure is therefore *agreement with an
 unnamed model*, against an unknown human ceiling.
 
-- **Method:** stratified subsample of **50 statements** (all 7 deontic classes,
-  over-sampling the sink classes `principle`/`procedure` and the starved
-  `obligation`). Label them by hand against `RATING_RUBRIC.md`, blind to the
-  existing labels. A second pass by another person on 20 of them gives a
-  human–human figure.
+### G0 — write the codebook first (blocker, found 2026-08-16)
+
+**There is no codebook.** `RATING_RUBRIC.md` rates extraction quality, not
+category membership; no document defines what `obligation` or `principle` mean
+here. And the label set has drifted into four inconsistent versions:
+
+| source | classes |
+|---|---|
+| `docs/classification.md` §2c | 4 |
+| `docs/atomic_statements_design.md` | 7 |
+| the gold data | **10** |
+| our own benchmark | 7 — *a different seven* |
+
+`principle`, `procedure` and `recommendation` (12% of statements) appear in **no
+design document** — the labelling LLM invented them. They are also exactly the
+classes that behaved as sinks for LiftWing. **The sink pattern is therefore at
+least partly a property of the taxonomy, not the model.**
+
+- **Worksheet:** `.claude/bench/G1_codebook_worksheet.csv` — 49 real statements
+  grouped by the label actually assigned, with a blank `your_definition` column.
+  Write each definition *from* what the labeler did, then decide which of the 10
+  classes survive, merge, or go.
+- **Output:** one authoritative label set with one-line definitions, in one
+  place, replacing all four versions.
+
+### G1 — then validate
+
+- **Method:** stratified subsample of **50 statements** (every surviving class,
+  over-sampling the former sinks and the starved `obligation`). Hand-label
+  against the **new codebook**, blind to the existing labels. A second rater on
+  20 of them gives the human–human figure.
 - **Report:** human-vs-gold Cohen's κ = **the ceiling**; human–human κ = the
   ceiling *on the ceiling*.
 - **Decision rule, fixed now:**
