@@ -8,6 +8,12 @@
 > - **Small n.** Most tasks have 30–340 items. Confidence intervals run roughly
 >   ±5 points at the largest and **±18 points** at the smallest. Nothing here
 >   separates two models that are a few points apart.
+> - **Everything here is ZERO-SHOT.** No few-shot examples were given on any
+>   task. Read an implied "zero-shot" on every number below. This matters more
+>   than it might sound: the dominant failure was a *boundary* problem, not a
+>   capability one — the largest class was recognised with precision 1.00 but
+>   recall 0.13, i.e. the model knew the concept and not where it ends. That is
+>   the failure few-shot prompting most directly addresses, and it is untested.
 > - **Our own prompts, our own rubrics.** Several tasks are homemade taxonomies
 >   with fuzzy category boundaries — close to the worst case for any model. A
 >   different prompt might move these substantially; we did not test prompt
@@ -146,8 +152,16 @@ Stated so this is not read as coverage:
   produce a positive result — untested.
 - **Claim verification** against an external benchmark.
 - **Code review.** As posed, the task was not measurable.
-- **Prompt sensitivity, few-shot prompting, fine-tuning.** All untested; any of
-  them could move these numbers.
+- **Few-shot prompting — the most important gap.** Everything above is
+  zero-shot. The measured failure was that the model knows a concept but not its
+  boundary (precision 1.00, recall 0.13 on the largest class), which is what
+  demonstrating examples fixes if anything does. A design with a falsifiable
+  hypothesis — few-shot should move *per-class* recall on the starved class, not
+  merely the headline average — is in `playbooks/liftwing-bench-round2.md`.
+  **Until it runs, treat the results table as an upper bound on how badly these
+  models do, not a measure of what they can do.**
+- **Prompt sensitivity and fine-tuning.** Also untested; either could move these
+  numbers.
 
 ---
 
