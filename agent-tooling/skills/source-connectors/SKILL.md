@@ -100,6 +100,7 @@ Everything below applies to all three.
   `archive.org/wayback/available?url=<enc>` for coverage; `web.archive.org/web/<ts>id_/<url>`
   for the raw snapshot; `curl` + your UA if the fetch tool refuses `web.archive.org`. A
   fallback, not a way around a clear "no".
+- **A `5xx`/`503` is transient, not a verdict.** Try the connector first; on `503`/`5xx` (maintenance or load) retry with backoff, and if it persists switch to the row's **Fallback** — don't downgrade a connector's dated status for a one-off blip (reserve a status change for a *persistent* failure).
 
 **Maintain the registry — it goes stale.**
 - Record provenance per fetch: source + exact endpoint, access method, a content hash (sha256),
@@ -122,6 +123,9 @@ Everything below applies to all three.
   not want AI ingestion.
 - **No public *read* API — retrieve via the sibling service.** Some portals expose only a
   *submission* API; the readable data lives in a companion register (see open.overheid.nl → KOOP).
+- **Native API disabled, public sibling open.** A host can `401` its own `/wp-json/…` while a
+  public sibling (`public-api.wordpress.com/…/sites/<domain>/…`) serves the same content
+  unauthenticated. Check the public sibling before concluding an API is closed.
 - **HTTP 200 with an error body.** Some APIs return `200` with an error payload under load —
   inspect the body, not the status.
 - **Open-access links that 403 non-browser clients.** A DOI's "open" PDF often sits behind a
@@ -134,7 +138,7 @@ Everything below applies to all three.
 ## 4. The library — example connectors (dated per item)
 
 Each row is a connector, and **carries its own `Verified` date** — a dated claim, not a
-guarantee. Re-check `explain`/robots before relying on a cell. The **Fallback** column is what
+guarantee (dates are **month-granularity**; the library isn't re-verified daily). Re-check `explain`/robots before relying on a cell. The **Fallback** column is what
 to reach for when *this* connector is down, blocked, or throttled. `(live)` = the
 endpoint/robots were exercised; `(docs)` = read from documentation/robots only. "free (art. 11)"
 = Dutch *Auteurswet* art. 11: no copyright on laws/decisions/ordinances of a public authority.
@@ -143,21 +147,30 @@ endpoint/robots were exercised; `(docs)` = read from documentation/robots only. 
 
 | Connector | Protocol · endpoint | Auth | Access policy (robots · rate) | Reuse | Retrieval recipe | Fallback | Verified |
 |---|---|---|---|---|---|---|---|
-| **KOOP Officiële Bekendmakingen** | SRU 2.0 · `repository.overheid.nl/sru` | none | crawler `Disallow: /` — API **documented & preferred**; ~1 req/s, page 1000 | free (art. 11); `/noindex/` = privacy | `explain` → indexes; FRBR `…/frbr/…/xml/…` = artifact; front-end `zoek.officielebekendmakingen.nl` can 504 | Internet Archive (permanent deeplinks) | 2026-08-14 (live) |
-| **CVDR** (decentrale regelgeving) | SRU / FRBR · `lokaleregelgeving.overheid.nl` | none | server page open; polite | free (art. 11) | FRBR-XML may 404 → server-rendered page; SRU indexes differ from KOOP | KOOP bekendmakingen; IA | 2026-08-17 (live) |
-| **wetten.overheid.nl** (BWB, consolidated law) | HTML/XML · `wetten.overheid.nl` | none | catch-all `Allow: /`; **named AI bots** `Disallow: /`; `/*/informatie/xml` off; polite | free (art. 11) | honour the AI-block intent | BWB bulk download; Internet Archive | 2026-08-15 (live robots) |
-| **open.overheid.nl / OPP** (PLOOI successor) | *aanlever only* | (client creds) | — | Woo / free | **no public read API** | KOOP (the read path) | 2026-08-13 (docs) |
-| **data.overheid.nl** | CKAN v3 · `data.overheid.nl/data/api/3/action/` | none | `Disallow: /data/` (covers the API path); polite | CC0 | dataset / metadata discovery | the dataset's own host | 2026-08-13 (docs) |
-| **CBS StatLine** | OData · v3 `opendata.cbs.nl/ODataApi`; v4 host *(unverified)* | none | v3 paths disallowed; v4 TBD; polite | free + attrib "Bron: CBS" | prefer v4; `$metadata` for fields | `cbsodata` client libs (R/Py) | 2026-08-13 (docs) |
-| **Rechtspraak Open Data** | REST/XML · `data.rechtspraak.nl/uitspraken/` | none | no robots served (allow); ≤10 req/s, no full dump | court output, pseudonymised | 2-step: ECLI index → content | Internet Archive snapshot | 2026-08-13 (docs) |
+| **KOOP Officiële Bekendmakingen** | SRU 2.0 · `repository.overheid.nl/sru` | none | crawler `Disallow: /` — API **documented & preferred**; ~1 req/s, page 1000 | free (art. 11); `/noindex/` = privacy | `explain` → indexes; FRBR `…/frbr/…/xml/…` = artifact; front-end `zoek.officielebekendmakingen.nl` can 504 | Internet Archive (permanent deeplinks) | 2026-08 (live) |
+| **CVDR** (decentrale regelgeving) | SRU / FRBR · `lokaleregelgeving.overheid.nl` | none | server page open; polite | free (art. 11) | FRBR-XML may 404 → server-rendered page; SRU indexes differ from KOOP | KOOP bekendmakingen; IA | 2026-08 (live) |
+| **wetten.overheid.nl** (BWB, consolidated law) | HTML/XML · `wetten.overheid.nl` | none | catch-all `Allow: /`; **named AI bots** `Disallow: /`; `/*/informatie/xml` off; polite | free (art. 11) | honour the AI-block intent | BWB bulk download; Internet Archive | 2026-08 (live robots) |
+| **open.overheid.nl / OPP** (PLOOI successor) | *aanlever only* | (client creds) | — | Woo / free | **no public read API** | KOOP (the read path) | 2026-08 (docs) |
+| **data.overheid.nl** | CKAN v3 · `data.overheid.nl/data/api/3/action/` | none | `Disallow: /data/` (covers the API path); polite | CC0 | dataset / metadata discovery | the dataset's own host | 2026-08 (live) |
+| **CBS StatLine** | OData · v3 `opendata.cbs.nl/ODataApi`; v4 host *(unverified)* | none | v3 paths disallowed; v4 TBD; polite | free + attrib "Bron: CBS" | prefer v4; `$metadata` for fields | `cbsodata` client libs (R/Py) | 2026-08 (docs) |
+| **Rechtspraak Open Data** | REST/XML · `data.rechtspraak.nl/uitspraken/{zoeken,content}` | none | no robots served (allow); ≤10 req/s, no full dump | court output, pseudonymised | 2-step: `/uitspraken/zoeken` (ECLI index) → `/uitspraken/content?id=ECLI:…` | Internet Archive snapshot | 2026-08 (live: `/zoeken` 200; bare `/uitspraken/` 404s) |
 
 ### Scholarly & archive
 
 | Connector | Protocol · endpoint | Auth | Access policy | Reuse | Notes | Fallback | Verified |
 |---|---|---|---|---|---|---|---|
-| **OpenAlex** | REST · `api.openalex.org` | free key (credit budget) | polite pool via `mailto` | CC0 metadata | **200 + error body** under load; prefer DOI/filter over `?search` | Crossref (metadata); Unpaywall (OA copies) | 2026-08-14 (live) |
-| **Crossref** | REST · `api.crossref.org` | none (mailto polite pool) | polite | metadata open | DOI metadata; `query.*` filters; send `mailto` for the polite pool | OpenAlex; DataCite | 2026-08-14 (live) |
-| **Internet Archive / Wayback** | REST · `archive.org/wayback/available`, `web.archive.org/web/<ts>id_/<url>` | none (IA keys raise throttle) | robots allows all except `/control`, `/report` | per-item | `id_` = raw snapshot; use `curl` if the fetcher blocks web.archive.org | the live source itself | 2026-08-14 (live) |
+| **OpenAlex** | REST · `api.openalex.org` | free key (credit budget) | polite pool via `mailto` | CC0 metadata | **200 + error body** under load; prefer DOI/filter over `?search` | Crossref (metadata); Unpaywall (OA copies) | 2026-08 (live) |
+| **Crossref** | REST · `api.crossref.org` | none (mailto polite pool) | polite | metadata open | DOI metadata; `query.*` filters; send `mailto` for the polite pool | OpenAlex; DataCite | 2026-08 (live) |
+| **arXiv** | Atom XML · `export.arxiv.org/api/query` | none | robots `Disallow: /` — the API is the sanctioned door; manual asks for a **3 s delay** | mostly CC BY 4.0 (per paper) | `search_query`/`id_list`; version suffix immutable — keep in citations | Semantic Scholar; OpenAlex | 2026-08 (live) |
+| **Semantic Scholar** | REST · `api.semanticscholar.org/graph/v1` | free key raises the limit | anon pool tight — a **single request can 429**; 1 req/s unauth vs 100 keyed | research metadata (API terms) | IDs `arXiv:<id>`/`DOI:<doi>`; `fields=`; batch endpoint | Crossref; arXiv (full text) | 2026-08 (live: 429 seen) |
+| **Internet Archive / Wayback** | REST · `archive.org/wayback/available`, `web.archive.org/web/<ts>id_/<url>` | none (IA keys raise throttle) | robots allows all except `/control`, `/report` | per-item | `id_` = raw snapshot; use `curl` if the fetcher blocks web.archive.org | the live source itself | 2026-08 (live) |
+
+### Media & web
+
+| Connector | Protocol · endpoint | Auth | Access policy | Reuse | Notes | Fallback | Verified |
+|---|---|---|---|---|---|---|---|
+| **Flickr** (read-only) | REST · `api.flickr.com/services/rest` | API key (read methods) | metadata quota per key; **image CDN `live.staticflickr.com` blocks fast per-IP bursts** | per-photo licence; only free licences → Commons | `nojsoncallback=1`, `per_page=500`; on CDN 429 **pause, go quiet, don't probe** (probing extends the block) | Wayback CDX for `live.staticflickr.com/…` | 2026-08 (endpoint; block behaviour field-observed, not tested here) |
+| **WordPress.com** (VIP blogs, e.g. Diff) | REST · `public-api.wordpress.com/rest/v1.1/sites/<domain>/posts/` | none | no published rate limit; polite paged pulls | per-site (Diff = CC BY-SA) | native `wp-json` may be disabled — the public sibling stays open; `fields=`, `number`≤100, `after`/`before` | site `sitemap.xml`; self-hosted `wp-json` if enabled | 2026-08 (live) |
 
 ## Kept out of the library
 
