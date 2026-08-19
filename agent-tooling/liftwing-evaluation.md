@@ -13,18 +13,15 @@
 >   accuracy, and the human ceiling is unknown. Validating it against hand
 >   labels is the first thing we would now do — and we would not repeat this
 >   order of operations.
-> - **We gave the model no category definitions — except on the one task it
->   won.** Three of four tasks presented a bare list of rubric terms. The single
->   task that defined its categories in one line each is the single task that
->   cleanly beat its baseline. We probably built the failure we then measured.
-> - **Forced choice, no abstention.** A model that cannot answer "unclear" must
->   place every hard case somewhere, and it picks the vaguest bucket. Part of the
->   reported pathology is an answer-format artifact.
-> - **Everything here is ZERO-SHOT.** No few-shot examples on any task. The
->   dominant failure was a *boundary* problem, not a capability one — the largest
->   class was recognised at precision 1.00 but recall 0.13, i.e. the model knew
->   the concept and not where it ends. That is what definitions and examples
->   address, and neither was tested.
+> - **We gave the model no category definitions — and that, not the model, caused
+>   much of the reported failure.** Measured directly on 2026-08-18 (see
+>   "Specification" below): adding one line of definition per class moved
+>   macro-F1 **+0.217** on the 14B and **+0.145** on the 27B, and lifted recall on
+>   the largest class from 0.12 to 0.62. **One task's round-1 verdict is
+>   overturned by this.** Three of four tasks presented a bare list of rubric
+>   terms; the one that defined its categories is the one that beat its baseline.
+> - **Forced choice, no abstention.** Offering an "unclear" option turns out to
+>   be free — and the model never once used it, in any arm.
 > - **Our own prompts, our own rubrics.** Several tasks are homemade taxonomies
 >   with fuzzy category boundaries — close to the worst case for any model. A
 >   different prompt might move these substantially; we did not test prompt
@@ -41,16 +38,22 @@
 > methods section is the part we would defend; the results table is the part we
 > would expect to move.
 
-**Date:** 2026-08-15 · **Models:** `llm-qwen3-14b` (16K), `llm-qwen36-27b` (32K)
-· **Run from:** Toolforge
+**Date:** 2026-08-15, **substantially revised 2026-08-18** · **Models:**
+`llm-qwen3-14b` (16K), `llm-qwen36-27b` (32K) · **Run from:** Toolforge
+· ~7,900 calls total
 
 ---
 
 ## Recommendation
 
-**No** for anything requiring judgement, quotation, or a label you will not
-check by hand. **Conditional yes** for coarse pre-filtering where a cheap
-baseline does not already win and a stronger model reviews the shortlist.
+**Specify the task properly before you judge the model.** That is the first
+recommendation, because it changed our own conclusions: defining the categories
+moved macro-F1 by up to +0.217 and flipped one task from fail to pass. Most of
+what we first recorded as model weakness was our prompt.
+
+After that: **no** for anything requiring quotation or a label you will not
+check by hand. **Conditional yes** for classification with a defined rubric, and
+for coarse pre-filtering where a cheap baseline does not already win.
 
 The models are **free in money and expensive in verification.** Zero errors,
 zero rate limits, sub-second latency — and output that has to be checked, where
@@ -58,7 +61,9 @@ the checking can cost more than a paid API would have. That trade is worth
 taking only where an error is cheap and something downstream sees the result.
 
 **In our runs it fabricated roughly 1 in 8 quotes.** On that basis we are not
-putting it in a citation-verification path.
+putting it in a citation-verification path. That finding is checked against the
+source text rather than against labels, so unlike the classification results it
+does not move when the prompt does.
 
 ---
 
@@ -82,10 +87,15 @@ apply from Toolforge** — that alone changes what is feasible.
 
 ## Results
 
+Two rows carry a **2026-08-18 correction**: they were run with a bare list of
+category names, and re-running them with one-line definitions changed the
+verdict. Rows without a correction did not depend on a taxonomy prompt.
+
 | task | result | baseline | read |
 |---|---|---|---|
-| segment type (JSON) | 58.3% | majority class **70.7%** | below baseline |
-| deontic type | macro-F1 **0.572** (27B) | modal-verb regex 0.429 | above baseline |
+| segment type (JSON) | 58.3% | majority class **70.7%** | below baseline — **but never re-run with definitions; treat as unresolved** |
+| deontic type — bare list | 0.435 / 0.556 | modal-verb regex 0.429 | 14B **below** the pass mark |
+| **deontic type — with definitions** | **0.652 / 0.701** | same | **both clearly above; the 14B's failure was our prompt** |
 | governance class | macro-F1 **0.685**, acc 77.2% | majority acc 60.1% | above baseline, misses its recall gate |
 | statement alignment | 31–34% | majority 51.7%, embedding 62.1% | below baseline (replicated) |
 | source rerank | 30.1% / 28.0% | **BM25 31.2%** | indistinguishable |
@@ -112,8 +122,58 @@ trusting any label set.**
 
 ---
 
+## Specification: the biggest single lever
+
+Measured 2026-08-18 — 9 prompt variants x 276 items x 2 models, 4,968 calls,
+same items and same gold throughout, so only the prompt varies. The anchor arm
+reproduced the round-1 numbers, so the differences are trustworthy even though
+the absolute levels rest on LLM-generated labels.
+
+| prompt | 14B | 27B | obligation recall (14B) |
+|---|---|---|---|
+| bare list of 7 category names | 0.435 | 0.556 | 0.12 |
+| **+ one line defining each category** | **0.652** | **0.701** | **0.62** |
+| + 1 example per category | 0.550 | 0.600 | 0.39 |
+| + 3 examples per category | 0.560 | 0.629 | 0.55 |
+| + "unclear" option | 0.625 | 0.676 | 0.64 |
+| + room to reason (250 tok, not 12) | 0.625 | 0.559 | 0.64 |
+| JSON input | 0.570 | 0.638 | **0.80** |
+| JSON in and out | 0.578 | 0.665 | 0.69 |
+
+**Definitions are worth more than everything else combined.** The failure they
+fix is specific: the largest class was recognised at *precision 1.00, recall
+0.12* — the model knew the concept and not where it ended, so hard cases went to
+whichever label was vaguest. One sentence per class multiplied that recall
+five-fold.
+
+**Few-shot examples made it worse — on both models, at both counts.** Every
+example-bearing variant scored below definitions alone, and non-monotonically
+(1 example worse than 3, both worse than none). Our best guess is that the
+examples are drawn from the same LLM-generated labels, so inconsistent
+annotation is taught directly; a validated codebook might behave differently.
+**Do not assume few-shot helps.** Here it cost 0.07–0.10 macro-F1.
+
+**Structured input helps the classes that matter, and macro-F1 hides it.** JSON
+input gave the best recall on the dominant class (0.80 on the 14B, 0.91 for
+JSON-in-and-out on the 27B) while scoring lower on macro-F1 — because macro-F1
+weights a 9-item class equally with a 121-item one. Pick the metric that matches
+the deployment before picking the format.
+
+**Room to reason helps a weak model and not a strong one.** Raising the output
+budget from 12 tokens to 250 gained +0.190 on the 14B and +0.003 on the 27B —
+and was the only variant that ever failed to parse (4%).
+
+**What definitions did not fix:** one category stayed a sink in all 18
+model-variant cells (recall 0.78–1.00 at precision 0.18–0.44). Specification
+explains much of the pathology, not all of it. The rest is a codebook problem,
+and no prompt fixes an underspecified category.
+
+---
+
 ## Where it looked usable
 
+0. **Define your categories first.** One line each. It is the cheapest
+   intervention available and it outperformed every other change we tried.
 1. **Coarse categorisation as a pre-filter**, not a decision, with a stronger
    model or a human on the shortlist.
 2. **High-volume mechanical passes** where an error is cheap and caught later.
@@ -156,6 +216,15 @@ confident numbers from nothing, and each would have shipped a wrong conclusion.
    to share one label. It measured nothing while looking like a clean pass.
 8. **Pre-register the threshold.** Without a pass mark fixed in advance you
    will get a number and rationalise it.
+9. **Test the prompt before blaming the model.** We ran 2,344 calls and wrote a
+   verdict before checking whether the task was specified. One controlled sweep
+   afterwards overturned part of it. Vary the prompt while holding items, gold
+   and model fixed — the deltas are valid even when the labels are not, so this
+   works before any gold validation.
+10. **A conventional wisdom is a hypothesis.** "Few-shot helps" is near-universal
+   advice; it was false here, on both models, at both example counts. Testing a
+   dose-response (0, 1, 3) rather than a single setting is what made the
+   direction visible.
 
 ---
 
