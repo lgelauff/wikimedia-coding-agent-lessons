@@ -100,6 +100,7 @@ Everything below applies to all three.
   `archive.org/wayback/available?url=<enc>` for coverage; `web.archive.org/web/<ts>id_/<url>`
   for the raw snapshot; `curl` + your UA if the fetch tool refuses `web.archive.org`. A
   fallback, not a way around a clear "no".
+- **A `5xx`/`503` is transient, not a verdict.** Try the connector first; on `503`/`5xx` (maintenance or load) retry with backoff, and if it persists switch to the row's **Fallback** — don't downgrade a connector's dated status for a one-off blip (reserve a status change for a *persistent* failure).
 
 **Maintain the registry — it goes stale.**
 - Record provenance per fetch: source + exact endpoint, access method, a content hash (sha256),
@@ -146,7 +147,7 @@ endpoint/robots were exercised; `(docs)` = read from documentation/robots only. 
 
 | Connector | Protocol · endpoint | Auth | Access policy (robots · rate) | Reuse | Retrieval recipe | Fallback | Verified |
 |---|---|---|---|---|---|---|---|
-| **KOOP Officiële Bekendmakingen** | SRU 2.0 · `repository.overheid.nl/sru` | none | crawler `Disallow: /` — API **documented & preferred**; ~1 req/s, page 1000 | free (art. 11); `/noindex/` = privacy | `explain` → indexes; FRBR `…/frbr/…/xml/…` = artifact; front-end `zoek.officielebekendmakingen.nl` can 504 | Internet Archive (permanent deeplinks) | 2026-08-14 (live); 2026-08-19: 503 maintenance → use IA fallback |
+| **KOOP Officiële Bekendmakingen** | SRU 2.0 · `repository.overheid.nl/sru` | none | crawler `Disallow: /` — API **documented & preferred**; ~1 req/s, page 1000 | free (art. 11); `/noindex/` = privacy | `explain` → indexes; FRBR `…/frbr/…/xml/…` = artifact; front-end `zoek.officielebekendmakingen.nl` can 504 | Internet Archive (permanent deeplinks) | 2026-08-14 (live) |
 | **CVDR** (decentrale regelgeving) | SRU / FRBR · `lokaleregelgeving.overheid.nl` | none | server page open; polite | free (art. 11) | FRBR-XML may 404 → server-rendered page; SRU indexes differ from KOOP | KOOP bekendmakingen; IA | 2026-08-17 (live) |
 | **wetten.overheid.nl** (BWB, consolidated law) | HTML/XML · `wetten.overheid.nl` | none | catch-all `Allow: /`; **named AI bots** `Disallow: /`; `/*/informatie/xml` off; polite | free (art. 11) | honour the AI-block intent | BWB bulk download; Internet Archive | 2026-08-15 (live robots) |
 | **open.overheid.nl / OPP** (PLOOI successor) | *aanlever only* | (client creds) | — | Woo / free | **no public read API** | KOOP (the read path) | 2026-08-13 (docs) |
