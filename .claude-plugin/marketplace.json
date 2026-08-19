@@ -7,13 +7,11 @@
   "plugins": [
     {
       "name": "agent-tooling",
-      "version": "0.5.0",
       "description": "PR quality-gate skill + reusable hooks and scripts; agent-agnostic core with a Claude Code adapter.",
       "source": "./agent-tooling"
     },
     {
       "name": "wikimedia-data-collection",
-      "version": "0.1.0",
       "description": "Claude Cowork skills for collecting Wikimedia data via official APIs (Action API, Wikidata SPARQL, REST/AQS, Phabricator Conduit) — API-first, never scraping.",
       "source": "./cowork-skills/wikimedia-data-collection"
     }

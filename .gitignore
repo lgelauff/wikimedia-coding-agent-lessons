@@ -210,3 +210,6 @@ __marimo__/
 # The README + template stay committed; the per-provider logs do not.
 agent-tooling/feedback/*.md
 !agent-tooling/feedback/README.md
+
+# Claude working notes, plans, and bench data — never committed.
+.claude/
