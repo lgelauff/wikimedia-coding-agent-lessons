@@ -1,9 +1,11 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "wikimedia-agent-tooling",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Reusable Claude Code agent tooling (PR quality-gate skill, hooks, scripts) from the wikimedia-coding-agent-lessons repo.",
-  "owner": { "name": "Lodewijk Gelauff" },
+  "owner": {
+    "name": "Lodewijk Gelauff"
+  },
   "plugins": [
     {
       "name": "agent-tooling",
@@ -14,6 +16,36 @@
       "name": "wikimedia-data-collection",
       "description": "Claude Cowork skills for collecting Wikimedia data via official APIs (Action API, Wikidata SPARQL, REST/AQS, Phabricator Conduit) — API-first, never scraping.",
       "source": "./cowork-skills/wikimedia-data-collection"
+    },
+    {
+      "name": "robots-checker",
+      "description": "Blocks fetches that would violate robots.txt and requires explicit confirmation before scraping a disallowed domain.",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/lgelauff/wikimedia-analysis.git",
+        "path": "source-collection/plug-ins/robots-checker",
+        "ref": "main"
+      }
+    },
+    {
+      "name": "sources-linter",
+      "description": "Validates sources.txt on every write: required fields, naming conventions, duplicate citekeys, access values.",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/lgelauff/wikimedia-analysis.git",
+        "path": "source-collection/plug-ins/sources-linter",
+        "ref": "main"
+      }
+    },
+    {
+      "name": "fetch-interceptor",
+      "description": "Routes WebFetch through a caching, rate-limited, archival fetch pipeline instead of ad-hoc network calls.",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/lgelauff/wikimedia-analysis.git",
+        "path": "source-collection/plug-ins/fetch-interceptor",
+        "ref": "main"
+      }
     }
   ]
 }
