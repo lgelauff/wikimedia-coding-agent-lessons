@@ -32,11 +32,16 @@ import datetime
 import os
 import sys
 
-try:
-    import requests
-except ImportError:
-    print("ERROR: requests not installed. Run: pip install requests", file=sys.stderr)
-    sys.exit(1)
+
+def _requests():
+    """Import lazily so --help works without the dependency installed."""
+    try:
+        import requests
+    except ImportError:
+        print("ERROR: requests not installed. Run: pip install requests",
+              file=sys.stderr)
+        sys.exit(1)
+    return requests
 
 
 MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
@@ -109,7 +114,7 @@ def call_mistral(system_prompt, user_prompt, model_name, api_key):
         ],
         "temperature": 0.2,
     }
-    resp = requests.post(MISTRAL_API_URL, headers=headers, json=payload, timeout=180)
+    resp = _requests().post(MISTRAL_API_URL, headers=headers, json=payload, timeout=180)
     resp.raise_for_status()
     data = resp.json()
     content = data["choices"][0]["message"]["content"]

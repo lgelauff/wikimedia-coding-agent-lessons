@@ -1,29 +1,19 @@
 ---
 name: source-connectors
 description: >-
-  Model every data source you collect from as a **connector** — a small, reusable
-  declaration of one source: protocol & endpoint, auth, access policy (robots /
-  ToS / rate / fair-use), reuse licence, and the retrieval recipe that gets the
-  full artifact out. Use whenever a task needs data FROM specific web sources (a
-  government portal, catalogue, archive, scholarly index) and you're tempted to
-  scrape pages. It is fundamentally about being a **good neighbour** — minimizing
-  load and invasiveness for the host by using its intended, lowest-impact door,
-  calling it politely, and caching what you fetch. A mature connector practice has
-  four separable parts — **govern &
-  enforce** (sanctioned allow-list / preferred set / plain reference), **discover
-  & onboard** (find the API and its access policy, verify the retrieval path),
-  **maintain & track** (provenance; re-verify; date and retire entries), and **the
-  library** of known connectors (drift-prone — every entry dated per item). Covers
-  API discovery (developer docs / SRU `explain` / `$metadata` / community tools),
-  reading robots.txt as the access policy (including hosts that disallow crawlers
-  while documenting and PREFERRING their API), polite calling (descriptive UA,
-  rate-limit / fair-use, canonical artifact vs flaky front-end, Internet-Archive
-  fallback), and the recurring gotchas (HTTP 200 + error body, open-access links
-  that 403 non-browser agents, named-AI-bot robots blocks). Ships a dated registry
-  of real connectors (Dutch government — KOOP officiële bekendmakingen, CVDR,
-  wetten.overheid.nl, data.overheid.nl, CBS, Rechtspraak; scholarly & archive —
-  OpenAlex, Crossref, Internet Archive, MediaWiki). LLM / compute connectors such
-  as LiftWing are a sibling category (same model, but you send work rather than
+  Model every data source you collect from as a **connector** — a small,
+  reusable declaration of one source: protocol & endpoint, auth, access policy
+  (robots / ToS / rate / fair-use), reuse licence, and the retrieval recipe that
+  gets the full artifact out. Use whenever a task needs data FROM specific web
+  sources (a government portal, catalogue, archive, scholarly index) and you're
+  tempted to scrape pages. It is fundamentally about being a **good neighbour**
+  — using the host's intended, lowest-impact door, calling it politely, and
+  caching what you fetch. Covers API discovery, reading robots.txt as the access
+  policy (including hosts that disallow crawlers while documenting and
+  PREFERRING their API), and the recurring gotchas (HTTP 200 + error body,
+  open-access links that 403 non-browser agents). Ships a dated registry of real
+  connectors. LLM / compute connectors such as LiftWing are a sibling category —
+  you send work rather than collect data; see `liftwing-llm`.
   collect data) — kept out of this skill; see `liftwing-llm`.
 ---
 
@@ -143,7 +133,7 @@ endpoint/robots were exercised; `(docs)` = read from documentation/robots only. 
 
 | Connector | Protocol · endpoint | Auth | Access policy (robots · rate) | Reuse | Retrieval recipe | Fallback | Verified |
 |---|---|---|---|---|---|---|---|
-| **KOOP Officiële Bekendmakingen** | SRU 2.0 · `repository.overheid.nl/sru` | none | crawler `Disallow: /` — API **documented & preferred**; ~1 req/s, page 1000 | free (art. 11); `/noindex/` = privacy | `explain` → indexes; FRBR `…/frbr/…/xml/…` = artifact; front-end `zoek.officielebekendmakingen.nl` can 504 | Internet Archive (permanent deeplinks) | 2026-08-14 (live) |
+| **KOOP Officiële Bekendmakingen** | SRU 2.0 · `repository.overheid.nl/sru` | none | crawler `Disallow: /` — API **documented & preferred**; ~1 req/s, page 1000 | free (art. 11); `/noindex/` = privacy | `explain` → indexes; FRBR `…/frbr/…/xml/…` = artifact; front-end `zoek.officielebekendmakingen.nl` can 504 | Internet Archive (permanent deeplinks) | 2026-08-14 (live); 2026-08-19: 503 maintenance → use IA fallback |
 | **CVDR** (decentrale regelgeving) | SRU / FRBR · `lokaleregelgeving.overheid.nl` | none | server page open; polite | free (art. 11) | FRBR-XML may 404 → server-rendered page; SRU indexes differ from KOOP | KOOP bekendmakingen; IA | 2026-08-17 (live) |
 | **wetten.overheid.nl** (BWB, consolidated law) | HTML/XML · `wetten.overheid.nl` | none | catch-all `Allow: /`; **named AI bots** `Disallow: /`; `/*/informatie/xml` off; polite | free (art. 11) | honour the AI-block intent | BWB bulk download; Internet Archive | 2026-08-15 (live robots) |
 | **open.overheid.nl / OPP** (PLOOI successor) | *aanlever only* | (client creds) | — | Woo / free | **no public read API** | KOOP (the read path) | 2026-08-13 (docs) |

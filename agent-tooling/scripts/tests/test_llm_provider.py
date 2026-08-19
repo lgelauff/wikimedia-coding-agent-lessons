@@ -42,7 +42,7 @@ def test_liftwing_needs_no_key_and_sends_no_auth_header(monkeypatch):
     monkeypatch.delenv("AGENT_LLM_MODEL", raising=False)
     cap = {}
 
-    def fake_http(url, key_env, model, prompt, system, timeout):
+    def fake_http(url, key_env, model, prompt, system, timeout, budget=None):
         cap.update(url=url, key_env=key_env, model=model)
         return "ok"
 
@@ -60,7 +60,7 @@ def test_liftwing_model_override_flows_into_url(monkeypatch):
     monkeypatch.setenv("AGENT_LLM_MODEL", "llm-qwen36-27b")
     cap = {}
     monkeypatch.setattr(lp, "_http_chat",
-                        lambda u, k, m, p, s, t: (cap.update(url=u, model=m), "ok")[1])
+                        lambda u, k, m, p, s, t, budget=None: (cap.update(url=u, model=m), "ok")[1])
     lp.query_llm("hi")
     assert cap["model"] == "llm-qwen36-27b"
     assert "/models/llm-qwen36-27b/openai/" in cap["url"]

@@ -13,9 +13,18 @@ if [ -z "$STAGED" ]; then
     exit 0
 fi
 
+# Fail CLOSED: a missing scanner previously let every commit through with only a
+# warning, so the guard silently did nothing on any machine without detect-secrets.
 if ! command -v detect-secrets-hook &>/dev/null; then
-    echo "WARNING: detect-secrets not found, skipping credential scan."
-    exit 0
+    if [ "$ALLOW_MISSING_DETECT_SECRETS" = "1" ]; then
+        echo "WARNING: detect-secrets not found; scan skipped by explicit opt-out."
+        exit 0
+    fi
+    echo "Commit blocked: detect-secrets is not installed, so staged files cannot" >&2
+    echo "be scanned for credentials." >&2
+    echo "  Install:            pipx install detect-secrets" >&2
+    echo "  Skip deliberately:  ALLOW_MISSING_DETECT_SECRETS=1 git commit ..." >&2
+    exit 1
 fi
 
 if [ -f ".secrets.baseline" ]; then

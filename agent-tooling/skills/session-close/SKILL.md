@@ -1,6 +1,17 @@
 ---
 name: session-close
-description: Wrap up a working session on any repo — secure at-risk work that `git status` cannot see (gitignored files in worktrees, orphanable background jobs), evaluate what the session actually established, surface open ends by who is blocked, and route the resulting actions into the project's own queues (overnight runs, remote/Toolforge job packets, worklist). Use when the user signals they are ending the session — "let's wrap up", "close the session", "end of session", "/session-close", "that's it for today", "picking this up tomorrow". A bare "what did we do today" is usually a recap request, not a session end: just answer it. Do NOT use mid-task, and do NOT use for "wrap up this PR/feature" — finishing one piece of work inside an ongoing session is a commit and a short summary, not a session close.
+description: >-
+  Wrap up a working session on any repo — secure at-risk work that `git
+  status` cannot see (gitignored files in worktrees, orphanable background
+  jobs), evaluate what the session actually established, surface open ends by
+  who is blocked, and route the resulting actions into the project's own
+  queues (overnight runs, remote/Toolforge job packets, worklist). Use when
+  the user signals they are ending the session — "let's wrap up", "close the
+  session", "end of session", "/session-close", "that's it for today",
+  "picking this up tomorrow". A bare "what did we do today" is usually a recap
+  request, not a session end: just answer it. Do NOT use mid-task, and do NOT
+  use for "wrap up this PR/feature" — finishing one piece of work inside an
+  ongoing session is a commit and a short summary, not a session close.
 ---
 
 # Session close
