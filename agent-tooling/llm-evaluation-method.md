@@ -1,5 +1,11 @@
 # Why we benchmark LLMs, and how
 
+> ⚠️ **The method is the durable part; the results are not.** Any numbers produced by
+> this method so far are provisional — single runs, no measured variance, narrow
+> scope, and three of eleven benchmarks invalidated by construction errors. See
+> [`benchmark-cards.md`](benchmark-cards.md) for what was attempted and
+> [`liftwing-evaluation.md`](liftwing-evaluation.md) for the full caveats.
+
 Framing and method for evaluating an LLM before putting it in a Wikimedia
 research pipeline. Written so another agent can reproduce the reasoning, not
 just the numbers.

@@ -37,6 +37,33 @@ The folders above are organized by **tech stack** (toolforge / wikimedia / flask
 
 At the start of a new project, paste the relevant files into the conversation or tell the assistant to fetch the URLs listed under "Docs to fetch at project start" in each file.
 
+## How this repository is made
+
+Most of the text here was written by AI coding agents. The direction is mine: what
+gets built, when, where the focus goes, and what is kept. The agents supply the prose
+and the code; the judgement about what was worth writing down, and what turned out to
+be wrong, is the human contribution.
+
+That matters for licensing. Agent-generated text is unlikely to carry copyright of its
+own — there is no human author behind the individual sentences. What I hold is thinner
+than in an ordinary codebase: the selection and arrangement, plus whatever I wrote or
+reworked myself. Strong copyleft assumes an ownership this repository does not really
+have, so it is licensed permissively instead.
+
+## Licence
+
+- **Code** — `scripts/`, `hooks/`, `policies/`, `git-hooks/`, and the code inside
+  skills — is **MIT**. See [LICENSE](LICENSE).
+- **Prose** — the `lessons.md` files, the playbooks, and this README — is
+  **CC BY-SA 4.0**, to the extent it is mine to license.
+
+In practice: take the code and use it, no strings. If you reuse the writing, credit it
+and share alike.
+
+**Individual folders may differ.** Where a folder is under a different licence —
+vendored third-party assets, or material adapted from elsewhere — it says so in that
+folder's own README. Check there before reusing anything from it.
+
 ## Code of Conduct
 
 All contributions and discussions related to this repository are expected to follow the [Wikimedia Code of Conduct](https://www.mediawiki.org/wiki/Code_of_Conduct).

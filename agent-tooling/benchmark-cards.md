@@ -1,5 +1,15 @@
 # Benchmark cards
 
+> ⚠️ **These results are provisional — best effort, no guarantees.** Every prompt was
+> run **once at temperature 0**, so no delta here has measured variance. There are no
+> confidence intervals, the scope is two models on one project's data, and **three of
+> eleven benchmarks were invalidated by our own construction errors** — we caught
+> those three and have no way to know what we did not catch. These have not been used
+> enough to know whether they measure what they claim.
+>
+> Do not cite these numbers or pick a model on them. Full caveats:
+> [`liftwing-evaluation.md`](liftwing-evaluation.md).
+
 One card per benchmark attempted, 2026-08-13 → 18, evaluating LiftWing's
 `llm-qwen3-14b` and `llm-qwen36-27b` for a Wikimedia research pipeline.
 Method and rationale: [`llm-evaluation-method.md`](llm-evaluation-method.md).
