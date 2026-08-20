@@ -213,3 +213,5 @@ agent-tooling/feedback/*.md
 
 # Claude working notes, plans, and bench data — never committed.
 .claude/
+
+agent-tooling/scripts/*_standalone.py
