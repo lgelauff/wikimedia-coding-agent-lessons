@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "wikimedia-agent-tooling",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Reusable Claude Code agent tooling (PR quality-gate skill, hooks, scripts) from the wikimedia-coding-agent-lessons repo.",
   "owner": {
     "name": "Lodewijk Gelauff"
@@ -46,6 +46,11 @@
         "path": "source-collection/plug-ins/fetch-interceptor",
         "ref": "main"
       }
+    },
+    {
+      "name": "flushing-dataviz",
+      "description": "Consistent, accessible chart and table styling for research figures (matplotlib + LaTeX booktabs): colorblind-safe, grayscale-print-safe, ICWSM/AAAI-sized, with paper/slides/poster styles.",
+      "source": "./flushing-dataviz"
     }
   ]
 }

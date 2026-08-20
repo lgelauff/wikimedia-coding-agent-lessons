@@ -1,0 +1,8 @@
+{
+  "name": "flushing-dataviz",
+  "description": "Consistent, accessible chart & table styling for research figures (matplotlib + booktabs), loosely derived from the Flushing beamer theme. Colorblind-safe, grayscale-print-safe, ICWSM/AAAI-sized.",
+  "version": "0.2.0",
+  "author": {
+    "name": "Lodewijk Gelauff"
+  }
+}

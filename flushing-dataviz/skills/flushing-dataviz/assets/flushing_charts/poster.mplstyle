@@ -1,0 +1,91 @@
+# Flushing chart style — POSTER mode (A0/A1 research poster)
+# Designed at an 8.4in poster column; insert at natural size on the poster
+# canvas. Geometry is ~2x slides mode so calibrated point sizes survive
+# viewing distance (~1.5m): 18pt body text, 3pt strokes.
+
+# --- type ---
+font.family:        sans-serif
+font.sans-serif:    Source Sans 3, Helvetica, Arial, Helvetica Neue, DejaVu Sans
+font.size:          18
+axes.titlesize:     20
+axes.labelsize:     18
+xtick.labelsize:    16
+ytick.labelsize:    16
+legend.fontsize:    16
+legend.title_fontsize: 17
+mathtext.fontset:   dejavusans
+axes.titlelocation: left
+axes.titleweight:   bold
+
+# --- ink ---
+text.color:         3C3C3C
+axes.labelcolor:    3C3C3C
+axes.edgecolor:     3C3C3C
+xtick.color:        3C3C3C
+ytick.color:        3C3C3C
+
+# --- categorical colors (redundant linestyle/marker cycle added by apply()) ---
+axes.prop_cycle:    cycler('color', ['902828', '3D7ABC', 'DFA635', '189E8C', '784D96', '95A94E'])
+
+# --- geometry ---
+axes.spines.top:    False
+axes.spines.right:  False
+axes.linewidth:     1.6
+axes.grid:          True
+axes.grid.axis:     y
+grid.color:         E2DDD6
+grid.linewidth:     1.2
+axes.axisbelow:     True
+xtick.major.width:  1.6
+ytick.major.width:  1.6
+xtick.major.size:   6
+ytick.major.size:   6
+xtick.minor.size:   3.6
+ytick.minor.size:   3.6
+xtick.minor.width:  1.2
+ytick.minor.width:  1.2
+axes.formatter.useoffset: False
+
+# --- marks (heaviest: read from 1.5m) ---
+lines.linewidth:    3.0
+lines.markersize:   9
+lines.markeredgewidth: 1.4
+lines.markeredgecolor: FAF8F5
+errorbar.capsize:   4
+patch.force_edgecolor: True
+patch.edgecolor:    FAF8F5
+patch.linewidth:    1.8
+hatch.linewidth:    1.0
+hatch.color:        FAF8F5
+
+# --- boxplots: on-system by default ---
+boxplot.boxprops.color:       3C3C3C
+boxplot.boxprops.linewidth:   1.8
+boxplot.whiskerprops.color:   3C3C3C
+boxplot.whiskerprops.linewidth: 1.8
+boxplot.capprops.color:       3C3C3C
+boxplot.capprops.linewidth:   1.8
+boxplot.medianprops.color:    8B1A1A
+boxplot.medianprops.linewidth: 3.0
+boxplot.flierprops.marker:          o
+boxplot.flierprops.markersize:      5
+boxplot.flierprops.markeredgecolor: 737378
+boxplot.meanprops.color:      8B1A1A
+
+# --- legend ---
+legend.frameon:     False
+legend.handlelength: 2.2
+legend.borderaxespad: 0.3
+
+# --- figure & export: warm off-white Flushing background ---
+figure.figsize:     8.4, 5.19
+figure.dpi:         100
+figure.facecolor:   FAF8F5
+axes.facecolor:     FAF8F5
+figure.constrained_layout.use: True
+savefig.dpi:        300
+savefig.facecolor:  FAF8F5
+savefig.bbox:       standard
+pdf.fonttype:       42
+ps.fonttype:        42
+svg.fonttype:       none

@@ -1,0 +1,91 @@
+# Flushing chart style — PAPER mode (ICWSM/AAAI print)
+# Figures are designed at final size (3.3in column / 6.975in text width) and
+# inserted WITHOUT LaTeX rescaling, so these point sizes are the printed sizes.
+
+# --- type ---
+font.family:        sans-serif
+font.sans-serif:    Source Sans 3, Helvetica, Arial, Helvetica Neue, DejaVu Sans
+font.size:          8
+axes.titlesize:     8.5
+axes.labelsize:     8
+xtick.labelsize:    7
+ytick.labelsize:    7
+legend.fontsize:    7
+legend.title_fontsize: 7.5
+mathtext.fontset:   dejavusans
+
+# --- ink ---
+text.color:         3C3C3C
+axes.labelcolor:    3C3C3C
+axes.edgecolor:     3C3C3C
+xtick.color:        3C3C3C
+ytick.color:        3C3C3C
+
+# --- categorical colors (redundant linestyle/marker cycle added by apply()) ---
+axes.prop_cycle:    cycler('color', ['902828', '3D7ABC', 'DFA635', '189E8C', '784D96', '95A94E'])
+
+# --- geometry: recessive frame, subtle y-grid ---
+axes.spines.top:    False
+axes.spines.right:  False
+axes.linewidth:     0.7
+axes.grid:          True
+axes.grid.axis:     y
+grid.color:         DDD8D2
+grid.linewidth:     0.5
+axes.axisbelow:     True
+xtick.major.width:  0.7
+ytick.major.width:  0.7
+xtick.major.size:   2.5
+ytick.major.size:   2.5
+xtick.minor.size:   1.5
+ytick.minor.size:   1.5
+xtick.minor.width:  0.5
+ytick.minor.width:  0.5
+axes.formatter.useoffset: False
+
+# --- marks ---
+lines.linewidth:    1.4
+lines.markersize:   4
+lines.markeredgewidth: 0.6
+lines.markeredgecolor: white
+errorbar.capsize:   2
+patch.force_edgecolor: True
+patch.edgecolor:    white
+patch.linewidth:    0.8
+hatch.linewidth:    0.5
+hatch.color:        white
+
+# --- boxplots: on-system by default (matplotlib's default is off-brand black) ---
+boxplot.boxprops.color:       3C3C3C
+boxplot.boxprops.linewidth:   0.8
+boxplot.whiskerprops.color:   3C3C3C
+boxplot.whiskerprops.linewidth: 0.8
+boxplot.capprops.color:       3C3C3C
+boxplot.capprops.linewidth:   0.8
+boxplot.medianprops.color:    8B1A1A
+boxplot.medianprops.linewidth: 1.4
+boxplot.flierprops.marker:          o
+boxplot.flierprops.markersize:      2.5
+boxplot.flierprops.markeredgecolor: 737378
+boxplot.meanprops.color:      8B1A1A
+
+# --- legend: frameless ---
+legend.frameon:     False
+legend.handlelength: 2.2
+legend.borderaxespad: 0.3
+
+# --- figure & export ---
+figure.figsize:     3.3, 2.04
+figure.dpi:         150
+figure.facecolor:   white
+axes.facecolor:     white
+figure.constrained_layout.use: True
+savefig.dpi:        300
+savefig.facecolor:  white
+# bbox standard, NOT tight: tight re-crops the canvas and breaks the
+# "PDF is exactly 3.3in wide, insert without width=" contract.
+# constrained_layout already prevents clipping inside the fixed canvas.
+savefig.bbox:       standard
+pdf.fonttype:       42
+ps.fonttype:        42
+svg.fonttype:       none

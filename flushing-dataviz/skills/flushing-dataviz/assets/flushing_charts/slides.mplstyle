@@ -1,0 +1,93 @@
+# Flushing chart style — SLIDES mode (Flushing beamer theme)
+# Designed at \textwidth of the Flushing theme (~4.2in on a 128x96mm beamer
+# page). Insert at natural size; 9pt figure text visually matches the theme's
+# 10pt body once beamer projects the page.
+
+# --- type ---
+font.family:        sans-serif
+font.sans-serif:    Source Sans 3, Helvetica, Arial, Helvetica Neue, DejaVu Sans
+font.size:          9
+axes.titlesize:     10
+axes.labelsize:     9
+xtick.labelsize:    8
+ytick.labelsize:    8
+legend.fontsize:    8
+legend.title_fontsize: 8.5
+mathtext.fontset:   dejavusans
+# in-figure titles only on multi-panel slides figures; match Metropolis left-align
+axes.titlelocation: left
+axes.titleweight:   bold
+
+# --- ink (Flushing body text) ---
+text.color:         3C3C3C
+axes.labelcolor:    3C3C3C
+axes.edgecolor:     3C3C3C
+xtick.color:        3C3C3C
+ytick.color:        3C3C3C
+
+# --- categorical colors (redundant linestyle/marker cycle added by apply()) ---
+axes.prop_cycle:    cycler('color', ['902828', '3D7ABC', 'DFA635', '189E8C', '784D96', '95A94E'])
+
+# --- geometry ---
+axes.spines.top:    False
+axes.spines.right:  False
+axes.linewidth:     0.8
+axes.grid:          True
+axes.grid.axis:     y
+grid.color:         E2DDD6
+grid.linewidth:     0.6
+axes.axisbelow:     True
+xtick.major.width:  0.8
+ytick.major.width:  0.8
+xtick.major.size:   3
+ytick.major.size:   3
+xtick.minor.size:   1.8
+ytick.minor.size:   1.8
+xtick.minor.width:  0.6
+ytick.minor.width:  0.6
+axes.formatter.useoffset: False
+
+# --- marks (heavier for projection) ---
+lines.linewidth:    2.0
+lines.markersize:   5.5
+lines.markeredgewidth: 0.8
+lines.markeredgecolor: FAF8F5
+errorbar.capsize:   2.5
+patch.force_edgecolor: True
+patch.edgecolor:    FAF8F5
+patch.linewidth:    1.0
+hatch.linewidth:    0.6
+hatch.color:        FAF8F5
+
+# --- boxplots: on-system by default ---
+boxplot.boxprops.color:       3C3C3C
+boxplot.boxprops.linewidth:   1.0
+boxplot.whiskerprops.color:   3C3C3C
+boxplot.whiskerprops.linewidth: 1.0
+boxplot.capprops.color:       3C3C3C
+boxplot.capprops.linewidth:   1.0
+boxplot.medianprops.color:    8B1A1A
+boxplot.medianprops.linewidth: 2.0
+boxplot.flierprops.marker:          o
+boxplot.flierprops.markersize:      3
+boxplot.flierprops.markeredgecolor: 737378
+boxplot.meanprops.color:      8B1A1A
+
+# --- legend ---
+legend.frameon:     False
+legend.handlelength: 2.2
+legend.borderaxespad: 0.3
+
+# --- figure & export: warm off-white Flushing background ---
+figure.figsize:     4.2, 2.6
+figure.dpi:         150
+figure.facecolor:   FAF8F5
+axes.facecolor:     FAF8F5
+figure.constrained_layout.use: True
+savefig.dpi:        300
+savefig.facecolor:  FAF8F5
+# bbox standard (see paper.mplstyle) — canvas stays exactly figsize
+savefig.bbox:       standard
+pdf.fonttype:       42
+ps.fonttype:        42
+svg.fonttype:       none
