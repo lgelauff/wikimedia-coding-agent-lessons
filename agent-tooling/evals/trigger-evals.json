@@ -1,0 +1,107 @@
+{
+  "description": "Trigger evals for the installed skill library. Measures two things a single-skill eval cannot: whether a skill fires when it should (misses), and whether the wrong skill fires (crowding). Queries are drawn from real work in these repos, not invented.",
+  "created": "2026-08-20",
+  "notes": "expect_skill is the skill that should handle the query. null means no skill should fire — the task is ordinary work Claude does directly. A query answered by a *different* skill than expect_skill is a crowding failure, which is the thing this eval exists to find.",
+  "queries": [
+    {
+      "id": "pr-gate",
+      "query": "can you vet PR 412 on wiki-polis before I merge it — run the tests, look at the diff, tell me if it's actually ready or if I need to fix something first",
+      "expect_skill": "pr-check"
+    },
+    {
+      "id": "browser-repro",
+      "query": "the arguments tab is coming up blank on staging after my last commit. confirm whether it's actually broken in a browser or if I'm just seeing a cache thing",
+      "expect_skill": "browser-verify"
+    },
+    {
+      "id": "overnight-prep",
+      "query": "I want to kick off the clickstream fill tonight before I go to bed. it's about 8 hours of work and last time it died 20 minutes in on a permission prompt. get it ready",
+      "expect_skill": "overnight-run"
+    },
+    {
+      "id": "cost-estimate",
+      "query": "roughly how long would it take to push 12k article revisions through liftwing, and what's that going to cost me in tokens? need to know if it fits overnight",
+      "expect_skill": "budget-estimate"
+    },
+    {
+      "id": "invisible-chars",
+      "query": "this markdown file greps weird — searching for a word I can see on screen returns nothing. is there something invisible in there?",
+      "expect_skill": "charset-hygiene"
+    },
+    {
+      "id": "session-end",
+      "query": "ok that's it for today, let's wrap up. picking this back up tomorrow",
+      "expect_skill": "session-close"
+    },
+    {
+      "id": "latex-diff",
+      "query": "I reworked the intro section of paper4.tex and tightened a few paragraphs in the methods. show me what actually changed",
+      "expect_skill": "latex-change-review"
+    },
+    {
+      "id": "bulk-classify",
+      "query": "I need to classify about 4000 talk page comments as constructive or not. I don't want to burn claude tokens on something this mechanical — what's the cheap option",
+      "expect_skill": "liftwing-llm"
+    },
+    {
+      "id": "enterprise-token",
+      "query": "I need to hit api.enterprise.wikimedia.com for the structured article dumps. how do I get a token, and does it expire?",
+      "expect_skill": "wikimedia-enterprise"
+    },
+    {
+      "id": "paper-figure",
+      "query": "make me a line chart of the pageview trend for those five articles — this is going in the ICWSM submission so it needs to work in grayscale print",
+      "expect_skill": "flushing-dataviz"
+    },
+    {
+      "id": "new-source-portal",
+      "query": "I want to pull court decisions out of rechtspraak.nl for the policy study. what's the polite way in — is there an actual API or am I stuck parsing pages?",
+      "expect_skill": "source-connectors"
+    },
+    {
+      "id": "wikitext-category",
+      "query": "grab me the raw wikitext of every article in Category:Dutch_politicians on nlwiki, about 900 pages, I need to regex the infoboxes",
+      "expect_skill": "mediawiki-action-api"
+    },
+    {
+      "id": "pageview-series",
+      "query": "daily pageviews for Albert Einstein across all of 2024, both nl and en wikipedia, excluding bots. csv is fine",
+      "expect_skill": "wikimedia-analytics-api"
+    },
+    {
+      "id": "structured-query",
+      "query": "every Dutch municipality with population over 50000, with coordinates and their nlwiki article title. I want it as a table",
+      "expect_skill": "wikidata-sparql"
+    },
+    {
+      "id": "phab-tasks",
+      "query": "pull the open tasks tagged Wikidata-Query-Service that were modified in the last month, with who they're assigned to",
+      "expect_skill": "phabricator-conduit"
+    },
+    {
+      "id": "git-concept",
+      "query": "what's the actual difference between merge and rebase, in terms of what ends up in the history",
+      "expect_skill": null
+    },
+    {
+      "id": "trivial-edit",
+      "query": "there's a typo on line 40 of README.md, 'recieve' should be 'receive'. fix it",
+      "expect_skill": null
+    },
+    {
+      "id": "date-parser",
+      "query": "write me a small python function that parses ISO 8601 dates and returns None instead of raising when the string is malformed",
+      "expect_skill": null
+    },
+    {
+      "id": "maxlag-question",
+      "query": "what does maxlag actually do on the mediawiki api? is 5 a sensible value or should it be higher",
+      "expect_skill": null
+    },
+    {
+      "id": "robots-question",
+      "query": "if a site's robots.txt disallows crawlers but they publish an API, is it ok to use the API? feels contradictory",
+      "expect_skill": "source-connectors"
+    }
+  ]
+}

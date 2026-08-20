@@ -1,6 +1,6 @@
 {
   "name": "agent-tooling",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Reusable PR quality-gate skill plus hooks and deterministic scripts for AI coding agents. The plugin is the Claude Code adapter; its scripts/, playbooks/, and policies/ are agent-agnostic and reusable beyond Claude Code.",
   "author": { "name": "Lodewijk Gelauff" },
   "homepage": "https://github.com/lgelauff/wikimedia-coding-agent-lessons/tree/main/agent-tooling"
