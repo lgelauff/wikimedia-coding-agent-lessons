@@ -1,0 +1,228 @@
+{
+  "results": [
+    {
+      "id": "browser-repro",
+      "expected": "browser-verify",
+      "fired": "agent-tooling:browser-verify",
+      "votes": [
+        "agent-tooling:browser-verify",
+        "agent-tooling:browser-verify",
+        "agent-tooling:browser-verify"
+      ],
+      "outcome": "HIT"
+    },
+    {
+      "id": "bulk-classify",
+      "expected": "liftwing-llm",
+      "fired": "agent-tooling:liftwing-llm",
+      "votes": [
+        "agent-tooling:liftwing-llm",
+        "agent-tooling:liftwing-llm",
+        "agent-tooling:liftwing-llm"
+      ],
+      "outcome": "HIT"
+    },
+    {
+      "id": "cost-estimate",
+      "expected": "budget-estimate",
+      "fired": "agent-tooling:budget-estimate",
+      "votes": [
+        "agent-tooling:budget-estimate",
+        "agent-tooling:budget-estimate",
+        "agent-tooling:budget-estimate"
+      ],
+      "outcome": "HIT"
+    },
+    {
+      "id": "enterprise-token",
+      "expected": "wikimedia-enterprise",
+      "fired": "agent-tooling:wikimedia-enterprise",
+      "votes": [
+        "agent-tooling:wikimedia-enterprise",
+        "agent-tooling:wikimedia-enterprise",
+        "agent-tooling:wikimedia-enterprise"
+      ],
+      "outcome": "HIT"
+    },
+    {
+      "id": "invisible-chars",
+      "expected": "charset-hygiene",
+      "fired": "agent-tooling:charset-hygiene",
+      "votes": [
+        "agent-tooling:charset-hygiene",
+        "agent-tooling:charset-hygiene",
+        "agent-tooling:charset-hygiene"
+      ],
+      "outcome": "HIT"
+    },
+    {
+      "id": "latex-diff",
+      "expected": "latex-change-review",
+      "fired": "agent-tooling:latex-change-review",
+      "votes": [
+        "agent-tooling:latex-change-review",
+        "agent-tooling:latex-change-review",
+        "agent-tooling:latex-change-review"
+      ],
+      "outcome": "HIT"
+    },
+    {
+      "id": "new-source-portal",
+      "expected": "source-connectors",
+      "fired": "agent-tooling:source-connectors",
+      "votes": [
+        "agent-tooling:source-connectors",
+        "agent-tooling:source-connectors",
+        "agent-tooling:source-connectors"
+      ],
+      "outcome": "HIT"
+    },
+    {
+      "id": "overnight-prep",
+      "expected": "overnight-run",
+      "fired": "agent-tooling:overnight-run",
+      "votes": [
+        "agent-tooling:overnight-run",
+        "agent-tooling:overnight-run",
+        "agent-tooling:overnight-run"
+      ],
+      "outcome": "HIT"
+    },
+    {
+      "id": "pageview-series",
+      "expected": "wikimedia-analytics-api",
+      "fired": "wikimedia-data-collection:wikimedia-analytics-api",
+      "votes": [
+        "wikimedia-data-collection:wikimedia-analytics-api",
+        "wikimedia-data-collection:wikimedia-analytics-api",
+        "wikimedia-data-collection:wikimedia-analytics-api"
+      ],
+      "outcome": "HIT"
+    },
+    {
+      "id": "paper-figure",
+      "expected": "flushing-dataviz",
+      "fired": "flushing-dataviz:flushing-dataviz",
+      "votes": [
+        "flushing-dataviz:flushing-dataviz",
+        "prompt-coach",
+        "flushing-dataviz:flushing-dataviz"
+      ],
+      "outcome": "HIT"
+    },
+    {
+      "id": "phab-tasks",
+      "expected": "phabricator-conduit",
+      "fired": "wikimedia-data-collection:phabricator-conduit",
+      "votes": [
+        "wikimedia-data-collection:phabricator-conduit",
+        "wikimedia-data-collection:phabricator-conduit",
+        "wikimedia-data-collection:phabricator-conduit"
+      ],
+      "outcome": "HIT"
+    },
+    {
+      "id": "pr-gate",
+      "expected": "pr-check",
+      "fired": "agent-tooling:pr-check",
+      "votes": [
+        "agent-tooling:pr-check",
+        "agent-tooling:pr-check",
+        "agent-tooling:pr-check"
+      ],
+      "outcome": "HIT"
+    },
+    {
+      "id": "robots-question",
+      "expected": "source-connectors",
+      "fired": "agent-tooling:source-connectors",
+      "votes": [
+        "agent-tooling:source-connectors",
+        "agent-tooling:source-connectors",
+        "agent-tooling:source-connectors"
+      ],
+      "outcome": "HIT"
+    },
+    {
+      "id": "session-end",
+      "expected": "session-close",
+      "fired": "agent-tooling:session-close",
+      "votes": [
+        "agent-tooling:session-close",
+        "agent-tooling:session-close",
+        "agent-tooling:session-close"
+      ],
+      "outcome": "HIT"
+    },
+    {
+      "id": "structured-query",
+      "expected": "wikidata-sparql",
+      "fired": "wikimedia-data-collection:wikidata-sparql",
+      "votes": [
+        "wikimedia-data-collection:wikidata-sparql",
+        "wikimedia-data-collection:wikidata-sparql",
+        "wikimedia-data-collection:wikidata-sparql"
+      ],
+      "outcome": "HIT"
+    },
+    {
+      "id": "wikitext-category",
+      "expected": "mediawiki-action-api",
+      "fired": "wikimedia-data-collection:mediawiki-action-api",
+      "votes": [
+        "wikimedia-data-collection:mediawiki-action-api",
+        "wikimedia-data-collection:mediawiki-action-api",
+        "wikimedia-data-collection:mediawiki-action-api"
+      ],
+      "outcome": "HIT"
+    },
+    {
+      "id": "date-parser",
+      "expected": null,
+      "fired": null,
+      "votes": [
+        null,
+        null,
+        null
+      ],
+      "outcome": "QUIET"
+    },
+    {
+      "id": "git-concept",
+      "expected": null,
+      "fired": null,
+      "votes": [
+        null,
+        null,
+        null
+      ],
+      "outcome": "QUIET"
+    },
+    {
+      "id": "maxlag-question",
+      "expected": null,
+      "fired": null,
+      "votes": [
+        null,
+        null,
+        "wikimedia-data-collection:mediawiki-action-api"
+      ],
+      "outcome": "QUIET"
+    },
+    {
+      "id": "trivial-edit",
+      "expected": null,
+      "fired": null,
+      "votes": [
+        null,
+        null,
+        null
+      ],
+      "outcome": "QUIET"
+    }
+  ],
+  "counts": {
+    "HIT": 16,
+    "QUIET": 4
+  }
+}
