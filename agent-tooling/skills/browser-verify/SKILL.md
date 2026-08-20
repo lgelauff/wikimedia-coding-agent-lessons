@@ -1,16 +1,17 @@
 ---
 name: browser-verify
 description: >-
-  Verify a change in a real HEADLESS browser: figure out what to look for, drive
-  headless Chromium with Playwright, and either confirm a bug still reproduces or
-  verify it's fixed AND that nothing on the risky adjacent paths broke. Use
-  whenever the user wants to "check this fix in the browser", "confirm/repro this
-  bug headlessly", "test the UI locally", "did the fix work and break anything",
-  "run a headless browser test", "verify the arguments tab / voting / a page
-  works", or hands you specific things to test in the running app. Prefer this
-  over a screenshot or a code-only review when the question is "does it actually
-  behave correctly in a browser?". Lighter than a full PR gate; pairs with
-  pr-check's local-verification step.
+  Find out whether a page actually works, by driving a real headless browser. Use
+  whenever someone reports UI behaviour and wants it confirmed or disproved — "the
+  arguments tab is blank on staging", "is this fix live", "did that break
+  anything", "test the UI locally", "confirm this bug still reproduces" — or hands
+  you specific things to try in the running app. Use it INSTEAD of reading the
+  code and reasoning about it: inspecting the source is the obvious move and it
+  cannot tell you what the browser did, because the failures that reach a user are
+  the ones the code looks fine for — a silent JS error, a route that renders
+  unstyled, a cached bundle. This reproduces or verifies in headless Chromium and
+  checks the adjacent paths a fix most plausibly broke. Lighter than a full PR
+  gate; pairs with pr-check's local-verification step.
 ---
 
 # browser-verify — headless browser verification

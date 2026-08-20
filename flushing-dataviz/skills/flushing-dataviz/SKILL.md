@@ -1,6 +1,18 @@
 ---
 name: flushing-dataviz
-description: Consistent, accessible styling for ALL research charts and tables (matplotlib + LaTeX booktabs). Use whenever creating or restyling a figure, plot, graph, table, or heatmap for a paper (ICWSM/AAAI or similar), slide deck (Flushing beamer theme), or analysis notebook — BEFORE writing the first line of plotting code. Ships a validated colorblind-safe, grayscale-print-safe palette and ready-made matplotlib styles.
+description: >-
+  Accessible, consistent styling for research charts and tables (matplotlib +
+  LaTeX booktabs). Use whenever a figure, plot, chart, graph, table or heatmap is
+  wanted for a paper, slide deck, poster or analysis notebook — "make me a line
+  chart of X", "plot this", "a figure for the ICWSM submission" — and read it
+  BEFORE writing the first line of plotting code, since the styling decisions it
+  makes cannot be retrofitted onto a finished chart. It applies even when the
+  request is vague about which data or which columns: what to plot is a separate
+  question from how it must look, and the answer to the second is the same either
+  way. Matplotlib defaults fail colorblind and grayscale-print checks, so a chart
+  built without this looks fine on screen and is unreadable in a printed paper.
+  Ships a validated colorblind-safe, grayscale-safe palette, ICWSM/AAAI figure
+  sizing, and paper/slides/poster styles.
 ---
 
 # Flushing dataviz — one style for every figure and table

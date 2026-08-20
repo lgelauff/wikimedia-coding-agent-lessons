@@ -1,12 +1,17 @@
 ---
 name: latex-change-review
 description: >-
-  Make a change to a LaTeX document and review it the right way: detect how the
-  doc compiles, classify whether the change is content-focused or styling-focused,
-  then show CONTENT changes as a text/HTML diff (Wikipedia-style) and STYLING
-  changes as cropped before/after PNGs of only the pages that visually moved.
-  Time- and token-efficient (compiles only for styling; shows only what changed).
-  Use whenever you edit a .tex and want to see/show exactly what changed.
+  Show what actually changed in a LaTeX document. Use whenever a .tex file has
+  been edited and someone wants to see or review the result — "show me what
+  changed", "what did you change in the paper", "I reworked the intro and
+  tightened the methods", or any request to review an edit to a paper, poster or
+  slides. Use it INSTEAD of `git diff`: reaching for the raw diff is the obvious
+  move and it fails twice over on LaTeX. Rewrapped prose shows as a whole
+  paragraph rewritten when a single word moved, and a styling change is worse than
+  useless — altering one spacing macro reads as a one-character edit while moving
+  half the page. This classifies the change first, then shows content as a
+  readable text diff and styling as cropped before/after images of only the pages
+  that visually moved, compiling only when it has to.
 ---
 
 # latex-change-review

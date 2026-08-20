@@ -1,15 +1,18 @@
 ---
 name: pr-check
 description: >-
-  Full PR quality-gate: scope the diff, run the project's tests, convene a
-  type-matched panel of expert review agents with a cross-review round,
-  conditional security review and targeted local verification, then a final
-  go / merge-with-fixes / needs-changes verdict plus a call on whether a human
-  staging test is warranted. Use whenever the user asks to "check this PR",
-  "quality-check before merge", "run the PR gate", "is this ready to merge",
-  "vet this branch", "/pr-check", or wants a consolidated go/no-go on a branch
-  or PR — even if they don't name a specific check. Prefer this over running a
-  code review or the test suite alone when the ask is "is this good to merge?".
+  Decide whether a branch or PR is actually ready to merge. Use whenever someone
+  asks to check, vet, or quality-check a PR or branch, asks "is this ready",
+  "should I merge this", "/pr-check", or wants a go/no-go — and equally when they
+  describe the work instead of naming a check, as in "run the tests and look at
+  the diff, tell me if it's good" or "vet PR 412 before I merge it". Use it
+  INSTEAD of doing that by hand: running the suite and reading the diff yourself
+  is the obvious move and it is the one that misses things, because a green suite
+  says nothing about the changes it does not cover. This scopes the diff, runs the
+  project's tests, convenes a type-matched panel of expert reviewers with a
+  cross-review round, adds a security pass and targeted local verification when
+  the diff warrants them, and returns a go / merge-with-fixes / needs-changes
+  verdict plus a call on whether a human should test on staging.
 ---
 
 # pr-check — Claude Code adapter
