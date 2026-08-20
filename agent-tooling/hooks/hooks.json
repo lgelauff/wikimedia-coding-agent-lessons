@@ -15,7 +15,8 @@
       { "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/dev_stack_reminder.py\"" }] }
     ],
     "PostToolUse": [
-      { "matcher": "WebFetch", "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/webfetch_content_check.py\"" }] }
+      { "matcher": "WebFetch", "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/webfetch_content_check.py\"" }] },
+      { "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/tool_token_log.py\"" }] }
     ]
   }
 }

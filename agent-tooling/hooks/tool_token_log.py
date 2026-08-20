@@ -10,19 +10,48 @@ billing, but it reliably surfaces which tools/skills push the most into context
 `usage` fields instead.
 
 Never blocks: always exits 0. Appends JSONL to:
-  $TOOL_TOKEN_LOG  (if set), else ~/.claude/tool-token-log.jsonl
+  $TOOL_TOKEN_LOG            (if set), else
+  ~/.claude/tool-token-logs/<repo>.jsonl   when inside a git repo, else
+  ~/.claude/tool-token-logs/_no-repo.jsonl
+
+**One log per repo, deliberately.** A single machine-global log pools call
+metadata — which skills ran, how often, how large — from private and
+third-party repos alongside public ones. Splitting by repo keeps a private
+project's activity out of any file that might be read or summarised alongside a
+public one. Logs live under ~/.claude, never inside the repo, so they cannot be
+committed by accident.
 
 Each line: {ts, tool, skill?, in_bytes, out_bytes, est_tokens}
-Summaries:
+Summaries (one repo):
   jq -s 'group_by(.tool)[]|{tool:.[0].tool,calls:length,
-         est_tokens:(map(.est_tokens)|add)}' ~/.claude/tool-token-log.jsonl
+         est_tokens:(map(.est_tokens)|add)}' ~/.claude/tool-token-logs/<repo>.jsonl
 """
 import json
 import os
+import re
+import subprocess
 import sys
 from datetime import datetime
 
 CHARS_PER_TOKEN = 4
+LOG_DIR = os.path.expanduser("~/.claude/tool-token-logs")
+
+
+def _default_log_path():
+    """One log per repo. Falls back to a shared file outside any repo."""
+    name = "_no-repo"
+    try:
+        root = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, timeout=2,
+        )
+        if root.returncode == 0 and root.stdout.strip():
+            name = os.path.basename(root.stdout.strip()) or name
+    except (OSError, subprocess.SubprocessError):
+        pass
+    # never let a repo name escape the log directory
+    name = re.sub(r"[^A-Za-z0-9._-]", "_", name)[:64] or "_no-repo"
+    return os.path.join(LOG_DIR, f"{name}.jsonl")
 
 
 def main():
@@ -48,7 +77,7 @@ def main():
     if tool in ("Skill", "Agent", "Task"):
         rec["skill"] = tin.get("skill") or tin.get("subagent_type") or tin.get("description", "")
 
-    path = os.environ.get("TOOL_TOKEN_LOG") or os.path.expanduser("~/.claude/tool-token-log.jsonl")
+    path = os.environ.get("TOOL_TOKEN_LOG") or _default_log_path()
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "a") as fh:

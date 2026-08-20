@@ -14,6 +14,7 @@ Each topic captures gotchas, doc links, and patterns that aren't obvious from of
 - [`llm-evaluation/lessons.md`](llm-evaluation/lessons.md) — benchmarking an LLM before trusting it: baselines and ceilings, gold provenance, schema-validity vs value-accuracy, why three of our own probes were invalid, plus a reading list
 - [`claude-code/lessons.md`](claude-code/lessons.md) — prose lessons for the agent itself: hook/guard & CLI-script patterns, allowlist hygiene, Bash quirks, artifact-based verification, persona reviews
 - [`agent-tooling/`](agent-tooling/ARCHITECTURE.md) — **the runnable solutions**: reusable hooks, scripts, policies, playbooks, and skills, structured as an agent-agnostic core + thin per-agent adapters (Claude Code today). The *what you run* that pairs with the lessons above
+- [`flushing-dataviz/`](flushing-dataviz/skills/flushing-dataviz/SKILL.md) — consistent, accessible styling for research charts and tables (matplotlib + LaTeX booktabs): a colorblind-safe and grayscale-print-safe palette, ICWSM/AAAI figure sizing, and paper/slides/poster styles. The runnable counterpart to `matplotlib/lessons.md`
 
 ## Two ways to read this repo
 

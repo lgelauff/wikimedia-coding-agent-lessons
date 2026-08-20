@@ -49,8 +49,28 @@ See [`settings/allowlist.md`](settings/allowlist.md). The one rule that always h
 - Chain: `local-e2e` (serve) → `capture.py` (shoot) → `post_pr_screenshots.py` (publish to PR).
 - Posting to GitHub stays opt-in + confirmed (`post_pr_screenshots.py` dry-runs by default). Never auto-post.
 
-## Open items (foundation phase)
+## 7. Versioning and registration
 
-- Plugin/marketplace manifest (`.claude-plugin/`) so projects can install this — confirm the current schema against an installed plugin before writing it; don't guess.
-- Install model: marketplace install (versioned, per-project opt-in) vs a dev symlink for live editing.
-- Migrate `pr-check` as the reference skill proving the portable/binding split.
+Two failure modes this repo has actually hit, both silent:
+
+**A stale version withholds work from every consumer.** The plugin cache is keyed by
+version, and `plugin.json`'s value silently overrides the marketplace entry's. Between
+2026-08-01 and 2026-08-19 the version sat at 0.9.1 while three new skills landed, so no
+session ever saw them. **Bump `plugin.json` on every release**, never set `version` in
+both places, and let `scripts/check_version_bump.py` enforce it from `pre-push`.
+
+**Docs and tree drift apart in both directions.** A README once advertised a skill
+called deep-research that did not exist, while `source-connectors` and
+`latex-change-review` existed and were named nowhere. `scripts/check_registration.py`
+checks both directions plus relative links. Run it from `pre-push`.
+
+## Open items
+
+*(The foundation-phase items — marketplace manifest, install model, migrating `pr-check`
+as the reference skill — all shipped in June 2026 and were removed from this list on
+2026-08-20. The marketplace now carries six plugins.)*
+
+- **No skill has an eval.** §4 above requires `skill-creator` evals for skills with
+  verifiable output, and a documented dry-run for subjective ones. Neither exists for any
+  skill in this repo — a rule with a 100% violation rate. Nothing measures whether a
+  skill fires when it should, or whether overlapping skills crowd each other.
