@@ -56,14 +56,26 @@ def _looks_broken(text):
     return any(s in low for s in _BROKEN_SIGNS)
 
 
-def which_skill_fires(query, timeout, model=None, cwd=None):
+def which_skill_fires(query, timeout, model=None, cwd=None, plan_mode=False):
     """Run one query; return the skill name that fired, or None.
 
     Returns the *first* Skill tool call. Kills the process immediately after,
     so the task itself never runs.
     """
+    # Plan mode looks like the safe choice — the session decides but cannot act.
+    # It is not safe for *measurement*: it suppresses routing. Measured on
+    # 2026-08-20, the robots.txt query fired agent-tooling:source-connectors
+    # without plan mode and fired nothing with it. Running under plan mode
+    # produced seven misses that were artifacts of the flag, not of any
+    # description. Off by default; --plan-mode exists only to re-check that.
+    #
+    # The residual risk is what a session does *before* it routes. Observed
+    # behaviour is read-only orientation (`git status`), and the process is
+    # killed the instant a Skill call appears, so the work itself never runs.
     cmd = ["claude", "-p", query, "--output-format", "stream-json",
            "--verbose", "--include-partial-messages"]
+    if plan_mode:
+        cmd += ["--permission-mode", "plan"]
     if model:
         cmd += ["--model", model]
     # CLAUDECODE guards interactive nesting; a subprocess run is safe.
@@ -95,30 +107,31 @@ def which_skill_fires(query, timeout, model=None, cwd=None):
                 except json.JSONDecodeError:
                     continue
 
+                # Be patient. A session routinely writes a sentence, or reads a
+                # file, before it invokes a skill — an earlier version of this
+                # gave up at the first message_stop and scored every query MISS,
+                # which read as a total triggering failure and was pure artifact.
+                # Only the terminal `result` event ends the search.
                 if ev.get("type") == "stream_event":
                     se = ev.get("event", {})
                     t = se.get("type", "")
                     if t == "content_block_start":
                         cb = se.get("content_block", {})
                         if cb.get("type") == "tool_use":
-                            if cb.get("name") == "Skill":
-                                pending, acc = "Skill", ""
-                            else:
-                                # a non-Skill tool call means routing is settled
-                                return None
+                            pending = "Skill" if cb.get("name") == "Skill" else None
+                            acc = ""
                     elif t == "content_block_delta" and pending:
                         d = se.get("delta", {})
                         if d.get("type") == "input_json_delta":
                             acc += d.get("partial_json", "")
-                            if '"' in acc and acc.count('"') >= 4:
-                                name = _skill_from_json(acc)
-                                if name:
-                                    return name
-                    elif t in ("content_block_stop", "message_stop"):
-                        if pending:
-                            return _skill_from_json(acc)
-                        if t == "message_stop":
-                            return None
+                            name = _skill_from_json(acc)
+                            if name:
+                                return name
+                    elif t == "content_block_stop" and pending:
+                        name = _skill_from_json(acc)
+                        if name:
+                            return name
+                        pending = None
 
                 elif ev.get("type") == "assistant":
                     for item in ev.get("message", {}).get("content", []):
@@ -130,7 +143,6 @@ def which_skill_fires(query, timeout, model=None, cwd=None):
                         # worse than one that refuses to.
                         if item.get("type") == "text" and _looks_broken(item.get("text", "")):
                             return BROKEN
-                    return None
                 elif ev.get("type") == "result":
                     return None
     finally:
@@ -175,6 +187,8 @@ def main():
     ap.add_argument("--timeout", type=int, default=90)
     ap.add_argument("--model", default=None)
     ap.add_argument("--cwd", default=None, help="directory to run in (skills resolve from here)")
+    ap.add_argument("--plan-mode", action="store_true",
+                    help="run under --permission-mode plan; suppresses routing, see module docstring")
     ap.add_argument("--only", default=None, help="run a single query id")
     ap.add_argument("--json-out", default=None)
     a = ap.parse_args()
@@ -192,7 +206,7 @@ def main():
         return 2
 
     def one(q):
-        votes = [which_skill_fires(q["query"], a.timeout, a.model, a.cwd)
+        votes = [which_skill_fires(q["query"], a.timeout, a.model, a.cwd, a.plan_mode)
                  for _ in range(a.runs)]
         fired = Counter(votes).most_common(1)[0][0]
         return {"id": q["id"], "expected": q.get("expect_skill"),
