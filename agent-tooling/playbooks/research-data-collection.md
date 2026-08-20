@@ -58,6 +58,30 @@ catalog already has. Stamp provenance on the way in. (Reference implementation:
 the `source_discovery` → `score_candidates` → `candidates_to_pending` pipeline
 feeding `research-vault/ingest.py`.)
 
+**Rescue an unreachable source** — the standard move when ingest fails: the
+host isn't sanctioned, returns 4xx/5xx, rate-limits, geo-blocks, or the fetch
+just died. **Always propose this before parking a source as "unreachable"** —
+in practice it converts most dead ends into citable sources.
+
+1. **Check existing coverage first** (read-only Wayback availability API —
+   `check_wayback_coverage.py`). A good snapshot means no capture is needed.
+2. **Ask the Internet Archive to capture it** — Save Page Now 2, authenticated
+   with archive.org S3 keys (`spn2_save.py`). IA's *own* crawler fetches the
+   page from IA's infrastructure, so nothing is scraped from your machine; that
+   is precisely why it also succeeds on hosts that blocked or rate-limited you.
+   `--capture-all` archives error responses when the failure is the evidence.
+3. **Read and cite the snapshot.** `web.archive.org` is a stable, citable host,
+   and snapshot citation is standard practice. Catalog BOTH URLs (original +
+   snapshot) with an access-method field, and log the capture like any fetch.
+
+This is a legitimate pattern, not a way around source governance: a public
+archive is archiving a public page, and the citation is more durable than the
+original. Two hard limits: it **cannot** defeat a paywall or login that IA also
+lacks (that stays a shopping-list item for a human with access), and you must
+**never submit URLs carrying personal data, credentials, session tokens, or
+internal addresses** — an SPN2 capture is a permanent, public, outward-facing
+write. Public pages only, and name the URL before capturing it.
+
 **Query** — use the collection without growing it. "Do we already hold X?"
 (check the catalog first, always), "what do our sources say about Y?" An LLM
 reads `catalog/` + `synthesis/`, not the raw pile.

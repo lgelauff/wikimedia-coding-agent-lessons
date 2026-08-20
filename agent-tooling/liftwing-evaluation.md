@@ -1,5 +1,35 @@
 # LiftWing LLMs: a first evaluation
 
+> ### ⚠️ Provenance: written by an LLM. Verify before relying on it.
+>
+> This document was **researched, run and written by Claude (Opus 5)** working
+> with a human collaborator, and it is **not peer-reviewed**. What that means
+> concretely:
+>
+> - **The measurements are real** — every number comes from an actual run whose
+>   raw output is on disk — **but the analysis, framing and generalisations are
+>   LLM-produced** and carry the failure modes this document itself describes.
+> - **Statistical rigour is limited.** Effect sizes are reported without
+>   confidence intervals, nine prompt variants were compared against one anchor
+>   with no multiple-comparison correction, and every prompt was run **once at
+>   temperature 0** — so the "deltas" have no measured variance.
+> - **Scope is narrow**: two models, one project's data, mostly one task family,
+>   items numbering 29–340. Nothing here is a controlled comparison against other
+>   providers, and nothing has been replicated by anyone else.
+> - **Three of eleven benchmarks were invalidated by our own construction
+>   errors.** We caught those three. We have no way to know what we did not catch.
+> - **Several conclusions already changed once.** A published verdict in this
+>   series was overturned by a later run — treat the current text as the latest
+>   revision, not a settled result.
+>
+> **Use it as a checklist of things to verify, not as a source of facts.** The
+> methodological cautions are the durable part; the numbers are one team's
+> snapshot and should be re-measured before any decision rests on them.
+>
+> *A structured critique by domain reviewers (statistics, IR, annotation
+> methodology, NLP evaluation) is in progress; findings are not yet incorporated.*
+
+
 > ## ⚠️ Read this first — this is NOT a thorough evaluation
 >
 > **One person, one afternoon, ~2,900 calls, on one project's data.** Treat every

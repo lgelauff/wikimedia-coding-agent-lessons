@@ -11,6 +11,7 @@ Each topic captures gotchas, doc links, and patterns that aren't obvious from of
 - [`flask/lessons.md`](flask/lessons.md) — Flask-Session + SQLAlchemy 2.0, Alembic stamp-vs-upgrade, general Flask gotchas
 - [`wikimedia-analytics/lessons.md`](wikimedia-analytics/lessons.md) — MediaWiki API parsing, mailing list archives, PAWS, User-Agent convention
 - [`matplotlib/lessons.md`](matplotlib/lessons.md) — research figures: prop-cycle traps, exact-size export, 3D colorbars, font vendoring, CVD verification
+- [`llm-evaluation/lessons.md`](llm-evaluation/lessons.md) — benchmarking an LLM before trusting it: baselines and ceilings, gold provenance, schema-validity vs value-accuracy, why three of our own probes were invalid, plus a reading list
 - [`claude-code/lessons.md`](claude-code/lessons.md) — prose lessons for the agent itself: hook/guard & CLI-script patterns, allowlist hygiene, Bash quirks, artifact-based verification, persona reviews
 - [`agent-tooling/`](agent-tooling/ARCHITECTURE.md) — **the runnable solutions**: reusable hooks, scripts, policies, playbooks, and skills, structured as an agent-agnostic core + thin per-agent adapters (Claude Code today). The *what you run* that pairs with the lessons above
 

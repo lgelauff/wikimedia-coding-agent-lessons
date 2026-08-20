@@ -116,12 +116,11 @@ def query_llm(prompt: str, system: str | None = None, *,
             return _dispatch(prompt, system, model, timeout)
         except ValueError:
             raise
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001 — network/CLI/rate-limit, worth a retry
             # A budget refusal is a deliberate decision, not a transient fault:
             # retrying it just burns the backoff and reports the same answer.
             if type(e).__name__ == "RateBudgetExceeded":
                 raise
-        except Exception as e:  # noqa: BLE001 — network/CLI/rate-limit, worth a retry
             last = e
             if attempt < retries:
                 time.sleep(2 ** attempt)
@@ -183,7 +182,17 @@ def _http_chat(url: str, key_env: str | None, model: str, prompt: str,
     """
     headers = {"Content-Type": "application/json", "User-Agent": USER_AGENT}
     if key_env is not None:
+        # env first, then the central secrets store — otherwise a key that IS
+        # configured in ~/.config/agent-secrets/.env reads as "not set" in any
+        # shell that has not exported it, which is most of them.
         key = os.environ.get(key_env)
+        if not key:
+            try:
+                sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+                from secrets import get_secret  # local module, same dir
+                key = get_secret(key_env)
+            except Exception:  # noqa: BLE001 — absent store is not an error here
+                key = None
         if not key:
             raise RuntimeError(f"{key_env} not set (required for AGENT_LLM_PROVIDER={_provider()})")
         headers["Authorization"] = f"Bearer {key}"

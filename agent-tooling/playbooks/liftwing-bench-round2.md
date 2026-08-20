@@ -81,7 +81,56 @@ close to the worst case for a mid-size open model.
   LiftWing against a large published leaderboard. This is the calibration
   round 1 lacked entirely.
 
-## Task C — Discussion tone (Wikipedia Detox)
+## Task C — Discussion tone (Wikipedia Detox) — DATA CONFIRMED 2026-08-18
+
+**Everything needed is public, CC0, and structurally better than any gold we
+have used so far.** Verified against `meta.wikimedia.org/wiki/Research:Detox/Data_Release`.
+
+| dataset | Figshare | format | annotators |
+|---|---|---|---|
+| Personal Attacks | `figshare.com/articles/Wikipedia_Talk_Labels_Personal_Attacks/4054689` | TSV | ~10 per comment |
+| Aggression | `.../Wikipedia_Talk_Labels_Aggression/4267550` | TSV | ~10 per comment |
+| Toxicity | `.../Wikipedia_Talk_Labels_Toxicity/4563973` | TSV | ~10 per comment |
+
+Three files each: `{type}_annotated_comments.tsv` (text + metadata),
+`{type}_annotations.tsv` (per-worker labels, join on `rev_id`),
+`{type}_worker_demographics.tsv` (join on `worker_id`).
+Licence **CC0**. Cite Wulczyn, Thain & Dixon (2016), doi 10.6084/m9.figshare.4054689.
+
+### Why this fixes what every earlier task lacked
+
+- **~10 human judgements per comment gives a real inter-annotator ceiling.**
+  Task E had to *estimate* a ceiling from two LLMs (κ=0.138) and round 1 had
+  none at all. Here it is computable from the data, before any model runs.
+- **Graded scores, not just binary**: `toxicity_score` −2…+2,
+  `aggression_score` −3…+3. So the primary metric is **Spearman ρ against mean
+  human score**, which sidesteps the majority-class trap that made
+  `segment_type` uninterpretable — there is no "always answer rule" here.
+- **Human labels, not LLM labels.** The first task in this whole programme
+  where accuracy means accuracy.
+- **Class balance is ours to choose** by sampling on the mean score.
+- **A published non-LLM baseline exists** (char n-gram + LR, AUC ~0.96), so we
+  are not grading our own homework.
+
+### Design
+
+- Sample ~2,000 comments stratified across the score range (not the natural
+  distribution — most comments are benign and that would recreate the
+  majority-class problem).
+- Ask for the graded score, not the binary label; the binary is recoverable by
+  thresholding, the reverse is not.
+- **Compute the human-human ceiling FIRST and report it beside every model
+  number**, per the Task E lesson.
+- **Split by annotator disagreement**: does the model fail precisely where
+  humans disagree? That distinguishes "bad model" from "genuinely hard item",
+  and nothing we have run so far could tell those apart.
+- Format arms carried over from the sweep (`reason`, `json_io`) once the sweep
+  says which output contract works.
+
+**Fetching goes through the research-vault pipeline** (`collect-source`), not
+ad hoc — this is external research data.
+
+## Task C-old — Discussion tone (original sketch)
 
 **The Perspective API training data**, and the best-designed benchmark
 available to us.
