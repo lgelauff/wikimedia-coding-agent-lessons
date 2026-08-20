@@ -215,3 +215,5 @@ agent-tooling/feedback/*.md
 .claude/
 
 agent-tooling/scripts/*_standalone.py
+
+agent-tooling/scripts/*_standalone.py
