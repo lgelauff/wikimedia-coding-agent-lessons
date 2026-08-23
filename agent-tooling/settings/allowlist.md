@@ -12,6 +12,8 @@ Fewer permission prompts comes mostly from *coding hygiene*, not from a big allo
 **Never allowlist arbitrary code execution.** Each of these is equivalent to "allow anything":
 `Bash(python:*)`, `Bash(python3:*)`, `Bash(node:*)`, `Bash(bash -c *)`, `Bash(sh -c *)`, `eval`, `Bash(uv run *)`, `Bash(npx *)`, `Bash(npm run *)`, `Bash(make *)`, `Bash(gh api:*)` (can POST/DELETE), `docker run`/`exec`, `ssh`, `sudo`. Allowlist the **exact** safe invocation (`Bash(bun run typecheck)`) or a **bundled script path** instead.
 
+**Some command shapes can never be allowlisted — rewrite them instead.** `cd <path> && git …` is flagged as able to execute untrusted hooks from the target directory, so Claude Code offers no "Always allow" at all, only Deny or Allow once. No allowlist entry silences it; it prompts every time, in every session, forever. Use the tool's own directory flag — `git -C <path>`, `make -C`, `npm --prefix`, `pytest --rootdir` — which is allowlistable and doesn't embed a path in the rule. Observed in a real `pr-check` run: the `cd && git grep` step re-prompted while the neighbouring `scope.py` call, being a bundled script path, did not.
+
 **Don't list what's already auto-allowed.** Claude Code auto-allows most read-only tools (`cat`, `ls`, `grep`, `rg`, `git status/log/diff/show/branch`, `gh pr view/list/diff`, `docker ps/logs/inspect`, etc.). Adding them is noise.
 
 **Keep mutations explicit and personal.** `git push`, `git commit`, `gh pr create` etc. are reasonable *personal* allows if you've opted in, but they don't belong in a shared baseline — leave them in your own `settings.json`, not here.

@@ -19,6 +19,24 @@ description: >-
 
 This is the Claude Code adapter over the agent-neutral **PR quality-gate playbook**. The method lives in the playbook; this file supplies Claude-specific wiring (config discovery, the `scope.py` call, the Workflow-based panel, and which existing skills to reuse).
 
+## Command form — read this before running anything
+
+A PR gate runs a lot of shell, and every *novel* pipeline costs the user an approval. Two rules are the difference between a handful of prompts and thirty.
+
+**Never `cd <path> && git …`.** Claude Code flags that shape as able to execute untrusted hooks from the target directory, so it offers **no "Always allow"** — only Deny or Allow once. It will prompt every time, in every session, forever; no allowlist entry can ever silence it. Use the tool's own directory flag instead, which is allowlistable:
+
+| Instead of | Use |
+|---|---|
+| `cd repo && git grep …` | `git -C repo grep …` |
+| `cd repo && git show …` | `git -C repo show …` |
+| `cd app && npx vitest …` | `npm --prefix app exec vitest …` |
+| `cd d && pytest` | `pytest --rootdir d d` |
+| `cd d && make x` | `make -C d x` |
+
+**Prefer one script call to a pipeline.** `scope.py` (§3) already collapses the scoping step into a single allowlistable call. It does **not** cover the investigative half — extracting a failure, checking when a line changed, reading a changelog — and that is where prompts actually accumulate, because each improvised `… | grep -A18 … | head -30` is a distinct string no allowlist matches. If you catch yourself running the same *shape* a second time, that is the signal to put it in `scripts/` rather than run it again.
+
+This is `conventions.md` §2 applied to the half of the job the scripts don't yet cover: *"one vetted script = one narrow allowlist entry instead of N ad-hoc-pipeline prompts."*
+
 ## 1. Read the method
 
 Read the playbook: [`../../playbooks/pr-check.md`](../../playbooks/pr-check.md). It defines steps 0–6 and the verdict rules. Follow it; the notes below are only the Claude-specific *how*.
