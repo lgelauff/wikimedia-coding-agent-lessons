@@ -155,6 +155,48 @@ rendered output (figures, PDFs, HTML), the verification step is: open the
 exported artifact and look at it, or measure it (PDF MediaBox for sizes).
 Reading the code back is not verification.
 
+## A bug recording is evidence you can't get any other way — make sure you can open it
+
+Screen recordings (Jam, a `.mov` dropped in chat) carry things a bug report
+never does: which of two dialogs appeared, whether a button existed at all,
+what the timing was. In one case the entire diagnosis of a permission-prompt
+storm came down to comparing two screenshots side by side — one prompt offered
+"Always allow", the neighbouring one didn't, and that difference *was* the root
+cause. No amount of reading the skill source would have found it.
+
+Two practical points.
+
+**Jam links arrive through an MCP server that needs a one-time OAuth grant.**
+If it hasn't been done, the tool call fails and the useless response is "this
+server needs authorization and I can't run the OAuth flow." The useful response
+names the remedy:
+
+```
+claude mcp login Jam          # --no-browser for SSH/headless
+claude mcp get Jam            # ✔ Connected, or ! Needs authentication
+```
+
+The grant is **user-scoped** — `claude mcp get` reports "available in all your
+projects" — so one login covers every repo and there is nothing per-repo to
+configure. A session already running won't see it until it restarts. Never run
+the login flow on the user's behalf; hand them the command.
+`hooks/mcp_auth_reminder.py` catches this automatically: when a prompt links to
+a configured-but-unauthenticated server, it injects the command.
+
+**A local video file is readable without any of that** — extract frames and look
+at them:
+
+```bash
+ffmpeg -v error -i recording.mov -vf "fps=1/4,scale=1400:-1" -frames:v 8 /tmp/frame%02d.png
+```
+
+One frame every four seconds is usually enough to find the moment that matters;
+scale up rather than down, because the detail you need is often small UI text.
+Watch the filename: macOS screen recordings contain a **narrow no-break space**
+(U+202F) before "AM"/"PM", so a path typed with an ordinary space silently fails
+to match. Glob it (`ls ~/Downloads/Screen*Recording*.mov`) instead of retyping
+it — a plain "no such file" on a file you can see is the tell.
+
 ## Persona reviews want rendered artifacts, not just source
 
 When reviewing design-flavored work, spawning two parallel reviewer

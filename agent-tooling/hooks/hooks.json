@@ -12,7 +12,8 @@
       { "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/git_hygiene_session.py\"" }] }
     ],
     "UserPromptSubmit": [
-      { "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/dev_stack_reminder.py\"" }] }
+      { "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/dev_stack_reminder.py\"" }] },
+      { "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/mcp_auth_reminder.py\"" }] }
     ],
     "PostToolUse": [
       { "matcher": "WebFetch", "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/webfetch_content_check.py\"" }] },
