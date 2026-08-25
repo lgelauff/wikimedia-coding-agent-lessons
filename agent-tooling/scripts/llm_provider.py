@@ -189,7 +189,7 @@ def _http_chat(url: str, key_env: str | None, model: str, prompt: str,
         if not key:
             try:
                 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-                from secrets import get_secret  # local module, same dir
+                from agent_secrets import get_secret  # local module, same dir
                 key = get_secret(key_env)
             except Exception:  # noqa: BLE001 — absent store is not an error here
                 key = None

@@ -32,7 +32,7 @@ to paste their password into the conversation.
 
 For non-interactive use (cron/CI, no terminal attached), it'll also accept
 `WIKIMEDIA_ENTERPRISE_USERNAME` / `WIKIMEDIA_ENTERPRISE_PASSWORD` from the
-environment or the central secrets store (`scripts/secrets.py` —
+environment or the central secrets store (`scripts/agent_secrets.py` —
 `~/.config/agent-secrets/.env` / `$AGENT_SECRETS_FILE`) — but that means the
 password *does* sit at rest wherever you put it, so prefer the interactive prompt
 for normal use and reserve env-var credentials for a real unattended job.

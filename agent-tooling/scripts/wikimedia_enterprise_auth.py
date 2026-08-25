@@ -30,7 +30,7 @@ import urllib.error
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import secrets as _agent_secrets  # noqa: E402 (sibling module, not stdlib `secrets`)
+import agent_secrets as _agent_secrets  # noqa: E402 (sibling module)
 
 AUTH_BASE = "https://auth.enterprise.wikimedia.com/v1"
 CACHE_FILE = os.path.expanduser(

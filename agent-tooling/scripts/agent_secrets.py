@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""secrets.py — resolve API keys from one user-global store, cwd-independent.
+"""agent_secrets.py — resolve API keys from one user-global store, cwd-independent.
+
+NOTE: deliberately NOT named `secrets.py`. Callers reach this module via
+`sys.path.insert(0, <this dir>)`, which puts the directory ahead of the stdlib
+for the whole process — so a module named `secrets` here shadows the stdlib
+`secrets` for every later import too, including third-party libraries that do
+`from secrets import token_hex` (huggingface_hub, among others). See
+tests/test_no_stdlib_shadowing.py.
 
 So any script, run from any folder or session, authenticates the same way —
 and the value is read by the script itself, never passed as an arg or printed,
@@ -20,7 +27,7 @@ API:
          once at startup; it won't overwrite already-set vars unless override=True)
 
 CLI (debug; never prints values):
-  secrets.py --check IA_ACCESS_KEY IA_SECRET_KEY   ->  IA_ACCESS_KEY: set (env)
+  agent_secrets.py --check IA_ACCESS_KEY IA_SECRET_KEY   ->  IA_ACCESS_KEY: set (env)
 """
 import os
 import pathlib
