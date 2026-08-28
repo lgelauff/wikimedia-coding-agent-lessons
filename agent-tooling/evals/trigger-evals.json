@@ -102,6 +102,31 @@
       "id": "robots-question",
       "query": "if a site's robots.txt disallows crawlers but they publish an API, is it ok to use the API? feels contradictory",
       "expect_skill": "source-connectors"
+    },
+    {
+      "id": "arxiv-upload",
+      "query": "I'm uploading this paper to arXiv in a minute — which compiler do I pick, and is the tarball actually ready?",
+      "expect_skill": "arxiv-submission"
+    },
+    {
+      "id": "arxiv-comments",
+      "query": "arXiv publishes the source right? I need all the latex comments gone before I submit, there's drafting notes all through it",
+      "expect_skill": "arxiv-submission"
+    },
+    {
+      "id": "arxiv-font-wobble",
+      "query": "the font in my paper pdf looks kind of wobbly and uneven, is that just my screen or is something wrong with the build",
+      "expect_skill": "arxiv-submission"
+    },
+    {
+      "id": "arxiv-returned",
+      "query": "arXiv sent my submission back for format corrections, can you work out what's wrong with it",
+      "expect_skill": "arxiv-submission"
+    },
+    {
+      "id": "arxiv-near-miss-diff",
+      "query": "I rewrote the intro and tightened the methods section, show me what changed in the paper",
+      "expect_skill": "latex-change-review"
     }
   ]
 }
