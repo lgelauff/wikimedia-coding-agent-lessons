@@ -36,6 +36,29 @@ Companion to [`agent-tooling/playbooks/arxiv-submission.md`](../agent-tooling/pl
   and other Harvard styles emit `\harvarditem`, not `\bibitem`; grepping for `\bibitem`
   returns 0 and looks like a catastrophic failure rather than a wrong pattern.
 
+## Carrying a build gate into a hosted editor
+
+- **Overleaf runs its own build; your script does not travel. The assertions can.**
+  Put them in the document (`\AtEndDocument`) and they fire wherever it compiles.
+  This matters because the checks worth having are precisely the ones a hosted
+  editor's *Errors* counter ignores: a duplicate label sits under Warnings while
+  Errors reads 0.
+- **There is no `\ifG@refundefined`.** The obvious form is wrong. `\G@refundefinedtrue`
+  is a plain `\def` that redefines `\@refundefined`, which LaTeX leaves as `\relax`
+  otherwise — so the test is `\ifx\@refundefined\relax\else ... \fi`, the same shape
+  as `\@multiplelabels`. Writing `\ifG@refundefined` gives `Undefined control
+  sequence` followed by `Extra \fi`, which reads like a brace bug in your own code.
+- **Duplicate labels need two compiler passes to surface.** They are detected when the
+  `.aux` is *read back*, not when it is written. A one-pass test of a duplicate-label
+  check will report that the check does not work.
+- **Give the bypass a name and a rule.** `\gateoff` before `\begin{document}`, with
+  "do not commit it switched off" in the file. A gate with no escape hatch gets deleted
+  the first time it is inconvenient.
+- **Watch what your own error text does to your other checks.** A gate message
+  containing the word "undefined" was counted by a build script grepping the log for
+  `undefined`, so the gate inflated the very number it existed to protect. Match on the
+  real warning shape (`(Reference|Citation) .* undefined`), not a bare word.
+
 ## BibTeX exits non-zero on warnings
 
 - **`set -e` in a build script kills the build at the BibTeX pass.** BibTeX returns a
