@@ -155,6 +155,33 @@ rendered output (figures, PDFs, HTML), the verification step is: open the
 exported artifact and look at it, or measure it (PDF MediaBox for sizes).
 Reading the code back is not verification.
 
+## Verifying the artifact is not enough — the assertion has to match the failure
+
+The lesson above says look at the artifact. The failure mode *after* you do that
+is asserting the wrong property of it. A LaTeX build script gated on undefined
+references only; it reported "45 pages, 0 undefined references" across four
+commits while the log carried nine `! ` errors. The artifact was rebuilt and
+inspected every time. The habit was right and the check was narrow, which is
+worse than no check, because it manufactures a confident "verified".
+
+Two things generalise:
+
+- **Where the tool keeps going after an error, "it produced output" is not a
+  signal.** LaTeX writes a PDF through errors; BibTeX exits non-zero on
+  warnings; a linter with no rules enabled passes everything. Ask what this tool
+  does when it fails, and gate on *that*, not on the presence of output.
+- **A gate written as prose gets skipped.** The check that would have caught
+  this was already written down in
+  [`agent-tooling/playbooks/arxiv-submission.md`](../agent-tooling/playbooks/arxiv-submission.md):
+  "state page count, **error count**, bibitem count against distinct `\cite`
+  keys". It was read past. The same sentence as an executable gate that exits
+  non-zero cannot be read past. Prefer committing the check over documenting it.
+
+Corollary: when a lesson repo exists for the stack you are working in, open it
+*before* the task, not after the third failure. Three separate gate gaps in one
+session — error count, duplicate labels, bibitem parity — were all named in a
+playbook already sitting in the repo.
+
 ## A bug recording is evidence you can't get any other way — make sure you can open it
 
 Screen recordings (Jam, a `.mov` dropped in chat) carry things a bug report
