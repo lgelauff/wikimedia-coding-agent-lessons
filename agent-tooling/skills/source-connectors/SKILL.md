@@ -118,6 +118,12 @@ Everything below applies to all three.
   unauthenticated. Check the public sibling before concluding an API is closed.
 - **HTTP 200 with an error body.** Some APIs return `200` with an error payload under load —
   inspect the body, not the status.
+- **Your fetch tool's 403 is not the site's policy.** A hosted fetcher can be refused by a
+  WAF while the same URL returns `200` to `curl` with a descriptive UA — including
+  `/robots.txt` itself, which makes the policy look unreadable and invites the wrong
+  conclusion that the host blocks automation. Before declaring a source hostile, retry with
+  `curl` and your own UA. Observed on `deliberation.stanford.edu`: WebFetch `403`, curl `200`,
+  and a robots.txt that names no AI bot at all.
 - **Open-access links that 403 non-browser clients.** A DOI's "open" PDF often sits behind a
   publisher/Cloudflare gate that `403`s `curl` — fall back to DOI/metadata lookup or a human fetch.
 - **Front-end flaky, artifact path stable.** The user-facing page 504s while the canonical
@@ -154,6 +160,12 @@ endpoint/robots were exercised; `(docs)` = read from documentation/robots only. 
 | **arXiv** | Atom XML · `export.arxiv.org/api/query` | none | robots `Disallow: /` — the API is the sanctioned door; manual asks for a **3 s delay** | mostly CC BY 4.0 (per paper) | `search_query`/`id_list`; version suffix immutable — keep in citations | Semantic Scholar; OpenAlex | 2026-08 (live) |
 | **Semantic Scholar** | REST · `api.semanticscholar.org/graph/v1` | free key raises the limit | anon pool tight — a **single request can 429**; 1 req/s unauth vs 100 keyed | research metadata (API terms) | IDs `arXiv:<id>`/`DOI:<doi>`; `fields=`; batch endpoint | Crossref; arXiv (full text) | 2026-08 (live: 429 seen) |
 | **Internet Archive / Wayback** | REST · `archive.org/wayback/available`, `web.archive.org/web/<ts>id_/<url>` | none (IA keys raise throttle) | robots allows all except `/control`, `/report` | per-item | `id_` = raw snapshot; use `curl` if the fetcher blocks web.archive.org | the live source itself | 2026-08 (live) |
+
+### Deliberation & civic research
+
+| Connector | Protocol · endpoint | Auth | Access policy (robots · rate) | Reuse | Retrieval recipe | Fallback | Verified |
+|---|---|---|---|---|---|---|---|
+| **Stanford Deliberative Democracy Lab** | HTTPS/HTML · `deliberation.stanford.edu` | none | `User-agent: *` **`Crawl-delay: 30`** — one request per 30 s, and mean it. Content paths (`/news/…`, `/results-…`) are allowed; `/admin/`, `/user/*`, `/search`, `/*/printable/print` disallowed. Only `FemtosearchBot` and `SemrushBot` are banned outright — **no AI bot is named**. A honeypot path is published: `/honeypot-for-misbehaving-crawlers-do-not-enter/` — never request it, directly or by following a link | Stanford / DDL content, all rights reserved unless a page says otherwise — cite and link, don't republish | `curl -A "<descriptive UA with contact>"`; **Claude's WebFetch is `403`-ed here, curl with our own UA gets `200`** (see *Access-policy patterns*). Cache every page on first fetch: at 30 s apart, refetching is the real cost | Wayback (`archive.org/wayback/available`, then `web.archive.org/web/<ts>id_/<url>`); the DDL publishes most results as PDF reports — prefer the report over the news page | 2026-09 (live: robots 200, `/results-…` 200, WebFetch 403) |
 
 ### Media & web
 
