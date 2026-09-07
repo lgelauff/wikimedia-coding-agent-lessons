@@ -165,3 +165,51 @@ free-signup tier — worth knowing before assuming you need to pay:
 - If you can identify the likely root cause from source code, add it to Other information — include the specific file and field. This gives the team a precise starting point without over-prescribing the fix.
 - Tag with the relevant project (e.g. `Analytics`, `Differential-Privacy`) so the right team sees it. Skip priority unless you have strong justification.
 - Known issue example: T426559 — Netherlands missing from `country_project_page` DP dataset since 2023-11-09, traced to a JOIN on `canonical_data.countries.data_risk_classification` in `country_project_page_gaussian.py`.
+
+## File usage and media requests — five silent failures
+
+*All five produce wrong numbers rather than errors. Found 2026-09-06/07 while building a per-article
+image-request measure.*
+
+- ⭐ **`prop=globalusage` returns 0 for locally-uploaded files.** It tracks Commons files across wikis,
+  so a non-free local upload (posters, album covers, logos) reports **zero** usage no matter how many
+  pages embed it. Verified: `File:Skyfall poster.jpg` → `globalusage` 0, `fileusage` 1. A "used on
+  exactly one page" filter built on `globalusage` therefore **silently drops precisely the lead images
+  of popular articles**, because those are the non-free ones. Use `max(globalusage, fileusage)`, or the
+  `imagelinks` table on the replica, which sidesteps it entirely.
+
+- ⭐ **`prop=imageinfo` now returns `url` with tracking parameters appended** —
+  `…/Foo.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original`. Any path built
+  from that field verbatim **404s** against the AQS `mediarequests/per-file` endpoint. Strip the query
+  string. The same `utm_*` tagging appears on `src` attributes in Parsoid HTML.
+
+- ⭐ **Batching two list-valued props in one query silently drops one of them per title.** A 50-title
+  request for `prop=fileusage|categories` returns some titles' `categories` and their `fileusage` in a
+  *continuation* you never asked for, so those titles read as having zero usage. A single-prop batch
+  of the same 50 titles does **not** reproduce it, which is why it survives testing. Either request one
+  list-prop at a time, or follow `continue` to exhaustion.
+
+- ⭐ **AQS `mediarequests/per-file` suppresses files below a request threshold, and returns 404 rather
+  than zero.** Ordinary enough — but the suppression is **correlated with whatever you are measuring**
+  if that thing is "how often is this fetched". Measured case: of 143 image pairs, 49 lost an arm to
+  404s, and the quieter class was dropped ~2:1 (23 vs 12), biasing the resulting ratio upward. The
+  `mediacounts` daily dumps carry the same counts **with no floor** (a day-file includes files with a
+  single transfer) and no rate limit.
+
+- ⭐ **Image requests never carry the article path.** Wikipedia serves
+  `<meta name="referrer" content="origin-when-cross-origin">` and images come from
+  `upload.wikimedia.org`, a different origin — so the `Referer` on an image request is
+  `https://en.wikipedia.org/` and nothing more. This is why AQS offers project-level referer classes
+  and not per-article media requests: it is a property of the data, not an API design choice, and no
+  level of access recovers it. Per-article attribution requires either restricting to single-use files
+  or joining to the pageview stream by client session.
+
+## Replica schema: the link tables have been normalised
+
+- **`imagelinks.il_to` → `il_target_id`, and `categorylinks.cl_to` → `cl_target_id`**, both now joining
+  through the `linktarget` table. Any snippet older than the migration fails with
+  `Unknown column ... in 'WHERE'`. This one at least fails loudly — but assume *every* `*_to` column in
+  a link table has moved, and read `SHOW COLUMNS FROM <table>` rather than recalling the schema.
+
+- **Start a usage aggregate from the smaller side.** `GROUP BY il_target_id` over ~10⁸ `imagelinks`
+  rows is fine; joining `page` per row to filter first is not.

@@ -278,13 +278,34 @@ def extract(raw, mode, labels):
 
 
 def norm_label(text, labels):
+    """Exact match, else the LAST label mentioned, else parse-fail.
+
+    The previous version scanned longest-label-first, which reads
+    "not a prohibition, it is an obligation" as `prohibition` -- it returns
+    whichever label happens to be longest, not the one the model settled on.
+    On this corpus it never fired: 4,732 of 4,968 records are an exact match
+    and never reach this branch. It fires on chattier output, so it is a
+    correctness fix for the NEXT model, not a restatement of these results.
+
+    Last-mention rather than first because these are verdicts: a model that
+    reasons aloud names the rejected candidates before the one it picks.
+    """
     t = (text or "").strip().strip(".,;:!\"'`*").lower()
     if t in labels:
         return t
-    for lab in sorted(labels, key=len, reverse=True):
-        if re.search(rf"\b{re.escape(lab)}\b", t):
-            return lab
-    return None
+    hits = [(m.start(), lab) for lab in labels
+            for m in re.finditer(rf"\b{re.escape(lab)}\b", t)]
+    return max(hits)[1] if hits else None
+
+
+def page_of(item_id):
+    """Cluster key for an item: the source page it was extracted from.
+
+    `enwiki:npov:43` -> `enwiki:npov`. The 276 items come from six pages and
+    63% from two of them, so items are not independent. Intervals computed as
+    if they were are too narrow.
+    """
+    return item_id.rsplit(":", 1)[0] if ":" in item_id else item_id
 
 
 def rate(args):
@@ -320,7 +341,13 @@ def rate(args):
                                  "item_id": it["item_id"], "gold": it["gold"],
                                  "pred": extract(raw, it.get("parse_mode", "label"), labels),
                                  "error": err,
-                                 "raw": raw[:400]}, ensure_ascii=False) + "\n")
+                                 # Store raw IN FULL. Truncating at 400 chars
+                                 # cost 234 of 552 reason-arm records their
+                                 # `ANSWER:` line, so their predictions could
+                                 # not be re-derived and the harness's promise
+                                 # that `score` never re-calls the model held
+                                 # only for the arms that happened to be terse.
+                                 "raw": raw}, ensure_ascii=False) + "\n")
             fh.flush()
             if n % 50 == 0 or n == len(todo):
                 print(f"  {n}/{len(todo)}", file=sys.stderr)
@@ -348,31 +375,96 @@ ARM_ORDER = ["bare", "defined_0shot", "defined_1shot", "defined_3shot",
              "defined_boundary", "defined_unclear", "defined_reason",
              "defined_json_in", "defined_json_io"]
 
+# Every arm except `bare` states the definitions. So `Δ vs bare` measures
+# "definitions + whatever else this arm adds", and reporting it alone credits
+# the arm's own manipulation with the definitions effect -- which is the
+# largest effect in the whole sweep. `defined_reason` scored +0.190 vs bare and
+# was published as "room to reason helps the weak model"; against the control
+# that also has definitions it is negative. Both baselines, always.
+BASELINES = [("bare", "specification"), ("defined_0shot", "manipulation")]
+
+
+def _by_unit(recs, unit):
+    by = collections.defaultdict(list)
+    for r in recs:
+        by[unit(r["item_id"])].append((r["gold"], r["pred"]))
+    return by
+
+
+def boot_delta(a_recs, b_recs, labels, unit, n=2000, seed=17):
+    """Paired bootstrap of macro-F1(a) − macro-F1(b), resampling `unit`.
+
+    Paired because both arms saw the same items: resample a unit once and take
+    its rows from BOTH arms, so item difficulty cancels rather than adding
+    variance. Pass `unit=page_of` to resample source pages instead of items --
+    the honest interval when items cluster by page.
+
+    Returns (point, lo, hi) or None if the arms share no units.
+    """
+    A, B = _by_unit(a_recs, unit), _by_unit(b_recs, unit)
+    units = sorted(set(A) & set(B))
+    if not units:
+        return None
+    flat = lambda d, us: [p for u in us for p in d[u]]  # noqa: E731
+    point = macro_f1(flat(A, units), labels)[0] - macro_f1(flat(B, units), labels)[0]
+    rng = random.Random(seed)
+    ds = []
+    for _ in range(n):
+        draw = [units[rng.randrange(len(units))] for _ in units]
+        ds.append(macro_f1(flat(A, draw), labels)[0]
+                  - macro_f1(flat(B, draw), labels)[0])
+    ds.sort()
+    return point, ds[int(0.025 * n)], ds[int(0.975 * n) - 1]
+
 
 def score(args):
     recs = [json.loads(l) for l in open(args.ratings, encoding="utf-8") if l.strip()]
     for rater in sorted({r["rater"] for r in recs}):
         rs = [r for r in recs if r["rater"] == rater]
         print(f"\n{'='*74}\n{rater}")
-        print(f"{'arm':<18}{'macroF1':>9}{'Δ vs bare':>11}"
+        print(f"{'arm':<18}{'macroF1':>9}"
               f"{'oblig R':>9}{'princ P':>9}{'labels':>8}{'unclear':>9}{'parse-fail':>11}")
-        base = None
         for arm in ARM_ORDER:
             a = [r for r in rs if r["arm"] == arm]
             if not a:
                 continue
             pairs = [(r["gold"], r["pred"]) for r in a]
             mf1, per = macro_f1(pairs, CLASSES)
-            if arm == "bare":
-                base = mf1
-            d = f"{mf1-base:+.3f}" if base is not None and arm != "bare" else "—"
             oR = per.get("obligation", (0, 0, 0, 0))[1]
             pP = per.get("principle", (0, 0, 0, 0))[0]
             used = len({p for _, p in pairs if p and p != "unclear"})
             unc = sum(1 for r in a if r["pred"] == "unclear") / len(a)
             pf = sum(1 for r in a if r["pred"] is None) / len(a)
-            print(f"{arm:<18}{mf1:>9.3f}{d:>11}{oR:>9.2f}{pP:>9.2f}"
+            print(f"{arm:<18}{mf1:>9.3f}{oR:>9.2f}{pP:>9.2f}"
                   f"{used:>6}/7{unc:>9.0%}{pf:>11.0%}")
+
+        # Effects, against BOTH baselines, with paired bootstrap CIs.
+        for ref, kind in BASELINES:
+            ref_recs = [r for r in rs if r["arm"] == ref]
+            if not ref_recs:
+                continue
+            print(f"\n  Δ vs {ref}  ({kind} effect)"
+                  f"   [95% CI: paired bootstrap, 2000 draws]")
+            print(f"    {'arm':<18}{'Δ':>8}{'by item':>22}{'by page (6 clusters)':>24}")
+            for arm in ARM_ORDER:
+                if arm == ref:
+                    continue
+                a = [r for r in rs if r["arm"] == arm]
+                if not a:
+                    continue
+                labels = CLASSES + (["unclear"] if arm == "defined_unclear" else [])
+                bi = boot_delta(a, ref_recs, labels, lambda i: i)
+                bc = boot_delta(a, ref_recs, labels, page_of)
+                if not bi or not bc:
+                    continue
+                ci = f"[{bi[1]:+.3f}, {bi[2]:+.3f}]"
+                cc = f"[{bc[1]:+.3f}, {bc[2]:+.3f}]"
+                # Flag only when the two disagree about excluding zero -- that
+                # is the clustering defect showing itself, not a rounding note.
+                mark = " *" if (bi[1] > 0) != (bc[1] > 0) or (bi[2] < 0) != (bc[2] < 0) else ""
+                print(f"    {arm:<18}{bi[0]:>+8.3f}{ci:>22}{cc:>24}{mark}")
+            print("    * item-level and page-level CIs disagree on whether the "
+                  "effect excludes zero.")
 
         # Did the sinks drain, or just move?
         print("\n  sink check (precision on the two round-1 sink classes):")
@@ -388,12 +480,19 @@ def score(args):
 
     print(f"\n{'='*74}")
     print("The gold is LLM-generated and unvalidated, so ABSOLUTE scores are not")
-    print("meaningful. Read the Δ column: same items, same gold, same model —")
+    print("meaningful. Read the Δ blocks: same items, same gold, same model —")
     print("only the prompt changed, so the differences are real even if the")
     print("levels are not.")
-    print("H1: definitions/examples raise obligation recall and principle")
-    print("precision. H0: Δ stays inside noise and the sinks persist — in which")
-    print("case the limit is the model, not the prompt.")
+    print()
+    print("Read BOTH Δ blocks. `Δ vs bare` is specification + manipulation;")
+    print("`Δ vs defined_0shot` isolates the manipulation. Every arm but `bare`")
+    print("states the definitions, and definitions are the largest effect here,")
+    print("so an arm judged against `bare` alone gets credit it did not earn.")
+    print()
+    print("Caveat that survives all of the above: deltas are trustworthy under")
+    print("item-independent label noise, and an LLM labeller's noise is")
+    print("item-dependent. An arm can gain by imitating the labeller's boundary")
+    print("rather than the construct. Human double-coding is what closes this.")
     return 0
 
 

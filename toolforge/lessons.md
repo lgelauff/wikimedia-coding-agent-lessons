@@ -120,3 +120,19 @@
 - Replica DBs (`*.labsdb`) are **only accessible from within Toolforge**, not locally.
 - Design any code that queries replicas to fail gracefully or skip those steps when not on Toolforge.
 - The old `*.labsdb` hostnames (e.g. `commonswiki.labsdb`) are being migrated to `*.analytics.db.svc.wikimedia.cloud` (e.g. `commonswiki.analytics.db.svc.wikimedia.cloud`). As of April 2026 both aliases still work on Toolforge, but the `.labsdb` aliases may be dropped — prefer the new hostname in new code.
+
+## The `sql` helper takes the query positionally, not with `-e`
+
+`sql --cluster analytics enwiki_p -e "SELECT ..."` executes the literal string `-e SELECT ...` and
+fails with a syntax error, because the wrapper joins **all** remaining arguments into the query. Write
+`sql --cluster analytics enwiki_p "SELECT ..."`. (The underlying `mysql` client does take `-e`, so
+job commands that invoke `mysql` directly are unaffected — which is what makes the difference easy to
+miss.)
+
+## Scripts written for Toolforge default their paths to Toolforge
+
+A deposit/ingest script whose `--token-file` and `--checkpoint` default to `/data/project/<tool>/…`
+was written to run **on** the grid. Running it from a laptop usually fails on a missing library
+rather than on anything conceptual — the interesting question is whether the job belongs on the grid
+at all. If the data is already there, uploading from the grid avoids pulling gigabytes down and
+pushing them back up.
