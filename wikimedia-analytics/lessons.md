@@ -189,12 +189,23 @@ image-request measure.*
   of the same 50 titles does **not** reproduce it, which is why it survives testing. Either request one
   list-prop at a time, or follow `continue` to exhaustion.
 
-- ⭐ **AQS `mediarequests/per-file` suppresses files below a request threshold, and returns 404 rather
-  than zero.** Ordinary enough — but the suppression is **correlated with whatever you are measuring**
-  if that thing is "how often is this fetched". Measured case: of 143 image pairs, 49 lost an arm to
-  404s, and the quieter class was dropped ~2:1 (23 vs 12), biasing the resulting ratio upward. The
-  `mediacounts` daily dumps carry the same counts **with no floor** (a day-file includes files with a
-  single transfer) and no rate limit.
+- ⛔ **`prop=imageinfo`'s `url` is ALREADY percent-encoded — quoting it again 404s only the filenames
+  with punctuation, which looks exactly like a data property.** Taking the path out of that `url` and
+  passing it through `urllib.parse.quote(..., safe='')` double-encodes it, so AQS (which keys on the
+  literal path) returns 404 for any name containing `(`, `'`, `*`, `,` or non-ASCII, and 200 for
+  everything else. **The failure is selective, not total**, so it survives spot-checking and reads as
+  a property of the upstream data rather than a bug in your code.
+
+  ⚠ **Worked example of how badly this can mislead** (2026-09-06/07): 63 missing series were
+  attributed to "AQS suppresses files below a request threshold", a plausible-sounding floor that was
+  then written into two documents as a named bias in a published result. On investigation: **52 were
+  the double-encoding defect, 9 were files that did not exist yet, 2 were uploaded later, and 0 were
+  below any floor.** `NBA Finals logo (2022).svg` returns 200 with 113,977 requests on the literal
+  path and 404 on the encoded one. The asymmetry that "confirmed" the bias story **reversed** once all
+  absences were counted — it had been tracking filename punctuation, not traffic.
+
+  ⇒ **Before attributing 404s to an upstream policy, round-trip one known-good path by hand.** An
+  invented mechanism that explains your missing data is more dangerous than the missing data.
 
 - ⭐ **Image requests never carry the article path.** Wikipedia serves
   `<meta name="referrer" content="origin-when-cross-origin">` and images come from
