@@ -145,3 +145,24 @@ Same conclusion, different pathology, driven by a prompt change.
 
 **Rule:** canary on the verdict. Do not assume the failure mode is stable — it
 is prompt-sensitive even when the conclusion is not.
+
+## A background wait whose condition can never match looks identical to work in progress
+
+`until grep -q "DONE" job.log; do sleep 30; done` is a normal way for an agent to wait on a long job.
+Its failure mode is that **a wrong pattern does not error — it waits forever**, and the harness
+correctly reports the task as *running*. Nothing distinguishes "still working" from "will never
+finish" without inspecting the process.
+
+Observed: a watcher matching `'deposit complete|DONE|Error|Traceback|error'` ran for **24 hours** on a
+job that had finished in 276 seconds, because the script's actual last lines were
+`✅ 58 files verified present …` and `NEXT: registry row …` — none of the guessed tokens.
+
+Two habits that prevent it:
+
+- **Derive the sentinel from the program, not from a guess.** Run it once, read the final line, and
+  match that. If you cannot run it first, match on something structural you control — the process
+  exiting, or a file the job writes last — rather than on wording.
+- **When auditing your own background work, search for the waits, not just the jobs.** `pgrep` for the
+  script names finds the work; it does not find the shell you left watching for it. The watcher
+  outlives the job by definition.
+
