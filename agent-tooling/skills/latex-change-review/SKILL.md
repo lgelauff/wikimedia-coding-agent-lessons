@@ -26,19 +26,19 @@ The decision logic + rendering live in `scripts/`; this is the wiring.
 2. **Edit** the working copy.
 3. **Classify** the change:
    ```bash
-   python3 "$SKILL_DIR/../../scripts/latex_classify.py" before/main.tex main.tex
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/latex_classify.py" before/main.tex main.tex
    ```
    → `content` / `styling` / both. Mixed ⇒ do both views.
 4. **Content view (no compile):**
    ```bash
-   python3 "$SKILL_DIR/../../scripts/latex_diff_html.py" before/main.tex main.tex \
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/latex_diff_html.py" before/main.tex main.tex \
        --out .latex-review/content-diff.html
    ```
    Short → it prints the inline `[-old-]{+new+}` diff; show it directly. Long → it
    writes the Wikipedia-style two-column HTML; share the path (don't paste it).
 5. **Styling view (compile + image):**
    ```bash
-   python3 "$SKILL_DIR/../../scripts/latex_visual_diff.py" \
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/latex_visual_diff.py" \
        --before before/main.tex --after main.tex --out .latex-review/shots
    ```
    It compiles both, finds the changed pages, and writes `pageN-old.png` /

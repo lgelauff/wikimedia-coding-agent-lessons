@@ -15,7 +15,7 @@ Claude Code adapter over [`../../scripts/wikimedia_enterprise_auth.py`](../../sc
 ## Get an access token
 
 ```bash
-python3 "$SKILL_DIR/../../scripts/wikimedia_enterprise_auth.py"
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/wikimedia_enterprise_auth.py"
 ```
 
 Prints a bearer token to stdout (status messages go to stderr, so it's safe to

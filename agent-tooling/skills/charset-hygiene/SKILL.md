@@ -26,29 +26,29 @@ the work as removal invites a blunt filter that destroys real content.
 
 ## Tool
 
-`scripts/charset_guard.py` — detection only, never writes to a scanned file.
+`${CLAUDE_PLUGIN_ROOT}/scripts/charset_guard.py` — detection only, never writes to a scanned file.
 
 ```bash
 # one output, before it goes anywhere
-echo "$TEXT" | charset_guard.py -
+echo "$TEXT" | python3 "${CLAUDE_PLUGIN_ROOT}/scripts/charset_guard.py" -
 
 # one file
-charset_guard.py draft.md
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/charset_guard.py" draft.md
 
 # strict, for source code
-charset_guard.py --profile ascii src/
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/charset_guard.py" --profile ascii src/
 
 # a document that genuinely needs other scripts
-charset_guard.py --profile multilingual --scripts greek,cyrillic paper.tex
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/charset_guard.py" --profile multilingual --scripts greek,cyrillic paper.tex
 
 # content that genuinely needs the extras
-charset_guard.py --allow emoji,math,box README.md
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/charset_guard.py" --allow emoji,math,box README.md
 
 # whole folder of repos, unattended, manifest for the cleaner
-charset_guard.py ~/Documents/GitHub --jsonl manifest.jsonl
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/charset_guard.py" ~/Documents/GitHub --jsonl manifest.jsonl
 
 # "what IS in here?" — describe, don't judge; use before choosing a profile
-charset_guard.py --inventory .
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/charset_guard.py" --inventory .
 ```
 
 As a library — same core at every scale:
@@ -104,7 +104,7 @@ declaration to widen, not a problem.
 
 The reason this is an allowlist with declarations rather than a filter. Each of
 these is a legitimate use of a codepoint that also appears in attacks, and each
-has a regression test in `scripts/tests/test_charset_guard.py`:
+has a regression test in `agent-tooling/scripts/tests/test_charset_guard.py` in this repo:
 
 - **ZWNJ/ZWJ in Persian, Arabic, Indic scripts** — orthographic. Removing them
   misspells words.
