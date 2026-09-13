@@ -52,7 +52,7 @@ Run the phases in order. Do not skip Phase 1 because the tree "looks clean" — 
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/git_hygiene.py" --repo . --ignored
 ```
 
-`${CLAUDE_PLUGIN_ROOT}` is required — a bare `agent-tooling/...` path resolves against the *consuming* repo, where that directory does not exist. Every sibling skill uses this form.
+`${CLAUDE_PLUGIN_ROOT}` is required — a bare `agent-tooling/...` path resolves against the *consuming* repo, where that directory does not exist, and `$SKILL_DIR` is set by nothing at all. Claude Code substitutes `${CLAUDE_PLUGIN_ROOT}` into this file before the model reads it, so the command arrives carrying an absolute path. **The rule: every invocation of a bundled script uses this form.** `scripts/check_skill_vars.py` enforces it. Prose links to a sibling skill or a playbook are the exception — relative paths resolve against the skill's injected base directory, and a shell variable would not, since the Read tool does no expansion.
 
 **Exit codes: 0 = clean and the scan completed · 1 = at-risk work found · 2 = THE SCAN COULD NOT COMPLETE.** Treat 2 as worse than 1: a repo whose scan failed is *unverified*, not clean, and you cannot act on what you could not see. Never report "nothing at risk" on a 2.
 

@@ -15,6 +15,7 @@ Claude Code hooks — the product-specific layer (PreToolUse/PostToolUse event i
 | `webfetch_content_check.py` | PostToolUse | Warns when fetched content is suspiciously short (likely a redirect/login/error page, not the resource) — treat as UNVERIFIED. Self-contained heuristic; advisory, fails open. |
 | `tool_token_log.py` | PostToolUse | Appends an **estimated** token-cost line per tool/skill call (input+output bytes ÷4) to a JSONL log. Never blocks. A hook can't see real API token accounting, so this is a proxy for "which tools/skills are context-heavy"; for exact numbers parse the transcript `usage` fields. Log path: `$TOOL_TOKEN_LOG`, else `~/.claude/tool-token-logs/<repo>.jsonl` — **one file per repo, deliberately**: a single machine-global log pools skill-name and call-pattern metadata from private and third-party repos alongside public ones. Logs live under `~/.claude`, never inside a repo, so they cannot be committed by accident. Summarize: `jq -s 'group_by(.tool)[]\|{tool:.[0].tool,calls:length,est_tokens:(map(.est_tokens)\|add)}' ~/.claude/tool-token-log.jsonl`. |
 | `pre-commit` | git hook | Runs `detect-secrets-hook` on staged files; blocks commits with likely secrets. |
+| `pre-push` | git hook | Runs the drift guards (`check_registration`, `check_skill_vars`, `check_version_bump`); blocks a push that would ship stale docs, an unresolvable bundled path, or an unbumped plugin. No-ops in other repos. |
 
 ## Wiring
 
@@ -24,6 +25,12 @@ Claude Code hooks — the product-specific layer (PreToolUse/PostToolUse event i
 
 For **non-plugin** use (copying hooks into `~/.claude/hooks/` and wiring by hand), the same structure applies with literal paths instead of `${CLAUDE_PLUGIN_ROOT}`.
 
-`pre-commit` is a **git** hook, not a Claude hook — it lives in `../git-hooks/`, goes in your repo's `.git/hooks/` (or a global `core.hooksPath`), and needs `detect-secrets` (`pipx install detect-secrets`).
+`pre-commit` and `pre-push` are **git** hooks, not Claude hooks — it lives in `../git-hooks/`, goes in your repo's `.git/hooks/` (or a global `core.hooksPath`), and needs `detect-secrets`
+(`uv tool install detect-secrets`, or `pipx install detect-secrets` where pipx is present). Enable both from inside this repo with
+`git config core.hooksPath agent-tooling/git-hooks`.
+To enable them for every repo, `--global` needs an **absolute** path — a relative one
+resolves against whichever repo you are in, so it is simply not found elsewhere. The
+absolute form is safe globally: `pre-push` resolves its guards from its own location
+and no-ops when the pushing repo is not this one.
 
 Secrets the hooks use (e.g. `MISTRAL_API_KEY` for the review path) come from your environment — set them in your shell profile, never in these files.

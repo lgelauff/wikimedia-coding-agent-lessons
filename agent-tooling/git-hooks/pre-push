@@ -1,0 +1,78 @@
+#!/bin/bash
+# pre-push — run this repo's deterministic drift guards before publishing.
+#
+# They check what a test suite structurally cannot: that the docs and the tree
+# agree about each other, that bundled paths in skill bodies resolve, and that a
+# plugin whose content changed carries a version bump. All three classes have
+# shipped live bugs to this repo while every test passed.
+#
+# Install (once, from this repo):
+#   git config core.hooksPath agent-tooling/git-hooks
+#
+# Setting that globally is fine: the hook resolves its guards from its OWN
+# location and no-ops in any other repo, rather than blocking pushes there.
+#
+# Emergency bypass:
+#   git push --no-verify
+
+# Guards live beside this hook, not at the pushing repo's root — with a global
+# core.hooksPath those are different places.
+HOOK_DIR=$(cd "$(dirname "$0")" && pwd) || exit 1
+GUARDS="$HOOK_DIR/../scripts"
+GUARD_REPO=$(git -C "$HOOK_DIR" rev-parse --show-toplevel 2>/dev/null)
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
+
+# Pushing some other repo that merely shares this hooks path: not ours to police.
+if [ -z "$ROOT" ] || [ "$ROOT" != "$GUARD_REPO" ]; then
+    exit 0
+fi
+
+# Fail CLOSED, the lesson pre-commit already learned: a guard that skips itself
+# when its interpreter is missing is a guard that silently does nothing.
+if ! command -v python3 >/dev/null 2>&1; then
+    if [ "$ALLOW_MISSING_PYTHON" = "1" ]; then
+        echo "WARNING: python3 not found; drift guards skipped by explicit opt-out."
+        exit 0
+    fi
+    echo "Push blocked: python3 is not available, so the drift guards cannot run." >&2
+    echo "  Skip deliberately:  ALLOW_MISSING_PYTHON=1 git push ..." >&2
+    exit 1
+fi
+
+STATUS=0
+
+# Guards taking --root/--quiet.
+for guard in check_registration.py check_skill_vars.py; do
+    if [ ! -f "$GUARDS/$guard" ]; then
+        echo "Push blocked: expected guard $guard is missing from $GUARDS." >&2
+        STATUS=1
+        continue
+    fi
+    python3 "$GUARDS/$guard" --root "$ROOT" --quiet || STATUS=1
+done
+
+# check_version_bump.py has a different interface (--base/--plugin-dir) and must
+# run from the repo root. conventions.md §7 requires it here: a plugin whose
+# content changed without a bump reaches no consumer, silently.
+if [ ! -f "$GUARDS/check_version_bump.py" ]; then
+    echo "Push blocked: check_version_bump.py is missing from $GUARDS." >&2
+    STATUS=1
+else
+    ( cd "$ROOT" && python3 "$GUARDS/check_version_bump.py" )
+    case $? in
+        0) ;;
+        2) # Could not complete — an unfetched base or a fork, not drift. Treat it
+           # the way session-close treats exit 2: unverified is not the same as clean.
+           echo "Push blocked: check_version_bump.py could not complete (exit 2)." >&2
+           echo "  Usually an unfetched origin/main. Try: git fetch origin" >&2
+           STATUS=1 ;;
+        *) STATUS=1 ;;
+    esac
+fi
+
+if [ $STATUS -ne 0 ]; then
+    echo ""
+    echo "Push blocked by a drift guard. Fix the problems above, or bypass with"
+    echo "  git push --no-verify   (use with caution)"
+fi
+exit $STATUS

@@ -15,7 +15,7 @@ This keeps the valuable, hard-won part (the *what* and the *why*) reusable, and 
 | **Scripts** | none — plain programs (stdin/args → stdout + exit code) | `scripts/` | `llm_review.py` (LLM diff review via OpenRouter), `scope.sh` (classify a diff) |
 | **Policies** | none — decision logic as standalone executables that know nothing of any agent's event format | `policies/` | "is this command an SSH to a remote host?", "does this fetched content contain injection?" |
 | **Playbooks** | none — procedures as prose (a method, not an implementation) | `playbooks/` | the PR quality-gate method; the local-e2e verification method |
-| **Git hooks** | none — standard git, works for any developer/agent | `git-hooks/` | `pre-commit` (detect-secrets scan) |
+| **Git hooks** | none — standard git, works for any developer/agent | `git-hooks/` | `pre-commit` (detect-secrets scan), `pre-push` (drift guards: registration, skill paths, version bump) |
 | **Adapters** | **product-specific** — the only Claude-coupled layer | the plugin's `skills/` + `hooks/` + `settings/` | Claude Code: `SKILL.md` files, PreToolUse/PostToolUse hooks, `settings.json` snippets |
 
 ## What is actually Claude-Code-specific

@@ -64,6 +64,21 @@ called deep-research that did not exist, while `source-connectors` and
 `latex-change-review` existed and were named nowhere. `scripts/check_registration.py`
 checks both directions plus relative links. Run it from `pre-push`.
 
+**A bundled path in a skill body must resolve.** `$SKILL_DIR` was referenced by 4 skills
+in 7 invocations and set by nothing; unset, it expands to an absolute path into `/`. Every
+test passed throughout. Two forms, chosen per use:
+
+- **Invoking a bundled script: `${CLAUDE_PLUGIN_ROOT}/scripts/...`.** Claude Code
+  substitutes it into the skill body *before the model reads it*, so the command arrives
+  carrying an absolute path. Never `$SKILL_DIR` (set by nothing), never a bare
+  `agent-tooling/...` path (resolves against the consuming repo).
+- **Linking to a playbook or sibling skill: a relative path.** These resolve against the
+  skill's injected base directory. A shell variable cannot serve here — the Read tool does
+  no expansion, so `Read ${VAR}/playbooks/x.md` is unresolvable in any harness.
+
+`scripts/check_skill_vars.py` enforces both from `pre-push`. It judges *usage*, never
+mention: a rule that fired on prose naming an anti-pattern would flag the paragraph above.
+
 ## Open items
 
 *(The foundation-phase items — marketplace manifest, install model, migrating `pr-check`
