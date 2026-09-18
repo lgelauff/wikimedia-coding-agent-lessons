@@ -221,3 +221,6 @@ agent-tooling/scripts/*_standalone.py
 # flushing-dataviz demo galleries are regenerable via demo/gallery.py
 flushing-dataviz/skills/*/demo/output/*
 !flushing-dataviz/skills/*/demo/output/verify_slides.png
+
+# macOS
+.DS_Store
