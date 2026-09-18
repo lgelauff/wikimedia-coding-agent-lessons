@@ -101,6 +101,87 @@ Known instance: English Wikipedia `Requests_for_comment/%` pages show a 3–6× 
 - **No bz2 multistream byte-offset index for history dumps** (only for `pages-articles-multistream`, i.e. current article text). Random access by revid into history isn't available — use the API by revid, or stream the relevant part file (history is split by page-id range).
 - Deleted pages/revisions are **redacted from public dumps and replicas** — a dump captures pages that existed at dump time, but content deleted before that is unrecoverable.
 
+## Parsing SQL dumps: scan tuples, and prove the result is independent of your buffer
+
+A dump is the only way to answer "which items across a whole wiki satisfy property X" — the API
+answers "tell me about item X". So parsing them well is worth doing once, properly.
+
+- **Scan the byte stream for parenthesised tuples, quote- and escape-aware.** Do not parse by line.
+  Layout is not a property of the format: some wikis emit one tuple per line, others put an entire
+  `INSERT` on a single line. A line parser checked on one wiki returned **437 rows from a 75 MB
+  file** on another, and reported zero errors, because every line it saw was well-formed — there was
+  one. **Anything verified on a single project is verified on a sample of one**, so re-verify per
+  wiki and per run rather than treating it as settled.
+- **Find the statement end by tracking quotes, not with `find(";")`.** Page titles legally contain
+  semicolons, so `AT&T;_Inc` ends the statement early and everything after it is skipped.
+- **Assert chunk-invariance in a committed test — on the row count *and* a content digest.** Parse
+  the same input at 4 MB, 1 MB, 64 KB and a few odd sizes and require identical results. This is the
+  only symptom a boundary bug gives: one real dump read 1,684,707 / 1,684,702 / 1,684,682 rows at
+  three buffer sizes and was otherwise perfect. A digest matters because a stable count with
+  reshuffled contents passes a count-only test. **A result that moves with an implementation detail
+  is a bug in the implementation, by definition.**
+- **Have the scanner report how far it got, and keep the remainder.** Cutting the buffer at the last
+  `)` loses a tuple per boundary, because that `)` can fall inside a quoted title.
+- **Give every pass a floor, not just the one where the last bug was.** When a later pass looks up
+  ids that an earlier pass produced, ~100% must resolve — those ids exist by construction, so a miss
+  is a parser fault and never a fact about the wiki. A run that guarded only pass 1 shipped eight
+  wikis whose passes 4 and 5 resolved **7–16%** of their targets, all exiting 0.
+- **Set floors from measurement.** A "sanity" divisor assuming ~10 compressed bytes/row was 500×
+  too loose against a measured 3.2–3.9 B/row across 14 real dumps: it fired only below 0.1% of the
+  true count. Measure the ratio on the dumps you have, then leave ~5× margin.
+- **If you accept an `on_bad` callback, call it.** A parser that took the parameter and never invoked
+  it made every "0 unparseable" in every log and manifest a constant rather than a measurement. Give
+  it something real to detect — these dumps have a fixed field count per statement, so a tuple whose
+  arity differs from the first is a desync worth reporting instead of yielding with its fields
+  silently re-indexed.
+
+## Parsing XML dumps: cut only at closing tags, and unescape after splitting
+
+- **Buffer across reads and split only on a complete `</page>`.** The same boundary discipline as
+  above; a 100 KB article straddling a 4 MB read is routine.
+- **Split the blocks first, then unescape entities.** MediaWiki escapes `<` in element content, so a
+  literal `</page>` inside wikitext arrives as `&lt;/page&gt;` and cannot truncate a block — but only
+  while unescaping happens *after* the split. Reversing that order makes article text able to end a
+  page early.
+- **Replace `&amp;` last** when unescaping by successive replacement: none of the other replacements
+  can produce a `&`, so nothing can be double-decoded. `&amp;lt;` correctly yields `&lt;`.
+- **Read the whole file rather than range-fetching multistream blocks — unless you check the
+  arithmetic.** Blocks hold ~100 pages, so wanting a spread 7% of pages touches
+  `1 − 0.93¹⁰⁰ ≈ 99.9%` of blocks. The index pays off only for genuinely clustered or tiny selections.
+- **On Toolforge read `/public/dumps/public/<project>/<date>/` and transfer nothing.** Streaming the
+  15-project wikitext set over HTTP moves ~62 GB; the same files are already on local disk there.
+- **Make a long HTTP stream resumable.** A multi-hour pass died on `ConnectionResetError` and lost
+  everything. Wrap the response so a dropped read reopens with `Range: bytes=<offset>-`: bz2 requires
+  only that its input be contiguous, not that it came from one connection, so the resume is invisible
+  to the decompressor. This matters most when the dump is larger than your free disk and "download it
+  first" is not available.
+
+## Matching file links across languages: match generically, filter by extension
+
+Every wiki has its own file namespace (`चित्र`, `চিত্র`, `檔案`, `Изображение`, `Fişier`…) and its own
+infobox parameter names.
+
+- **Match any `[[<prefix>:<name>.<ext>]]` and require an image extension**, rather than whitelisting
+  namespace aliases. A hand-assembled alias list silently found nothing on the wikis it omitted — and
+  the extension requirement simultaneously keeps `.ogg`/`.webm` out of an image population (0.45% of
+  rows in one real run were national anthems, whose request series is player-driven).
+- **A leading colon means "link, don't embed".** `[[:File:X.jpg]]` renders a link to the file page and
+  fetches no image; excluding `:` from the prefix class handles it for free.
+- **Use a negated delimiter class for template parameter names, not a letter class.** `[A-Za-z0-9_ -]`
+  matches `| image =` and nothing on nine of fifteen projects. `\w` is not sufficient either: Python's
+  `\w` follows `str.isalnum()`, which excludes nonspacing combining marks, so Devanagari `चित्र` and
+  Bengali `চিত্র` still fail on the virama. `[^|{}\[\]<>=\n]` is script-independent by construction.
+  Infobox images are lead images, so this class of miss is never uniformly distributed.
+- **Mask HTML comments and `nowiki`/`pre`/`syntaxhighlight` before parsing, replacing them with
+  spaces rather than deleting them.** A commented-out `== Heading ==` invents a section and shifts
+  every later position; a commented-out image becomes a phantom one. Equal-length replacement keeps
+  character offsets exact for anything downstream that uses them.
+- **`<gallery>` and `<imagemap>` bodies are bare `File:X.jpg|caption` lines with no `[[`** — they need
+  their own handling, and they are essentially always below the lead, so missing them skews any
+  position statistic.
+- **Match headings against the raw line.** A leading space makes a line preformatted text in
+  MediaWiki, so ` == A ==` is not a heading; stripping the line first invents one.
+
 ## PAWS SQL — MariaDB gotchas
 
 - **`year_month` is a reserved word in MariaDB** — using it as a column alias causes a syntax error. Use a non-reserved alias (e.g. `ym`) or reference columns by position (`GROUP BY 1 ORDER BY 1`) instead of by alias.

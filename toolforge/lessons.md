@@ -136,3 +136,61 @@ was written to run **on** the grid. Running it from a laptop usually fails on a 
 rather than on anything conceptual — the interesting question is whether the job belongs on the grid
 at all. If the data is already there, uploading from the grid avoids pulling gigabytes down and
 pushing them back up.
+
+## Copying files off the tool: name one path per command
+
+**Write one `scp` per file, with an absolute destination.** It always works, on every OpenSSH
+version, and the failure mode when a path is wrong is a clear per-file error rather than a silent
+partial transfer.
+
+```bash
+scp login.toolforge.org:/data/project/<tool>/run/output.tsv.gz /abs/path/to/data/interim/store/
+scp login.toolforge.org:/data/project/<tool>/run/output.done   /abs/path/to/data/interim/store/
+```
+
+**Why the tidy one-liner fails.** OpenSSH 9 made `scp` use the **SFTP** protocol by default.
+Brace expansion (`file.{tsv.gz,done}`) is a *remote shell* feature, and SFTP has no shell — so the
+braces are sent literally and you get `No such file or directory` naming a file with braces in it.
+The path was never wrong; the expansion just never happened.
+
+When you do want one command for several files, ask for the protocol that has a shell behind it, or
+use a tool that globs client-side:
+
+```bash
+scp -O login.toolforge.org:'/data/project/<tool>/run/output.{tsv.gz,done}' /abs/path/to/store/
+```
+
+```bash
+rsync -avP login.toolforge.org:/data/project/<tool>/run/ /abs/path/to/store/
+```
+
+`rsync` is the better default for anything large or repeated: it resumes, it verifies, and re-running
+it after a dropped connection transfers only what is missing.
+
+**Give the destination as an absolute path.** A relative destination resolves against whatever
+directory the terminal happens to be in, and a multi-gigabyte retrieval landing in the wrong repo is
+tedious to notice and tedious to undo.
+
+## Leave the run's ledger on the tool
+
+A resumable collector keeps a `.done` ledger keyed on the work item (for AQS, `(referer, path)`).
+**Copy it down for the record, but leave the original in place** — it is what makes the next run skip
+work already fetched instead of paying for it twice. A later, differently-ordered or differently-
+scoped work order can then be handed to the same job and it will only fetch the difference.
+
+**Read the hole log before calling a run complete, and treat an empty one as the good outcome.**
+`wc -l run.holes` returning 0 means every unit reached a definitive answer. A non-empty hole log is
+a work list for the next pass, not an error report.
+
+## Judge a finished run by its ledger, not by the absence of a job
+
+`toolforge jobs list` showing nothing means the job is not running — it does not distinguish
+"finished cleanly" from "died four hours in". The ledger does:
+
+```bash
+wc -l run.done run.holes && gzip -dc run.tsv.gz | wc -l && tail -25 run.log
+```
+
+Compare `run.done` against the unit count of the work order you launched. Equal means complete;
+short means it stopped early, and the log says whether that was an exit, an eviction, or an OOM —
+which is what decides the flags for the relaunch.

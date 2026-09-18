@@ -182,6 +182,92 @@ Corollary: when a lesson repo exists for the stack you are working in, open it
 session — error count, duplicate labels, bibitem parity — were all named in a
 playbook already sitting in the repo.
 
+## Exercise the path you changed, end to end, before you fan out
+
+**Run one full unit of work through the changed code before launching the batch.** Not the stage you
+edited — the whole thing, to completion, on the smallest real input.
+
+A portability patch touched two places in one script: path resolution at stage 1, and a lookup loop
+at stage 4. The verification watched the resolved paths print, saw them correct, and stopped there.
+The loop referenced a variable that was never initialised, and all fifteen projects died on it. The
+test exercised the half that was already trusted.
+
+The generalisable rule: **the region you edited defines what the test must reach.** If a change
+touches two functions, the check must execute both. "It got past the part I was worried about" is the
+shape of this failure, and it is cheap to avoid — one small project run to completion costs minutes
+against a batch that costs hours.
+
+**Order batches smallest-first** for the same reason: a systematic fault then surfaces in the first
+minutes rather than partway through the largest input.
+
+## Make the last artifact written the completion marker
+
+**Write the manifest (or any summary file) *after* the data, and have the next stage refuse to
+consume data whose manifest is missing.** This gives a pipeline atomic-ish semantics for free.
+
+Without it, a run interrupted during its final write leaves a well-formed, readable, *short* file
+under the production name — and every downstream check then measures itself against the truncated
+input and reports ~100%. A structure pass killed by a dropped connection left a 161 MB output that
+looked entirely normal; the only thing distinguishing it from a complete run was the manifest that
+had not been written yet.
+
+Related habits that make a long pipeline honest:
+
+- **Have test modes write test paths.** A `--limit` flag that stops early *and* writes the production
+  output path will silently replace a complete artifact with a partial one. A 400-article smoke test
+  overwrote a finished 151,340-article file this way — and because the completeness floor was also
+  skipped under `--limit`, the mode most likely to mislead was both unguarded and destructive.
+- **Record the producing code, not just the inputs.** Hash the scripts and the git commit into the
+  manifest. When a parser changes in a way that moves 11% of its output, two artifacts from either
+  side of that change are otherwise indistinguishable — same name, same schema, same date.
+- **Make drivers exit non-zero when any unit failed.** A shell driver that prints `INCOMPLETE` and
+  exits 0 will be read as success by anything chaining on `&&`, and by a future cron.
+- **`#!/usr/bin/env bash`, plus a version guard, if you use `declare -A` or `wait -n`.** macOS ships
+  bash 3.2 at `/bin/bash`, which rejects both. A script can work for months purely because it happens
+  to be invoked as `bash script.sh` with a newer bash on `PATH`.
+
+## Check the instrument before you believe the finding
+
+**When a measurement contradicts something you expect to be true, suspect the measurement first.**
+Two numbers in a single session were artifacts of their own measuring stick, and both presented as
+properties of the thing being measured:
+
+- A validator reported **42.1% disagreement** between two implementations. Current MediaWiki wraps
+  headings as `<div class="mw-heading mw-heading2"><h2 …>`, and the pattern matched both the div and
+  the h2 — counting every heading twice. The tell was in the examples: 1-vs-2, 2-vs-4, 3-vs-6. **An
+  exact ratio between "expected" and "observed" is nearly always an instrument fault**, not a finding.
+- A statistic computed under `--limit 3000` was reported as a population value: **34.6%**, when the
+  true figure was **11.3%**. `--limit` takes a *prefix* in dump order — the oldest and longest
+  articles — not a sample. The rate decayed monotonically as the prefix grew.
+
+So: **state the population a number describes, in the same sentence as the number.** The commit
+message that said "4,337 of 12,527 positions from 3,000 articles" was honest; the runbook sentence
+that later said "34.6% of positions move" was not, and nobody had to lie for that to happen.
+
+**And check that a validation isn't circular.** An agreement of 202/202 between a wikitext parser and
+an HTML parser was reported as validating a *model assumption* about which sections collapse. It
+could not: the HTML oracle counted `<h2>` and the wikitext parser counted `==` — the same construct in
+two syntaxes, so it agreed precisely where the parser was wrong. It was a real parser check and a
+worthless assumption check. Ask what a passing test would still be consistent with.
+
+## Guards can only see faults their own stage introduced
+
+**Design at least one check that compares against something outside the pipeline.** Every threshold
+inside a pipeline is an internal-consistency check: each stage measures itself against the input it
+was handed, so it is structurally blind to a fault that corrupted that input upstream — the stage is
+then perfectly consistent with the wrong thing.
+
+Concretely, a partial parse of a usage table does not merely lose rows; it *manufactures* eligibility,
+because items whose other usages were dropped now look unique. Downstream floors all read 100%,
+because the survivors are internally coherent. The checks that catch this are of a different kind:
+
+- **an external oracle** — ask the live API whether a sample of the population really has the property
+  the pipeline claims;
+- **cross-stage reconciliation** — have each stage assert its input row count against the upstream
+  manifest, so a truncated or stale input fails at the boundary instead of scoring perfectly;
+- **an invariant that does not depend on the data** — e.g. chunk-invariance, which holds for any
+  correct implementation regardless of input.
+
 ## A bug recording is evidence you can't get any other way — make sure you can open it
 
 Screen recordings (Jam, a `.mov` dropped in chat) carry things a bug report
