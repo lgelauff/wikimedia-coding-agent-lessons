@@ -10,12 +10,12 @@ description: >-
 
 # wikimedia-enterprise — Enterprise API auth + usage
 
-Claude Code adapter over [`../../scripts/wikimedia_enterprise_auth.py`](../../scripts/wikimedia_enterprise_auth.py), an agent-agnostic script — it also runs standalone from any shell or CI job.
+Claude Code adapter over [`${AGENT_TOOLING_ROOT}/scripts/wikimedia_enterprise_auth.py`](${AGENT_TOOLING_ROOT}/scripts/wikimedia_enterprise_auth.py), an agent-agnostic script — it also runs standalone from any shell or CI job.
 
 ## Get an access token
 
 ```bash
-python3 "$SKILL_DIR/../../scripts/wikimedia_enterprise_auth.py"
+python3 "${AGENT_TOOLING_ROOT}/scripts/wikimedia_enterprise_auth.py"
 ```
 
 Prints a bearer token to stdout (status messages go to stderr, so it's safe to

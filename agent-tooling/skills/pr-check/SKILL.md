@@ -39,7 +39,7 @@ This is `conventions.md` §2 applied to the half of the job the scripts don't ye
 
 ## 1. Read the method
 
-Read the playbook: [`../../playbooks/pr-check.md`](../../playbooks/pr-check.md). It defines steps 0–6 and the verdict rules. Follow it; the notes below are only the Claude-specific *how*.
+Read the playbook: `${AGENT_TOOLING_ROOT}/playbooks/pr-check.md`. It defines steps 0–6 and the verdict rules. Follow it; the notes below are only the Claude-specific *how*.
 
 ## 2. Load the project config
 
@@ -47,9 +47,9 @@ Read `.claude/pr-check.json` in the **consuming repo** (schema: [`pr-check.examp
 
 ## 3. Scope (playbook step 0)
 
-Run the bundled script once instead of ad-hoc pipelines (the plugin exposes its root as `${CLAUDE_PLUGIN_ROOT}`):
+Run the bundled script once instead of ad-hoc pipelines (the plugin exposes its root as `${AGENT_TOOLING_ROOT}`):
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scope.py" --config .claude/pr-check.json [--pr N | --base <ref>]
+python3 "${AGENT_TOOLING_ROOT}/scripts/scope.py" --config .claude/pr-check.json [--pr N | --base <ref>]
 ```
 (Allowlist `Bash(python3 *agent-tooling/scripts/scope.py*)` to make it prompt-free.)
 It returns `{files, flags}`. Branch on the flags for the rest.
@@ -80,7 +80,7 @@ Then **persist it as a handoff** so it survives the session and another agent ca
 
 If a panel workflow ran, log its cost tagged by PR type so "what does pr-check cost on this kind of PR" accrues empirically. Use the **real `subagent_tokens`** the Workflow result reported (not a guess), the scope flags from step 0, and the diff size:
 ```bash
-python3 "$SKILL_DIR/../../scripts/record_run.py" --skill pr-check --pr <N> \
+python3 "${AGENT_TOOLING_ROOT}/scripts/record_run.py" --skill pr-check --pr <N> \
   --flags <comma-separated flags that fired> --diff-lines <changed lines> \
   --subagent-tokens <subagent_tokens from the workflow result> --duration-ms <duration_ms>
 ```

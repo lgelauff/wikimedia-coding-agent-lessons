@@ -24,7 +24,7 @@ Scripts: read-only unless mutation is the whole point (then say so loudly); no s
 
 ## 3. Permission hygiene
 
-See [`settings/allowlist.md`](settings/allowlist.md). The one rule that always holds: **never allowlist arbitrary code execution**; prefer exact invocations or bundled script paths.
+See [`settings/allowlist.md`](settings/allowlist.md). The one rule that always holds: **never allowlist arbitrary code execution**; prefer exact invocations or bundled script paths. For how a skill addresses the plugin's own files, see [`settings/agent-tooling-root.md`](settings/agent-tooling-root.md) — every path is `${AGENT_TOOLING_ROOT}/...`, never relative and never a host-specific variable. `scripts/check_skill_vars.py` enforces it.
 
 ## 4. Quality bar
 

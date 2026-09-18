@@ -15,7 +15,7 @@ description: >-
 # budget-estimate — Claude Code adapter
 
 The method lives in the agent-neutral playbook:
-[`../../playbooks/budget-estimate.md`](../../playbooks/budget-estimate.md).
+`${AGENT_TOOLING_ROOT}/playbooks/budget-estimate.md`.
 Follow its evidence hierarchy, formulas, and output format; this file adds the
 Claude Code wiring.
 
@@ -27,7 +27,7 @@ Claude Code wiring.
    ONE representative task (or one subagent fan-out if the job fans out) and
    read its cost.
 2. **Historical priors.** Query the run-cost history:
-   `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/cost_report.py"` (add
+   `python3 "${AGENT_TOOLING_ROOT}/scripts/cost_report.py"` (add
    `--predict --flags … --diff-lines …` for pr-check-shaped jobs); check
    `~/.claude/skill-run-cost.jsonl` and `~/.claude/tool-token-log.jsonl`
    directly for other shapes; grep old run logs in the consuming repo
@@ -50,7 +50,7 @@ Small jobs get the same shape in three lines, not a report.
 
 If the estimated job then actually runs in this or a later session: compare
 actual vs estimate in one line, and append the actuals to the history —
-`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/record_run.py" --skill <job-slug>
+`python3 "${AGENT_TOOLING_ROOT}/scripts/record_run.py" --skill <job-slug>
 --subagent-tokens <n> --duration-ms <n>` (flags optional for non-PR jobs).
 An estimate that never meets its actuals is the top anti-pattern in the
 playbook.

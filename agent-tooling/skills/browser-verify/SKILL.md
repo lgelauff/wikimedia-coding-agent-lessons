@@ -18,7 +18,7 @@ description: >-
 
 Claude Code adapter over the agent-neutral **browser-verify playbook**. The method lives in the playbook; this file is the Claude-specific wiring.
 
-Read the playbook: [`../../playbooks/browser-verify.md`](../../playbooks/browser-verify.md). Follow its steps 1–4 and verdict labels.
+Read the playbook: `${AGENT_TOOLING_ROOT}/playbooks/browser-verify.md`. Follow its steps 1–4 and verdict labels.
 
 ## Inputs
 
@@ -47,7 +47,7 @@ python3 probe.py    # exit 0 = all checks pass + no console/page errors
 ```
 Allowlist `Bash(python3 *probe.py*)` and `Bash(playwright install*)` to keep it prompt-free.
 
-For a **pure screenshot** (a screen or a bug, no assertions), skip the probe and call the shared helper: `python3 "$SKILL_DIR/../../scripts/capture.py" --url <route> --out shot.png [--login dev-user-1] [--clip SELECTOR] [--viewport 390x844] [--dark]`. Same shot logic as this template, factored out so other skills share it; saves the PNG + a sidecar with console errors / final URL / sha256.
+For a **pure screenshot** (a screen or a bug, no assertions), skip the probe and call the shared helper: `python3 "${AGENT_TOOLING_ROOT}/scripts/capture.py" --url <route> --out shot.png [--login dev-user-1] [--clip SELECTOR] [--viewport 390x844] [--dark]`. Same shot logic as this template, factored out so other skills share it; saves the PNG + a sidecar with console errors / final URL / sha256.
 
 ## 4. Verdict (playbook step 4)
 
@@ -58,7 +58,7 @@ Report each check as CONFIRMED / FIXED-AND-CLEAN / REGRESSION / COULD-NOT-RUN, w
 The probe already screenshots each screen it drives. If the user wants those on the PR (only when asked — never automatically), label the **relevant** ones and use the bundled poster. It pushes images to a `pr-screenshots` assets branch (PR branch stays clean) and embeds their raw URLs in a comment; **public repos only**.
 
 ```bash
-python3 "$SKILL_DIR/../../scripts/post_pr_screenshots.py" --pr <N> \
+python3 "${AGENT_TOOLING_ROOT}/scripts/post_pr_screenshots.py" --pr <N> \
   --intro "browser-verify on <what>" \
   --image "Arguments tab=probe-args.png" --image "Vote flow=probe-vote.png"
 ```

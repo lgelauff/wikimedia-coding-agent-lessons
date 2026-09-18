@@ -5,8 +5,13 @@ import os
 import sys
 import tempfile
 import time
+from pathlib import Path
 
-SCRIPTS = "/Users/lodewijk/Documents/GitHub/wikimedia-coding-agent-lessons/agent-tooling/scripts"
+# Derived, not hardcoded. The repo moved from ~/GitHub to ~/dev, and a hardcoded
+# absolute path here broke silently the moment it did — it still resolved only because
+# a temporary symlink happened to exist. A test that locates itself survives being
+# moved, checked out elsewhere, or cloned on another machine.
+SCRIPTS = str(Path(__file__).resolve().parent.parent)
 sys.path.insert(0, SCRIPTS)
 
 STATE = tempfile.mkdtemp(prefix="ratebudget-")

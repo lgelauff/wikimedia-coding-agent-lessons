@@ -18,7 +18,7 @@ Claude Code hooks — the product-specific layer (PreToolUse/PostToolUse event i
 
 ## Wiring
 
-**Installed as part of the plugin, these wire automatically** via [`hooks.json`](hooks.json) (paths use `${CLAUDE_PLUGIN_ROOT}`). Wired by default: `block_ssh`, `memory_guard`, `github_write_permission`, `openrouter_permission` (PreToolUse), `git_hygiene_session` (SessionStart), `dev_stack_reminder` + `mcp_auth_reminder` (UserPromptSubmit), and `webfetch_content_check` + `tool_token_log` (PostToolUse). `block_zotero.py` ships as a file but is **not** wired (personal path block — wire it yourself if you want it).
+**Installed as part of the plugin, these wire automatically** via [`hooks.json`](hooks.json) (paths use `${CLAUDE_PLUGIN_ROOT}`, which Claude Code sets for hook commands). Wired by default: `block_ssh`, `memory_guard`, `github_write_permission`, `openrouter_permission` (PreToolUse), `git_hygiene_session` (SessionStart), `dev_stack_reminder` + `mcp_auth_reminder` (UserPromptSubmit), and `webfetch_content_check` + `tool_token_log` (PostToolUse). `block_zotero.py` ships as a file but is **not** wired (personal path block — wire it yourself if you want it).
 
 > ⚠️ **Dedup if you already wired these manually.** If your `~/.claude/settings.json` already references copies of these hooks (e.g. from before this plugin existed), remove those manual entries after installing the plugin — otherwise each hook fires twice. The plugin's `hooks.json` is now the single source.
 

@@ -19,7 +19,7 @@ description: >-
 # arxiv-submission
 
 Claude adapter over the agent-neutral **arxiv-submission playbook**. Read it:
-[`../../playbooks/arxiv-submission.md`](../../playbooks/arxiv-submission.md).
+`${AGENT_TOOLING_ROOT}/playbooks/arxiv-submission.md`.
 
 ## Claude-specific notes
 

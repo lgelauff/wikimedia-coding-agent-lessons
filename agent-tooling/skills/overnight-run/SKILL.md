@@ -18,7 +18,7 @@ description: >-
 # overnight-run — Claude Code adapter
 
 The method lives in the agent-neutral playbook:
-[`../../playbooks/overnight-run.md`](../../playbooks/overnight-run.md). Read it
+`${AGENT_TOOLING_ROOT}/playbooks/overnight-run.md`. Read it
 first and follow its phases; this file adds only the Claude Code wiring.
 
 **The one law (from the playbook): the overnight run must never need a human.**

@@ -49,10 +49,10 @@ Run the phases in order. Do not skip Phase 1 because the tree "looks clean" — 
 ## Phase 1 — Secure (always first, never skipped)
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/git_hygiene.py" --repo . --ignored
+python3 "${AGENT_TOOLING_ROOT}/scripts/git_hygiene.py" --repo . --ignored
 ```
 
-`${CLAUDE_PLUGIN_ROOT}` is required — a bare `agent-tooling/...` path resolves against the *consuming* repo, where that directory does not exist. Every sibling skill uses this form.
+`${AGENT_TOOLING_ROOT}` is required — a bare `agent-tooling/...` path resolves against the *consuming* repo, where that directory does not exist. Every command in every sibling skill uses this variable; do not substitute a relative path, which resolves lexically and breaks when the skill is reached through a symlink.
 
 **Exit codes: 0 = clean and the scan completed · 1 = at-risk work found · 2 = THE SCAN COULD NOT COMPLETE.** Treat 2 as worse than 1: a repo whose scan failed is *unverified*, not clean, and you cannot act on what you could not see. Never report "nothing at risk" on a 2.
 
