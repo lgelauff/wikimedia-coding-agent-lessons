@@ -167,6 +167,20 @@ endpoint/robots were exercised; `(docs)` = read from documentation/robots only. 
 |---|---|---|---|---|---|---|---|
 | **Stanford Deliberative Democracy Lab** | HTTPS/HTML · `deliberation.stanford.edu` | none | `User-agent: *` **`Crawl-delay: 30`** — one request per 30 s, and mean it. Content paths (`/news/…`, `/results-…`) are allowed; `/admin/`, `/user/*`, `/search`, `/*/printable/print` disallowed. Only `FemtosearchBot` and `SemrushBot` are banned outright — **no AI bot is named**. A honeypot path is published: `/honeypot-for-misbehaving-crawlers-do-not-enter/` — never request it, directly or by following a link | Stanford / DDL content, all rights reserved unless a page says otherwise — cite and link, don't republish | `curl -A "<descriptive UA with contact>"`; **Claude's WebFetch is `403`-ed here, curl with our own UA gets `200`** (see *Access-policy patterns*). Cache every page on first fetch: at 30 s apart, refetching is the real cost | Wayback (`archive.org/wayback/available`, then `web.archive.org/web/<ts>id_/<url>`); the DDL publishes most results as PDF reports — prefer the report over the news page | 2026-09 (live: robots 200, `/results-…` 200, WebFetch 403) |
 
+### Wikimedia community infrastructure
+
+> ⚠️ **Read-only, unauthenticated, and that is the whole posture.** Never file, comment,
+> edit, claim, assign or re-prioritise a task on anyone's behalf. Produce the material — a
+> draft task body, reproduction steps, evidence — and hand it over; **Lodewijk files his own
+> tasks**, our output is inspiration only. Security issues *never* go in a public task
+> (`security@wikimedia.org` or form 75). Anything AI-assisted that a human does post is
+> policy-bound to be verified claim by claim first: *"you are fully responsible for its
+> content … must be accurate, factually correct, and represent your own understanding."*
+
+| Connector | Protocol · endpoint | Auth | Access policy (robots · rate) | Reuse | Retrieval recipe | Fallback | Verified |
+|---|---|---|---|---|---|---|---|
+| **Wikimedia Phabricator** (read) | HTTPS/HTML · `phabricator.wikimedia.org/T…`; comment text `…/transactions/raw/{PHID}/`; Conduit `…/api/` | **none for reads.** Conduit is token-gated — anonymous returns `ERR-INVALID-SESSION`, which is expected, not a bug. A token requires a **registered bot with a named human owner** (`#Phabricator-Bot-Requests`), never a personal account: personal accounts used for automation may be **disabled or deleted** | Wikimedia **Robot policy**, stricter than most rows here: **concurrency 1**, **≥1 s between requests**, **pause ≥15 min on any 5xx**. Descriptive UA per WMF UA policy; honour `429` + `Retry-After`. Limits are global across Wikimedia properties; WMCS/Toolforge exempt | Public by default — assume everything is public, permanent and attributable. **Never republish** `acl*security` / `PermanentlyPrivate` content, logs carrying IPs, emails, tokens or session data, or NDA/vetted material. Prefer `@username` over real names | Plain `GET /T12345` works unauthenticated. `/transactions/raw/{PHID}/` returns comment text as plain text; PHIDs (`PHID-XACT-TASK-…`) are embedded in the task page's Javelin init data. **The search UI is JS-only — public HTML contains zero task IDs** → find tasks via web search or Gerrit's `bug:T12345` reverse lookup, not by crawling | Wayback; Gerrit `bug:` reverse lookup; for high volume the documented routes are OAuth 2.0 + bot flag, WMCS hosting, or `bot-traffic@wikimedia.org` | 2026-09 (docs) |
+
 ### Media & web
 
 | Connector | Protocol · endpoint | Auth | Access policy | Reuse | Notes | Fallback | Verified |
@@ -182,8 +196,13 @@ The library holds *specific* connectors. Three kinds of thing are deliberately e
   clients, fall back to a DOI/metadata lookup". Those live in *Access-policy patterns* above,
   not as a row.
 - **Categorical APIs with their own skill** — Wikimedia's own data APIs (MediaWiki Action,
-  Wikidata SPARQL, Analytics, Phabricator) are excellent but *categorical* (any wiki / the
-  whole graph) and already covered by the `wikimedia-data-collection` skills.
+  Wikidata SPARQL, Analytics) are excellent but *categorical* (any wiki / the whole graph)
+  and already covered by the `wikimedia-data-collection` skills. **Phabricator used to sit
+  in this list and no longer does:** unlike the others it is a social space with a Code of
+  Conduct, an etiquette policy and a hard write prohibition, and those constraints have to
+  travel with the source rather than live in a data-collection recipe. `phabricator-conduit`
+  still owns the *authenticated* Conduit query patterns; the row above owns the access
+  policy, the read-only posture and the unauthenticated read paths.
 - **Compute, not collection** — LLM inference endpoints (e.g. **LiftWing** on
   `api.wikimedia.org`, ~100 req/hour anonymous, no tool-calling / JSON mode) use the same
   connector *model* but you send work rather than collect data → see the `liftwing-llm` skill.
