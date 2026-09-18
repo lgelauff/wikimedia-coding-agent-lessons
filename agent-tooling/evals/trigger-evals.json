@@ -1,11 +1,11 @@
 {
   "description": "Trigger evals for the installed skill library. Measures two things a single-skill eval cannot: whether a skill fires when it should (misses), and whether the wrong skill fires (crowding). Queries are drawn from real work in these repos, not invented.",
   "created": "2026-08-20",
-  "notes": "expect_skill is the skill that should handle the query. null means no skill should fire — the task is ordinary work Claude does directly. A query answered by a *different* skill than expect_skill is a crowding failure, which is the thing this eval exists to find.",
+  "notes": "expect_skill is the skill that should handle the query. null means no skill should fire \u2014 the task is ordinary work Claude does directly. A query answered by a *different* skill than expect_skill is a crowding failure, which is the thing this eval exists to find.",
   "queries": [
     {
       "id": "pr-gate",
-      "query": "can you vet PR 412 on wiki-polis before I merge it — run the tests, look at the diff, tell me if it's actually ready or if I need to fix something first",
+      "query": "can you vet PR 412 on wiki-polis before I merge it \u2014 run the tests, look at the diff, tell me if it's actually ready or if I need to fix something first",
       "expect_skill": "pr-check"
     },
     {
@@ -25,7 +25,7 @@
     },
     {
       "id": "invisible-chars",
-      "query": "this markdown file greps weird — searching for a word I can see on screen returns nothing. is there something invisible in there?",
+      "query": "this markdown file greps weird \u2014 searching for a word I can see on screen returns nothing. is there something invisible in there?",
       "expect_skill": "charset-hygiene"
     },
     {
@@ -40,8 +40,9 @@
     },
     {
       "id": "bulk-classify",
-      "query": "I need to classify about 4000 talk page comments as constructive or not. I don't want to burn claude tokens on something this mechanical — what's the cheap option",
-      "expect_skill": "liftwing-llm"
+      "query": "I need to classify about 4000 talk page comments as constructive or not. I don't want to burn claude tokens on something this mechanical \u2014 what's the cheap option",
+      "expect_playbook": "playbooks/liftwing-llm.md",
+      "note": "liftwing-llm became a playbook on 2026-09-17 (D15); the skill wrapper was removed. The query should still route to the same knowledge, via the analysis profile's reference rather than a skill trigger. Re-enable this as a skill case only if a skill returns."
     },
     {
       "id": "enterprise-token",
@@ -50,12 +51,12 @@
     },
     {
       "id": "paper-figure",
-      "query": "make me a line chart of the pageview trend for those five articles — this is going in the ICWSM submission so it needs to work in grayscale print",
+      "query": "make me a line chart of the pageview trend for those five articles \u2014 this is going in the ICWSM submission so it needs to work in grayscale print",
       "expect_skill": "flushing-dataviz"
     },
     {
       "id": "new-source-portal",
-      "query": "I want to pull court decisions out of rechtspraak.nl for the policy study. what's the polite way in — is there an actual API or am I stuck parsing pages?",
+      "query": "I want to pull court decisions out of rechtspraak.nl for the policy study. what's the polite way in \u2014 is there an actual API or am I stuck parsing pages?",
       "expect_skill": "source-connectors"
     },
     {
@@ -105,7 +106,7 @@
     },
     {
       "id": "arxiv-upload",
-      "query": "I'm uploading this paper to arXiv in a minute — which compiler do I pick, and is the tarball actually ready?",
+      "query": "I'm uploading this paper to arXiv in a minute \u2014 which compiler do I pick, and is the tarball actually ready?",
       "expect_skill": "arxiv-submission"
     },
     {
