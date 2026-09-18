@@ -1,0 +1,80 @@
+{
+  "$comment": [
+    "SHARED OpenCode config — identical on every machine. Deployed by install.py.",
+    "Contains NO keys, NO hostnames, NO machine identity: those live in machine.json,",
+    "which is never committed. Safe for the public repo.",
+    "Placeholders ${repo_root} ${data_root} ${python} are substituted from machine.json.",
+    "Keys whose value or name references ${data_root} are DROPPED when data_root is null.",
+    "Permission ordering: OpenCode evaluates last-matching-rule-wins, so the catch-all",
+    "'*' comes FIRST and specific rules after. Reordering this file can fail OPEN."
+  ],
+
+  "opencode_version": "1.18.30",
+
+  "config": {
+    "$schema": "https://opencode.ai/config.json",
+
+    "permission": {
+      "*": "ask",
+
+      "read": {
+        "*": "allow",
+        "*.env": "deny",
+        "*.env.*": "deny",
+        "*.env.example": "allow",
+        "*.key": "deny",
+        "*.pem": "deny",
+        "${data_root}/**": "deny",
+        "~/.config/voice-samples/**": "deny"
+      },
+
+      "grep": "allow",
+      "glob": "allow",
+      "list": "allow",
+      "lsp": "allow",
+      "todowrite": "allow",
+      "question": "allow",
+      "skill": { "*": "allow" },
+
+      "websearch": "allow",
+      "webfetch": "ask",
+
+      "external_directory": {
+        "*": "deny",
+        "${repo_root}/**": "allow"
+      },
+      "bash": {
+        "*": "ask",
+
+        "ls *": "allow",
+        "rg *": "allow",
+        "wc *": "allow",
+        "file *": "allow",
+        "git status *": "allow",
+        "git diff *": "allow",
+        "git log *": "allow",
+        "git show *": "allow",
+        "git branch *": "allow",
+        "git -C *": "allow",
+        "gh pr view *": "allow",
+        "gh pr list *": "allow",
+        "gh pr diff *": "allow",
+        "gh run view *": "allow",
+
+        "git push *": "ask",
+        "git commit *": "ask",
+        "gh pr create *": "ask",
+
+        "gh pr merge *": "deny",
+        "gh pr close *": "deny",
+        "gh repo delete *": "deny",
+        "ssh *": "deny",
+        "scp *": "deny",
+        "sudo *": "deny",
+        "rm -rf *": "deny",
+        "curl *": "deny",
+        "wget *": "deny"
+      }
+    }
+  }
+}

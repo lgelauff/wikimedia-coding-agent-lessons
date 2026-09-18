@@ -1,0 +1,55 @@
+{
+  "$comment": [
+    "MACHINE IDENTITY \u2014 local only. NEVER commit this file. NEVER sync it.",
+    "Copy to ~/.config/opencode/machine.json and edit, or run install.py --init.",
+    "This file is the ONLY place machine-specific values belong: paths, keys,",
+    "model choices, and which harnesses this machine is allowed to run.",
+    "",
+    "data_root: absolute path to the participant/PII data root, OUTSIDE every repo.",
+    "           Set to null on machines that must never hold such data (e.g. hague).",
+    "           When null, install.py drops the ${data_root} read-deny entirely and",
+    "           the analysis/writing harnesses should be listed in disable_harnesses.",
+    "",
+    "disable_harnesses: harnesses NOT permitted on this machine. Emitted as",
+    "                   agent.<name>.disable = true, a documented OpenCode field."
+  ],
+  "machine": "mac",
+  "python": "/usr/bin/python3",
+  "repo_root": "/Users/lodewijk/dev",
+  "data_root": "/Users/lodewijk/Data_pii",
+  "default_model": "anthropic/claude-opus-5",
+  "harness_models": {
+    "code": "anthropic/claude-sonnet-5",
+    "analysis": "anthropic/claude-opus-5",
+    "writing": "ollama/llama3.2",
+    "sources": "anthropic/claude-haiku-4.5"
+  },
+  "disable_harnesses": [],
+  "$hague_example": {
+    "machine": "hague",
+    "python": "/usr/bin/python3",
+    "repo_root": "/home/ubuntu/GitHub",
+    "data_root": null,
+    "default_model": "openrouter/deepseek/deepseek-v4-pro",
+    "harness_models": {
+      "code": "openrouter/deepseek/deepseek-v4-pro",
+      "sources": "openrouter/deepseek/deepseek-v4-flash"
+    },
+    "disable_harnesses": [
+      "analysis",
+      "writing"
+    ],
+    "enabled_providers": [
+      "openrouter"
+    ]
+  },
+  "enabled_providers": [
+    "anthropic",
+    "openrouter",
+    "ollama"
+  ],
+  "extra_allowed_paths": [
+    "/usr/local/bin",
+    "~/agent"
+  ]
+}
