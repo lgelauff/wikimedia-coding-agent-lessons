@@ -60,7 +60,8 @@ the adapter layer is for.
 python3 agent-tooling/scripts/check_skill_vars.py   # undefined $VAR in any SKILL.md
 python3 agent-tooling/scripts/audit_skills.py       # cross-skill contradictions
 python3 -m unittest agent-tooling.scripts.tests.test_audit_skills \
-                    agent-tooling.scripts.tests.test_check_skill_vars
+                    agent-tooling.scripts.tests.test_check_skill_vars \
+                    agent-tooling.scripts.tests.test_install
 ```
 
 Every guard must be shown to *catch* its failure class. A check that only ever reports clean is

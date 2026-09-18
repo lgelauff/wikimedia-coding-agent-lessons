@@ -258,6 +258,22 @@ def merge_owned(existing: dict, owned: dict) -> dict:
     return merged
 
 
+def compute_merged(machine: dict, existing: dict | None = None) -> tuple[dict, dict]:
+    """The exact config --deploy would write, as (merged, owned).
+
+    One builder used by deploy, --print-config and --check, so the thing checked is the
+    thing written. Before this, --check compared symlinks only and a hand-edit to the
+    generated config was invisible; regenerating here is what makes it visible.
+    """
+    cfg = build_config(machine)
+    owned = {k: v for k, v in cfg.items() if k in OWNED_OPENCODE_KEYS}
+    if "model" in cfg:
+        owned["model"] = cfg["model"]
+    merged = merge_owned(existing or {}, owned)
+    merged.setdefault("$schema", cfg.get("$schema", "https://opencode.ai/config.json"))
+    return merged, owned
+
+
 def phase_stage(machine: dict, dry: bool) -> None:
     say("PHASE stage — build the candidate set")
     say()
@@ -322,6 +338,179 @@ def git_head() -> str:
         return "unknown"
 
 
+def name_diffs(expected, actual, prefix: str = "") -> list[str]:
+    """Dotted key paths where expected and actual differ.
+
+    Walks the generated baseline and reports: a key that is missing, a leaf whose value
+    differs, and — because install.py owns these subtrees wholesale — an extra key in the
+    live config that the next deploy would silently remove. That last case is the one a
+    hand-edit creates, so it is drift, not something to ignore.
+    """
+    if isinstance(expected, dict) or isinstance(actual, dict):
+        if not isinstance(expected, dict) or not isinstance(actual, dict):
+            return [prefix]
+        out: list[str] = []
+        for k in sorted(set(expected) | set(actual)):
+            sub = f"{prefix}.{k}" if prefix else str(k)
+            if k not in expected:
+                out.append(f"{sub} (extra — a deploy would remove it)")
+            elif k not in actual:
+                out.append(f"{sub} (missing)")
+            else:
+                out += name_diffs(expected[k], actual[k], sub)
+        return out
+    return [prefix] if expected != actual else []
+
+
+def pinned_version() -> str | None:
+    """The OpenCode version this harness was built against, from the shared config."""
+    try:
+        return load_json(SHARED_CFG).get("opencode_version")
+    except Exception:
+        return None
+
+
+def probe_opencode_version() -> str | None:
+    """`opencode --version`, or None when the binary cannot be run.
+
+    None is distinct from a mismatch: not being able to verify parity is not the same
+    as knowing it is wrong, and callers treat them differently.
+    """
+    try:
+        r = subprocess.run(["opencode", "--version"], capture_output=True, text=True,
+                           timeout=15, check=False)
+    except (FileNotFoundError, OSError, subprocess.SubprocessError):
+        return None
+    lines = [l.strip() for l in (r.stdout or "").splitlines() if l.strip()]
+    return lines[0] if lines else None
+
+
+def assert_version() -> None:
+    """Refuse to deploy onto an OpenCode the plugin API was not built for.
+
+    A confirmed mismatch is fatal; an unverifiable one (binary absent) warns but proceeds,
+    because the two are different facts and only the first is actionable.
+    """
+    pinned = pinned_version()
+    actual = probe_opencode_version()
+    if pinned and actual and actual != pinned:
+        say(f"REFUSED: opencode {actual} != pinned {pinned} ({SHARED_CFG.name}).")
+        say("  The plugin API is version-sensitive. Bump opencode_version deliberately.")
+        sys.exit(1)
+    if actual is None:
+        say(f"  WARN: `opencode --version` unavailable — parity with {pinned} not verified")
+
+
+def check_symlinks() -> tuple[int, list[str]]:
+    """The deployed symlink set vs the repo's, sourced the same way deploy sources it.
+
+    Deliberately not the staged tree: --check must work without a prior --stage.
+    """
+    problems: list[str] = []
+    for kind, live, source in (("skills", CLAUDE_HOME / "skills", SKILLS_SRC),
+                               ("agents", OPENCODE_HOME / "agents", HERE / "agents"),
+                               ("plugins", OPENCODE_HOME / "plugins", HERE / "plugins")):
+        if not source.is_dir():
+            continue
+        names = sorted(
+            p.name for p in source.iterdir()
+            if p.name != "MANIFEST.json" and p.name not in EXCLUDE_FROM_DEPLOY
+        )
+        for n in names:
+            target = live / n
+            want = source / n
+            if not (target.exists() or target.is_symlink()):
+                problems.append(f"{kind}/{n} (missing symlink at {target})")
+                continue
+            # samefile, not realpath comparison: it compares inodes, so a link that
+            # points at the right file is in sync even when the path to it traverses a
+            # symlinked root (/var -> /private/var on macOS) and the two spellings differ.
+            try:
+                if not os.path.samefile(target, want):
+                    problems.append(f"{kind}/{n} -> {os.path.realpath(target)} (expected {want})")
+            except OSError:
+                problems.append(f"{kind}/{n} -> {target} (unresolvable)")
+    return len(problems), problems
+
+
+def phase_check(machine: dict) -> int:
+    """Regenerate the config in memory and report any drift. Exit non-zero if stale.
+
+    Four independent things can be stale, and each is a real failure seen before: the
+    owned config keys, the .jsonc shadow that merges over them, the env var Claude Code
+    reads, and the OpenCode version the plugin API depends on. All four are checked so a
+    green --check means something.
+    """
+    say("PHASE check — live vs the generated baseline")
+    say()
+    drift = 0
+
+    oc_path = OPENCODE_HOME / "opencode.json"
+    live: dict = {}
+    if oc_path.exists():
+        try:
+            live = load_json(oc_path)
+        except Exception as e:
+            say(f"  DRIFT: {oc_path} is unparseable ({e})")
+            drift += 1
+    _, owned = compute_merged(machine, live)
+    diffs: list[str] = []
+    for k in sorted(owned):
+        diffs += name_diffs(owned[k], live.get(k), k)
+    if diffs:
+        say(f"  config drift — {len(diffs)} key(s) differ from the generated baseline:")
+        for d in diffs:
+            say(f"    {d}")
+        drift += len(diffs)
+    else:
+        say("  config: in sync")
+
+    shadow = OPENCODE_HOME / "opencode.jsonc"
+    if shadow.exists():
+        say(f"  DRIFT: {shadow} exists and merges OVER opencode.json")
+        drift += 1
+
+    cs_path = CLAUDE_HOME / "settings.json"
+    if cs_path.exists():
+        try:
+            env = load_json(cs_path).get("env", {}) or {}
+        except Exception:
+            env = {}
+        want_env = str(REPO_ROOT / "agent-tooling")
+        if env.get("AGENT_TOOLING_ROOT") != want_env:
+            say(f"  DRIFT: {cs_path} env.AGENT_TOOLING_ROOT != {want_env}")
+            drift += 1
+        else:
+            say("  claude env: in sync")
+
+    pinned = pinned_version()
+    actual = probe_opencode_version()
+    if actual is None:
+        say("  VERSION: `opencode --version` could not be run — parity unverified")
+        drift += 1
+    elif pinned and actual != pinned:
+        say(f"  DRIFT: opencode {actual} != pinned {pinned} (bump opencode_version deliberately)")
+        drift += 1
+    elif pinned:
+        say(f"  version: {actual} (pinned)")
+
+    n_links, link_problems = check_symlinks()
+    if link_problems:
+        say(f"  symlink drift — {n_links} problem(s):")
+        for p in link_problems:
+            say(f"    {p}")
+        drift += n_links
+    else:
+        say("  symlinks: in sync")
+
+    say()
+    if drift:
+        say(f"  drift: {drift} problem(s)")
+        return 1
+    say("  in sync")
+    return 0
+
+
 def phase_diff() -> int:
     say("PHASE diff — live vs staged")
     say()
@@ -382,7 +571,7 @@ def neutralise_jsonc(dry: bool) -> None:
 def phase_deploy(machine: dict, dry: bool, batch: bool) -> None:
     say(f"PHASE deploy — {'BATCH' if batch else 'per-skill'}")
     say()
-    cfg = build_config(machine)
+    assert_version()
 
     # 0. Remove any shadowing .jsonc BEFORE writing opencode.json, or the file we
     #    write could be overridden by one that already exists.
@@ -397,12 +586,8 @@ def phase_deploy(machine: dict, dry: bool, batch: bool) -> None:
         except Exception as e:
             say(f"  WARN: could not parse {oc_path}: {e}; refusing to overwrite")
             sys.exit(2)
-    owned = {k: v for k, v in cfg.items() if k in OWNED_OPENCODE_KEYS}
+    merged, owned = compute_merged(machine, existing)
     env_block = {"AGENT_TOOLING_ROOT": str(REPO_ROOT / "agent-tooling")}
-    if "model" in cfg:
-        owned["model"] = cfg["model"]
-    merged = merge_owned(existing, owned)
-    merged.setdefault("$schema", cfg.get("$schema", "https://opencode.ai/config.json"))
 
     if dry:
         planned("WRITE", oc_path, f"owns {sorted(owned)}")
@@ -460,7 +645,11 @@ def phase_deploy(machine: dict, dry: bool, batch: bool) -> None:
             if dry:
                 planned("SYMLINK", target, f"-> {source / n}")
             else:
-                target.symlink_to(os.path.relpath((source / n).resolve(), live))
+                # Resolve BOTH ends before taking the relative path. Using the logical
+                # `live` here produced a broken link whenever a component of it was a
+                # symlink (/var -> /private/var), because the stored relative path is then
+                # interpreted from the physical directory. Same path on a normal layout.
+                target.symlink_to(os.path.relpath((source / n).resolve(), live.resolve()))
     say()
     say("  done" if not dry else "  DRY RUN — nothing written")
 
@@ -478,12 +667,7 @@ def phase_print_config(machine: dict) -> int:
             existing = load_json(oc_path)
         except Exception:
             say("  live opencode.json is unparseable and will be treated as empty")
-    cfg = build_config(machine)
-    owned = {k: v for k, v in cfg.items() if k in OWNED_OPENCODE_KEYS}
-    if "model" in cfg:
-        owned["model"] = cfg["model"]
-    merged = merge_owned(existing, owned)
-    merged.setdefault("$schema", cfg.get("$schema", "https://opencode.ai/config.json"))
+    merged, _ = compute_merged(machine, existing)
     print(json.dumps(merged, indent=2))
     return 0
 
@@ -514,7 +698,8 @@ def main() -> int:
                     help="with --deploy: replace whole live trees as one batch (backed up)")
     ap.add_argument("--apply", action="store_true", help="actually write (default is dry-run)")
     ap.add_argument("--init", action="store_true", help="create machine.json from the example")
-    ap.add_argument("--check", action="store_true", help="exit non-zero if live differs from staged")
+    ap.add_argument("--check", action="store_true",
+                    help="regenerate the config in memory and exit non-zero on any drift")
     ap.add_argument("--print-config", action="store_true",
                     help="print the exact config --deploy would write (read-only review)")
     ap.add_argument("--skills-dir", default=str(SKILLS_SRC))
@@ -535,7 +720,7 @@ def main() -> int:
         return phase_print_config(machine)
 
     if args.check:
-        return phase_diff()
+        return phase_check(machine)
 
     ran = False
     if args.stage:
