@@ -17,12 +17,12 @@
   "python": "/usr/bin/python3",
   "repo_root": "/Users/lodewijk/dev",
   "data_root": "/Users/lodewijk/Data_pii",
-  "default_model": "anthropic/claude-opus-5",
+  "default_model": "openrouter/~anthropic/claude-opus-latest",
   "harness_models": {
-    "code": "anthropic/claude-sonnet-5",
-    "analysis": "anthropic/claude-opus-5",
+    "code": "openrouter/~anthropic/claude-sonnet-latest",
+    "analysis": "openrouter/~anthropic/claude-opus-latest",
     "writing": "ollama/llama3.2",
-    "sources": "anthropic/claude-haiku-4.5"
+    "sources": "openrouter/~anthropic/claude-haiku-latest"
   },
   "disable_harnesses": [],
   "$hague_example": {
