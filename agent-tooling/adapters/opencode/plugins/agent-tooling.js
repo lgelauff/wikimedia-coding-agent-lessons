@@ -111,6 +111,26 @@ class PolicyBlock extends Error {
   }
 }
 
+/**
+ * Record a secret-free command shape for the permission-ergonomics report.
+ *
+ * Fire-and-forget and detached: instrumentation must never add latency to, or break, a
+ * shell call. The shape logic and the log format live in scripts/bash_shape.py so they
+ * are shared and testable rather than reimplemented here.
+ */
+function recordShape(command) {
+  try {
+    const child = spawn("python3", [`${ROOT}/scripts/bash_shape.py`, "--record", command], {
+      stdio: "ignore",
+      detached: true,
+    });
+    child.on("error", () => {});
+    child.unref();
+  } catch {
+    /* never let instrumentation break the tool */
+  }
+}
+
 /** Which tool invocations get which guard. First block wins. */
 function guardsFor(tool, args) {
   switch (tool) {
@@ -142,6 +162,7 @@ export const AgentTooling = async () => ({
   },
 
   "tool.execute.before": async (input, output) => {
+    if (input.tool === "bash") recordShape(String(output.args?.command ?? ""));
     for (const [script, args] of guardsFor(input.tool, output.args)) {
       let reason;
       try {
