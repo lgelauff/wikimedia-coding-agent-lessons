@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -185,6 +187,96 @@ class TestBuildFastLane(unittest.TestCase):
         _, owned = M.compute_merged(MACHINE)
         bash = owned["agent"]["build"]["permission"]["bash"]
         self.assertFalse(any(k.startswith("find ") for k in bash))
+
+
+class TestRemovedOwnedKey(unittest.TestCase):
+    """A key install.py owns but machine.json no longer specifies is normally REMOVED,
+    not preserved (pr-check #6a). Exception: `enabled_providers` is preserved when
+    absent, because deleting a provider allow-list widens access (fail open); and
+    `enabled_providers: []` is an explicit deny-all, not "absent"."""
+
+    def test_removed_owned_key_is_dropped_and_non_owned_kept(self):
+        m = {k: v for k, v in MACHINE.items() if k != "default_model"}
+        live = {"model": "old/model", "keep_me": {"a": 1}}
+        merged, owned = M.compute_merged(m, live)
+        self.assertNotIn("model", merged)
+        self.assertEqual(merged["keep_me"], {"a": 1})
+
+    def test_absent_provider_control_is_preserved_fail_closed(self):
+        m = {k: v for k, v in MACHINE.items() if k != "enabled_providers"}
+        live = {"enabled_providers": ["openrouter"]}
+        merged, owned = M.compute_merged(m, live)
+        self.assertEqual(merged.get("enabled_providers"), ["openrouter"],
+                         "removing the provider allow-list on absence fails open")
+
+    def test_empty_provider_control_is_emitted_as_deny_all(self):
+        m = dict(MACHINE, enabled_providers=[])
+        _, owned = M.compute_merged(m)
+        self.assertEqual(owned["enabled_providers"], [])
+
+
+class TestCheckSymlinksRoots(unittest.TestCase):
+    """A live symlink pointing INTO our source tree but absent from it is stale (a
+    removed/excluded skill, a hand-added link) and must be reported; one pointing
+    elsewhere (e.g. ~/agent/skills) is not ours and must not be (pr-check #6b)."""
+
+    def test_stale_reported_foreign_ignored(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            src = root / "src"
+            (src / "keep").mkdir(parents=True)
+            (src / "keep" / "SKILL.md").write_text("x", encoding="utf-8")
+            live = root / "live"
+            live.mkdir()
+            os.symlink(src / "keep", live / "keep")     # in sync
+            os.symlink(src / "gone", live / "gone")     # stale: points into src
+            foreign = root / "foreign"
+            foreign.mkdir()
+            os.symlink(foreign, live / "other")         # not ours
+            n, problems = M.check_symlinks_roots([("skills", live, src)])
+            self.assertEqual(n, 1, problems)
+            self.assertTrue(any("gone" in p for p in problems), problems)
+            self.assertFalse(any("other" in p for p in problems), problems)
+
+
+class TestPhaseCheck(unittest.TestCase):
+    """test_install never exercised phase_check, so a regression back to symlink-only
+    checking would pass green (review should-fix). These call it against a temp HOME."""
+
+    def _run(self, live_cfg, live_settings, machine=MACHINE):
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td)
+            (home / "opencode.json").write_text(json.dumps(live_cfg), encoding="utf-8")
+            (home / "settings.json").write_text(json.dumps(live_settings), encoding="utf-8")
+            saved = (M.OPENCODE_HOME, M.CLAUDE_HOME, M.probe_opencode_version, M.check_symlinks)
+            M.OPENCODE_HOME = M.CLAUDE_HOME = home
+            M.probe_opencode_version = lambda: M.pinned_version()
+            M.check_symlinks = lambda: (0, [])
+            try:
+                return M.phase_check(machine)
+            finally:
+                (M.OPENCODE_HOME, M.CLAUDE_HOME,
+                 M.probe_opencode_version, M.check_symlinks) = saved
+
+    def test_clean_config_is_zero(self):
+        _, owned = M.compute_merged(MACHINE)
+        rc = self._run(owned, {"env": {"AGENT_TOOLING_ROOT": str(M.REPO_ROOT / "agent-tooling")}})
+        self.assertEqual(rc, 0)
+
+    def test_hand_edited_key_is_reported(self):
+        _, owned = M.compute_merged(MACHINE)
+        broken = json.loads(json.dumps(owned))
+        broken["permission"]["bash"]["sudo *"] = "allow"
+        rc = self._run(broken, {"env": {"AGENT_TOOLING_ROOT": str(M.REPO_ROOT / "agent-tooling")}})
+        self.assertEqual(rc, 1)
+
+    def test_extra_owned_key_absent_from_machine_is_reported(self):
+        _, owned = M.compute_merged(MACHINE)
+        live = json.loads(json.dumps(owned))
+        live["enabled_providers"] = ["stale"]          # machine.json dropped it
+        m = {k: v for k, v in MACHINE.items() if k != "enabled_providers"}
+        rc = self._run(live, {"env": {"AGENT_TOOLING_ROOT": str(M.REPO_ROOT / "agent-tooling")}}, m)
+        self.assertEqual(rc, 1)
 
 
 if __name__ == "__main__":

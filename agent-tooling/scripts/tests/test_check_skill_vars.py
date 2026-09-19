@@ -28,6 +28,13 @@ def run(root: Path) -> subprocess.CompletedProcess:
     )
 
 
+def run_multi(*roots: Path) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, str(SCRIPT), *[str(r) for r in roots]],
+        capture_output=True, text=True,
+    )
+
+
 class TestCheckSkillVars(unittest.TestCase):
     def test_clean_tree_exits_zero(self):
         with tempfile.TemporaryDirectory() as td:
@@ -100,6 +107,25 @@ class TestCheckSkillVars(unittest.TestCase):
             self.skipTest("skills tree not present")
         r = run(real)
         self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_multiple_roots_are_all_scanned(self):
+        """A bug in a plugin-packaged skills tree must not be missed because only
+        agent-tooling/skills was scanned (review: 'scans 1 of 4 skill roots')."""
+        with tempfile.TemporaryDirectory() as td:
+            a, b = Path(td) / "a", Path(td) / "b"
+            write_skill(a, "fine", "echo ok\n")
+            write_skill(b, "bad", 'python3 "$SKILL_DIR/x.py"\n')
+            r = run_multi(a, b)
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("SKILL_DIR", r.stderr)
+
+    def test_lowercase_path_shaped_var_is_flagged(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            write_skill(root, "bad", "cat ${foo_path}/x\n")
+            r = run(root)
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("path-shaped", r.stderr)
 
 
 if __name__ == "__main__":

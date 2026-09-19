@@ -30,6 +30,13 @@ The approved sources are the **connectors** declared by the `source-connectors` 
 the `source-collection` package's `SERVICES.md`. Each declares protocol,
 endpoint, auth, access policy, reuse licence and retrieval recipe.
 
+A machine-readable **superset** of this list is the **Mandated Services Registry**
+(`${AGENT_TOOLING_ROOT}/settings/mandated-services.json`); its connector entries are
+drift-checked against the `source-connectors` library. `webfetch` is enforced against it by
+a plugin guard: a host not in the registry is denied, with a message asking for a written
+exception request rather than a retry. (The guard falls back to the `webfetch: "ask"`
+prompt only if the registry cannot be read.)
+
 **If a source is not declared, stop and say so.** Add a connector first. Do not fetch from an
 undeclared source because it happens to be reachable.
 

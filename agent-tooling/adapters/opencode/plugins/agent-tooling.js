@@ -139,6 +139,16 @@ function guardsFor(tool, args) {
       if (!command) return [];
       return [["is_ssh_command.py", [command]]];
     }
+    case "webfetch": {
+      // `webfetch` is Action-only in 1.18.30, so the mandated-services allow-list
+      // cannot live in config as a domain map. The policy reads the registry and
+      // denies an unlisted host with an explicit-request message. Config keeps
+      // `webfetch: "ask"`, so a mandated host still prompts and a plugin load
+      // failure degrades to a prompt rather than to open network access.
+      const url = String(args?.url ?? "");
+      if (!url) return [];
+      return [["webfetch_mandated.py", [url]]];
+    }
     default:
       return [];
   }

@@ -13,8 +13,7 @@ description: >-
   PREFERRING their API), and the recurring gotchas (HTTP 200 + error body,
   open-access links that 403 non-browser agents). Ships a dated registry of real
   connectors. LLM / compute connectors such as LiftWing are a sibling category —
-  you send work rather than collect data; see `liftwing-llm`.
-  collect data) — kept out of this skill; see `liftwing-llm`.
+  you send work rather than collect data; see the `liftwing-llm` playbook.
 ---
 
 # source-connectors — model each source as a connector, then collect through it
@@ -179,7 +178,7 @@ endpoint/robots were exercised; `(docs)` = read from documentation/robots only. 
 
 | Connector | Protocol · endpoint | Auth | Access policy (robots · rate) | Reuse | Retrieval recipe | Fallback | Verified |
 |---|---|---|---|---|---|---|---|
-| **Wikimedia Phabricator** (read) | HTTPS/HTML · `phabricator.wikimedia.org/T…`; comment text `…/transactions/raw/{PHID}/`; Conduit `…/api/` | **none for reads.** Conduit is token-gated — anonymous returns `ERR-INVALID-SESSION`, which is expected, not a bug. A token requires a **registered bot with a named human owner** (`#Phabricator-Bot-Requests`), never a personal account: personal accounts used for automation may be **disabled or deleted** | Wikimedia **Robot policy**, stricter than most rows here: **concurrency 1**, **≥1 s between requests**, **pause ≥15 min on any 5xx**. Descriptive UA per WMF UA policy; honour `429` + `Retry-After`. Limits are global across Wikimedia properties; WMCS/Toolforge exempt | Public by default — assume everything is public, permanent and attributable. **Never republish** `acl*security` / `PermanentlyPrivate` content, logs carrying IPs, emails, tokens or session data, or NDA/vetted material. Prefer `@username` over real names | Plain `GET /T12345` works unauthenticated. `/transactions/raw/{PHID}/` returns comment text as plain text; PHIDs (`PHID-XACT-TASK-…`) are embedded in the task page's Javelin init data. **The search UI is JS-only — public HTML contains zero task IDs** → find tasks via web search or Gerrit's `bug:T12345` reverse lookup, not by crawling | Wayback; Gerrit `bug:` reverse lookup; for high volume the documented routes are OAuth 2.0 + bot flag, WMCS hosting, or `bot-traffic@wikimedia.org` | 2026-09 (docs) |
+| **Wikimedia Phabricator** (read) | HTTPS/HTML · `phabricator.wikimedia.org/T…`; comment text `…/transactions/raw/{PHID}/`; Conduit `…/api/` | **none for reads.** Conduit is token-gated. A token is best owned by a **registered bot with a named human owner** (`#Phabricator-Bot-Requests`); Wikimedia's bot guidance treats a personal account used for repetitive automation as inappropriate, and it may be **disabled or deleted**. *(Personal tokens do exist — the `phabricator-conduit` skill uses one — so this is a norm, not a hard gate.)* Anonymous Conduit returns `ERR-INVALID-SESSION` *(unverified — docs only)*, which is expected, not a bug | `robots.txt` **disallows `/conduit` and `/api`** *(read from an archived robots.txt)* — the API is nonetheless the documented, publisher-sanctioned path (see *Access-policy patterns*); hit only those endpoints. Wikimedia **Robot policy**, stricter than most rows here: **concurrency 1**, **≥1 s between requests**, **pause ≥15 min on any 5xx**. Descriptive UA per WMF UA policy; honour `429` + `Retry-After`. Limits are global across Wikimedia properties; WMCS/Toolforge exempt | Public by default — assume everything is public, permanent and attributable. **Never republish** `acl*security` / `PermanentlyPrivate` content, logs carrying IPs, emails, tokens or session data, or NDA/vetted material. Prefer `@username` over real names | *(Unverified — docs only:* plain `GET /T12345` works unauthenticated; PHIDs (`PHID-XACT-TASK-…`) are embedded in the task page's Javelin init data; `/transactions/raw/{PHID}/` returns comment text as plain text; the search UI is JS-only, so public HTML contains no task IDs.*)* → find tasks via web search or Gerrit's `bug:T12345` reverse lookup, not by crawling | Wayback; Gerrit `bug:` reverse lookup; for high volume the documented routes are OAuth 2.0 + bot flag, WMCS hosting, or `bot-traffic@wikimedia.org` | 2026-09 (docs) |
 
 ### Media & web
 
@@ -205,4 +204,5 @@ The library holds *specific* connectors. Three kinds of thing are deliberately e
   policy, the read-only posture and the unauthenticated read paths.
 - **Compute, not collection** — LLM inference endpoints (e.g. **LiftWing** on
   `api.wikimedia.org`, ~100 req/hour anonymous, no tool-calling / JSON mode) use the same
-  connector *model* but you send work rather than collect data → see the `liftwing-llm` skill.
+  connector *model* but you send work rather than collect data → see the `liftwing-llm`
+  playbook (`agent-tooling/playbooks/liftwing-llm.md`).

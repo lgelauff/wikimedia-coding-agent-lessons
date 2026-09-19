@@ -8,6 +8,7 @@ a silent MISS.
 """
 import importlib.util
 import os
+import unittest
 
 _spec = importlib.util.spec_from_file_location(
     "ste", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -16,7 +17,7 @@ ste = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(ste)
 
 
-class TestClassify:
+class TestClassify(unittest.TestCase):
     def test_expected_skill_fires_is_a_hit(self):
         assert ste.classify("pr-check", "pr-check") == "HIT"
 
@@ -44,7 +45,49 @@ class TestClassify:
                             "wikimedia-data-collection:wikimedia-analytics-api") == "CROWDED"
 
 
-class TestSkillFromJson:
+class TestClassifyPlaybook(unittest.TestCase):
+    """A playbook case must not silently collapse to QUIET (pr-check #5).
+
+    `bulk-classify` expects `playbooks/liftwing-llm.md` and no skill. With only
+    `expect_skill` read, it meant "no skill should fire" and never checked the
+    playbook — the opposite of its note.
+    """
+
+    def test_playbook_reached_without_a_skill_passes(self):
+        assert ste.classify(None, None, "playbooks/liftwing-llm.md", True) == "PLAYBOOK"
+
+    def test_playbook_expected_but_never_reached_misses(self):
+        assert ste.classify(None, None, "playbooks/liftwing-llm.md", False) == "MISS"
+
+    def test_skill_firing_where_a_playbook_was_expected_is_crowding(self):
+        assert ste.classify(None, "agent-tooling:budget-estimate",
+                            "playbooks/liftwing-llm.md", False) == "CROWDED"
+
+    def test_plain_quiet_is_unchanged(self):
+        assert ste.classify(None, None) == "QUIET"
+
+
+class TestRouteFromContent(unittest.TestCase):
+    """Skill must outrank a prose mention in the same message, or a hijack is
+    reported as PLAYBOOK — the false pass the panel found (assistant + stream)."""
+
+    def test_skill_after_prose_mention_is_a_skill_not_playbook(self):
+        items = [{"type": "text", "text": "consult playbooks/liftwing-llm.md"},
+                 {"type": "tool_use", "name": "Skill", "input": {"skill": "budget-estimate"}}]
+        self.assertEqual(ste._route_from_content(items, "playbooks/liftwing-llm.md"),
+                         {"fired": "budget-estimate", "saw_playbook": False})
+
+    def test_prose_only_reaches_the_playbook(self):
+        items = [{"type": "text", "text": "see playbooks/liftwing-llm.md"}]
+        self.assertEqual(ste._route_from_content(items, "playbooks/liftwing-llm.md"),
+                         {"fired": None, "saw_playbook": True})
+
+    def test_no_route_returns_none(self):
+        self.assertIsNone(ste._route_from_content([{"type": "text", "text": "hi"}],
+                                                  "playbooks/x.md"))
+
+
+class TestSkillFromJson(unittest.TestCase):
     def test_complete_json(self):
         assert ste._skill_from_json('{"skill": "pr-check"}') == "pr-check"
 
@@ -66,7 +109,7 @@ class TestSkillFromJson:
             == "agent-tooling:session-close"
 
 
-class TestBrokenSessionDetection:
+class TestBrokenSessionDetection(unittest.TestCase):
     """A dead session yields no tool calls, which is indistinguishable from
     'no skill fired' unless the error text is recognised."""
 

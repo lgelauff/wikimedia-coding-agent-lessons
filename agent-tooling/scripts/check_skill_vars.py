@@ -48,14 +48,37 @@ KNOWN_BAD = {
     "CLAUDE_PLUGIN_ROOT",  # host-specific; use AGENT_TOOLING_ROOT
 }
 
-# A path-shaped name must be injected or it will not resolve.
-PATH_SHAPED = re.compile(r"_DIR$|_ROOT$|_PATH$")
+# A path-shaped name must be injected or it will not resolve. Case-insensitive so
+# `${foo_path}` is caught, not just `${FOO_PATH}`.
+PATH_SHAPED = re.compile(r"_DIR$|_ROOT$|_PATH$", re.IGNORECASE)
 
 # ${VAR} and $VAR. Braced form first so the bare-form match does not eat the
 # leading brace. Names are shell-identifier shaped.
 VAR_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)")
 
 DEFAULT_SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
+REPO = DEFAULT_SKILLS_DIR.parent.parent
+
+
+def discover_roots() -> list[Path]:
+    """Every directory that holds a skills/ tree.
+
+    Scanning only agent-tooling/skills missed the plugin-packaged skills in
+    claude-code/skills and cowork-skills/*/skills, so a variable bug in one of those
+    would never be caught (review: "scans 1 of 4 skill roots").
+    """
+    roots: list[Path] = [DEFAULT_SKILLS_DIR]
+    for pat in ("*/skills", "*/*/skills", "cowork-skills/*/skills"):
+        roots += sorted(p for p in REPO.glob(pat) if p.is_dir())
+    seen: set[Path] = set()
+    uniq: list[Path] = []
+    for r in roots:
+        rp = r.resolve()
+        if rp in seen:
+            continue
+        seen.add(rp)
+        uniq.append(rp)
+    return uniq
 
 
 def scan(path: Path) -> list[tuple[int, str]]:
@@ -80,20 +103,21 @@ def is_bad(name: str) -> str | None:
 
 def main(argv: list[str]) -> int:
     argv = argv[1:]
-    root = Path(argv[0]).resolve() if argv else DEFAULT_SKILLS_DIR
+    roots = [Path(a).resolve() for a in argv] if argv else discover_roots()
 
-    if not root.is_dir():
-        sys.stderr.write(f"check_skill_vars: no such directory: {root}\n")
-        return 2
-
-    try:
-        skills = sorted(root.glob("*/SKILL.md"))
-    except OSError as exc:
-        sys.stderr.write(f"check_skill_vars: cannot scan {root}: {exc}\n")
-        return 2
+    skills: list[Path] = []
+    for root in roots:
+        if not root.is_dir():
+            sys.stderr.write(f"check_skill_vars: no such directory: {root}\n")
+            return 2
+        try:
+            skills += sorted(root.glob("*/SKILL.md"))
+        except OSError as exc:
+            sys.stderr.write(f"check_skill_vars: cannot scan {root}: {exc}\n")
+            return 2
 
     if not skills:
-        sys.stderr.write(f"check_skill_vars: no SKILL.md found under {root}\n")
+        sys.stderr.write(f"check_skill_vars: no SKILL.md found under {roots}\n")
         return 2  # unverified, not clean
 
     violations: list[tuple[Path, int, str, str]] = []
@@ -119,7 +143,8 @@ def main(argv: list[str]) -> int:
         )
         return 1
 
-    print(f"check_skill_vars: OK — {len(skills)} skills, all variable references resolvable")
+    print(f"check_skill_vars: OK — {len(skills)} skills across {len(roots)} root(s), "
+          "all variable references resolvable")
     return 0
 
 

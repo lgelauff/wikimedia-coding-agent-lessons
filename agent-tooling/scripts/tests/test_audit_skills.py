@@ -26,13 +26,16 @@ def load_module():
     return m
 
 
-def build_repo(root: Path, skills: dict[str, str], agent_refs: list[str] | None = None) -> None:
+def build_repo(root: Path, skills: dict[str, str], agent_refs: list[str] | None = None,
+               bodies: dict[str, str] | None = None) -> None:
     """Create a minimal repo laid out the way discover_roots() expects."""
+    bodies = bodies or {}
     for name, desc in skills.items():
         d = root / "agent-tooling" / "skills" / name
         d.mkdir(parents=True, exist_ok=True)
+        body = bodies.get(name, "body")
         (d / "SKILL.md").write_text(
-            f"---\nname: {name}\ndescription: {desc}\n---\nbody\n", encoding="utf-8")
+            f"---\nname: {name}\ndescription: {desc}\n---\n{body}\n", encoding="utf-8")
     if agent_refs:
         ad = root / "agent-tooling" / "adapters" / "opencode" / "agents"
         ad.mkdir(parents=True, exist_ok=True)
@@ -102,6 +105,35 @@ class TestAuditSkills(unittest.TestCase):
     def test_empty_tree_exits_two_not_zero(self):
         with tempfile.TemporaryDirectory() as td:
             self.assertEqual(run_audit(Path(td)), 2)
+
+    def test_dangling_skill_path_reference_is_caught(self):
+        """The D15 class: a skill body still pointing at a playbook that moved/renamed."""
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            build_repo(root,
+                       {"alpha-tool": "Reconcile citation metadata from scholarly indexes for papers"},
+                       bodies={"alpha-tool": "see `playbooks/liftwing-llm.md` for the cheap path"})
+            self.assertEqual(run_audit(root), 1)
+
+    def test_agent_tooling_prefixed_path_is_also_caught(self):
+        """The `agent-tooling/playbooks/…` spelling is the one the skill actually uses."""
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            build_repo(root,
+                       {"alpha-tool": "Reconcile citation metadata from scholarly indexes for papers"},
+                       bodies={"alpha-tool": "see `agent-tooling/playbooks/gone.md`"})
+            self.assertEqual(run_audit(root), 1)
+
+    def test_existing_skill_path_reference_is_not_flagged(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            build_repo(root,
+                       {"alpha-tool": "Reconcile citation metadata from scholarly indexes for papers"},
+                       bodies={"alpha-tool": "see `playbooks/liftwing-llm.md`"})
+            pb = root / "agent-tooling" / "playbooks"
+            pb.mkdir(parents=True, exist_ok=True)
+            (pb / "liftwing-llm.md").write_text("x", encoding="utf-8")
+            self.assertEqual(run_audit(root), 0)
 
     def test_real_repo_is_clean(self):
         """Regression: the shipped set must not accumulate contradictions."""

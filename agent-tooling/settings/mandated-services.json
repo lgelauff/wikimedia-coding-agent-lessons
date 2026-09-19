@@ -1,0 +1,347 @@
+{
+  "$comment": [
+    "Mandated Services Registry — the one allow-list for `webfetch`.",
+    "",
+    "Enforcement: OpenCode 1.18.30 types `webfetch` as Action only (ask|allow|deny),",
+    "so a config domain map is impossible. The list is enforced by a plugin guard",
+    "(adapters/opencode/plugins/agent-tooling.js -> policies/webfetch_mandated.py):",
+    "a host not listed here is DENIED with an explicit-request message. The config",
+    "keeps `webfetch: \"ask\"`, so a mandated host still prompts — webfetch remains the",
+    "last resort, and a plugin load failure degrades to a prompt rather than to open.",
+    "",
+    "Derivation: the `kind: connector` entries are validated against the connector",
+    "library tables in agent-tooling/skills/source-connectors/SKILL.md by",
+    "scripts/mandated_services.py. Add a connector row there and the drift check fails",
+    "until this file is updated; remove one and it fails the other way. The remaining",
+    "entries are Wikimedia data APIs, compute (LiftWing), and docs/tool hosts, each",
+    "naming the skill or script that documents it. A host that is part of a service but",
+    "not in the library's endpoint column (Flickr's image CDN) is declared under",
+    "`auxiliary_hosts`, which is allowed but not drift-checked.",
+    "",
+    "Known gap (stated, not hidden): this gates the `webfetch` door only. Python and",
+    "shell scripts reach the network directly (`llm_provider.py`, `source_discovery.py`,",
+    "the bench suite), and no OS control covers the network. `websearch` is a separate,",
+    "provider-mediated door (not URL-addressable) and is not covered here either. The",
+    "guard also judges only the requested host: a mandated host that redirects to an",
+    "unlisted one is not re-checked (tool.execute.before cannot see the redirect target).",
+    "The registry is a webfetch boundary, not a network chokepoint.",
+    "",
+    "Hosts are matched case-insensitively, exact first, then `host_suffixes` (a leading",
+    "dot matches the apex and any subdomain: `.wikipedia.org` matches wikipedia.org,",
+    "en.wikipedia.org, but never notwikipedia.org). IP literals and localhost are never",
+    "mandated. No secrets, no machine identity: safe for the public repo."
+  ],
+
+  "version": 1,
+  "updated": "2026-09-19",
+  "scope": "Data connectors + Wikimedia data/compute APIs + docs/tool hosts. Citation-only conference sites are deliberately excluded.",
+  "enforced_by": "agent-tooling/policies/webfetch_mandated.py",
+  "derived_from": {
+    "connector_library": "agent-tooling/skills/source-connectors/SKILL.md",
+    "checker": "agent-tooling/scripts/mandated_services.py"
+  },
+
+  "services": [
+    {
+      "id": "koop",
+      "service": "KOOP Officiële Bekendmakingen",
+      "kind": "connector",
+      "hosts": ["repository.overheid.nl"],
+      "host_suffixes": [],
+      "protocol": "SRU 2.0",
+      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "access_policy_ref": "source-connectors §4 · Dutch government / open data",
+      "verified": "2026-08"
+    },
+    {
+      "id": "cvdr",
+      "service": "CVDR (decentrale regelgeving)",
+      "kind": "connector",
+      "hosts": ["lokaleregelgeving.overheid.nl"],
+      "host_suffixes": [],
+      "protocol": "SRU / FRBR",
+      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "access_policy_ref": "source-connectors §4 · Dutch government / open data",
+      "verified": "2026-08"
+    },
+    {
+      "id": "wetten",
+      "service": "wetten.overheid.nl (BWB)",
+      "kind": "connector",
+      "hosts": ["wetten.overheid.nl"],
+      "host_suffixes": [],
+      "protocol": "HTML/XML",
+      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "access_policy_ref": "source-connectors §4 · Dutch government / open data",
+      "verified": "2026-08"
+    },
+    {
+      "id": "opp",
+      "service": "open.overheid.nl / OPP",
+      "kind": "connector",
+      "hosts": ["open.overheid.nl"],
+      "host_suffixes": [],
+      "protocol": "HTTPS (submission only; no public read API)",
+      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "access_policy_ref": "source-connectors §4 · Dutch government / open data",
+      "verified": "2026-08"
+    },
+    {
+      "id": "data-overheid",
+      "service": "data.overheid.nl",
+      "kind": "connector",
+      "hosts": ["data.overheid.nl"],
+      "host_suffixes": [],
+      "protocol": "CKAN v3",
+      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "access_policy_ref": "source-connectors §4 · Dutch government / open data",
+      "verified": "2026-08"
+    },
+    {
+      "id": "cbs",
+      "service": "CBS StatLine",
+      "kind": "connector",
+      "hosts": ["opendata.cbs.nl"],
+      "host_suffixes": [],
+      "protocol": "OData",
+      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "access_policy_ref": "source-connectors §4 · Dutch government / open data",
+      "verified": "2026-08"
+    },
+    {
+      "id": "rechtspraak",
+      "service": "Rechtspraak Open Data",
+      "kind": "connector",
+      "hosts": ["data.rechtspraak.nl"],
+      "host_suffixes": [],
+      "protocol": "REST/XML",
+      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "access_policy_ref": "source-connectors §4 · Dutch government / open data",
+      "verified": "2026-08"
+    },
+    {
+      "id": "openalex",
+      "service": "OpenAlex",
+      "kind": "connector",
+      "hosts": ["api.openalex.org"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-08"
+    },
+    {
+      "id": "crossref",
+      "service": "Crossref",
+      "kind": "connector",
+      "hosts": ["api.crossref.org"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-08"
+    },
+    {
+      "id": "arxiv-api",
+      "service": "arXiv API",
+      "kind": "connector",
+      "hosts": ["export.arxiv.org"],
+      "host_suffixes": [],
+      "protocol": "Atom XML",
+      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-08"
+    },
+    {
+      "id": "semantic-scholar",
+      "service": "Semantic Scholar",
+      "kind": "connector",
+      "hosts": ["api.semanticscholar.org"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-08"
+    },
+    {
+      "id": "internet-archive",
+      "service": "Internet Archive / Wayback",
+      "kind": "connector",
+      "hosts": ["archive.org", "web.archive.org"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive (the sanctioned fallback for a blocked live fetch)",
+      "verified": "2026-08"
+    },
+    {
+      "id": "stanford-ddl",
+      "service": "Stanford Deliberative Democracy Lab",
+      "kind": "connector",
+      "hosts": ["deliberation.stanford.edu"],
+      "host_suffixes": [],
+      "protocol": "HTTPS/HTML (Crawl-delay: 30)",
+      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "access_policy_ref": "source-connectors §4 · Deliberation & civic research",
+      "verified": "2026-09"
+    },
+    {
+      "id": "phabricator",
+      "service": "Wikimedia Phabricator (read-only)",
+      "kind": "connector",
+      "hosts": ["phabricator.wikimedia.org"],
+      "host_suffixes": [],
+      "protocol": "HTTPS/HTML + Conduit API",
+      "sources": [
+        "agent-tooling/skills/source-connectors/SKILL.md",
+        "cowork-skills/wikimedia-data-collection/skills/phabricator-conduit/SKILL.md"
+      ],
+      "access_policy_ref": "source-connectors §4 · Wikimedia community infrastructure (read-only, never act on anyone's behalf)",
+      "verified": "2026-09"
+    },
+    {
+      "id": "flickr",
+      "service": "Flickr (read-only)",
+      "kind": "connector",
+      "hosts": ["api.flickr.com"],
+      "auxiliary_hosts": ["live.staticflickr.com"],
+      "host_suffixes": [],
+      "protocol": "REST + image CDN",
+      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "access_policy_ref": "source-connectors §4 · Media & web",
+      "verified": "2026-08"
+    },
+    {
+      "id": "wordpress-com",
+      "service": "WordPress.com public API (e.g. Diff)",
+      "kind": "connector",
+      "hosts": ["public-api.wordpress.com"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "access_policy_ref": "source-connectors §4 · Media & web",
+      "verified": "2026-08"
+    },
+
+    {
+      "id": "mediawiki-action-api",
+      "service": "MediaWiki Action API (any Wikimedia wiki)",
+      "kind": "wikimedia-api",
+      "hosts": ["www.wikidata.org", "commons.wikimedia.org", "meta.wikimedia.org"],
+      "host_suffixes": [
+        ".wikipedia.org",
+        ".wiktionary.org",
+        ".wikisource.org",
+        ".wikibooks.org",
+        ".wikiversity.org",
+        ".wikinews.org",
+        ".wikiquote.org",
+        ".wikivoyage.org",
+        ".wikispecies.org"
+      ],
+      "protocol": "MediaWiki Action API (`/w/api.php`)",
+      "sources": ["cowork-skills/wikimedia-data-collection/skills/mediawiki-action-api/SKILL.md"],
+      "access_policy_ref": "mediawiki-action-api · maxlag=5, descriptive UA, paginate on `continue`",
+      "verified": "2026-06"
+    },
+    {
+      "id": "wikidata-sparql",
+      "service": "Wikidata Query Service (WDQS)",
+      "kind": "wikimedia-api",
+      "hosts": ["query.wikidata.org"],
+      "host_suffixes": [],
+      "protocol": "SPARQL over HTTPS",
+      "sources": ["cowork-skills/wikimedia-data-collection/skills/wikidata-sparql/SKILL.md"],
+      "access_policy_ref": "wikidata-sparql · 60s query timeout, rate-limited per agent, descriptive UA",
+      "verified": "2026-06"
+    },
+    {
+      "id": "wikimedia-analytics",
+      "service": "Wikimedia Analytics (AQS) REST API",
+      "kind": "wikimedia-api",
+      "hosts": ["wikimedia.org"],
+      "host_suffixes": [],
+      "protocol": "REST (`/api/rest_v1/metrics/...`)",
+      "sources": ["cowork-skills/wikimedia-data-collection/skills/wikimedia-analytics-api/SKILL.md"],
+      "access_policy_ref": "wikimedia-analytics-api · descriptive UA, no dashboard scraping",
+      "verified": "2026-06"
+    },
+
+    {
+      "id": "liftwing",
+      "service": "LiftWing inference (OpenAI-compatible)",
+      "kind": "compute",
+      "hosts": ["api.wikimedia.org"],
+      "host_suffixes": [],
+      "protocol": "OpenAI-compatible inference (`/service/lw/inference/...`)",
+      "sources": ["agent-tooling/playbooks/liftwing-llm.md"],
+      "access_policy_ref": "liftwing-llm · 100 req/hour anonymous, no tool-calling / JSON mode",
+      "verified": "2026-08"
+    },
+    {
+      "id": "wikimedia-enterprise",
+      "service": "Wikimedia Enterprise API",
+      "kind": "compute",
+      "hosts": ["api.enterprise.wikimedia.com", "auth.enterprise.wikimedia.com", "enterprise.wikimedia.com"],
+      "host_suffixes": [],
+      "protocol": "REST (On-demand / Snapshot / Realtime / Metadata)",
+      "sources": [
+        "agent-tooling/skills/wikimedia-enterprise/SKILL.md",
+        "agent-tooling/scripts/wikimedia_enterprise_auth.py"
+      ],
+      "access_policy_ref": "wikimedia-enterprise · bearer token; interactive login, token cached outside the repo",
+      "verified": "2026-09"
+    },
+
+    {
+      "id": "wikimedia-docs",
+      "service": "Wikimedia reference documentation",
+      "kind": "docs",
+      "hosts": ["www.mediawiki.org", "doc.wikimedia.org", "wikitech.wikimedia.org"],
+      "host_suffixes": [],
+      "protocol": "HTTPS/HTML",
+      "sources": [
+        "cowork-skills/wikimedia-data-collection/skills/mediawiki-action-api/SKILL.md",
+        "agent-tooling/scripts/llm_provider.py"
+      ],
+      "access_policy_ref": "Reference docs for the Wikimedia APIs; no data collection",
+      "verified": "2026-09"
+    },
+    {
+      "id": "github",
+      "service": "GitHub (repository + raw content)",
+      "kind": "docs",
+      "hosts": ["github.com", "raw.githubusercontent.com"],
+      "host_suffixes": [],
+      "protocol": "HTTPS/HTML + raw",
+      "sources": [
+        "agent-tooling/skills/pr-check/SKILL.md",
+        "agent-tooling/scripts/post_pr_screenshots.py"
+      ],
+      "access_policy_ref": "Tooling/docs; write operations go through `gh` and are permission-gated, not webfetch",
+      "verified": "2026-09"
+    },
+    {
+      "id": "claude-docs",
+      "service": "Claude / Agent Skills documentation",
+      "kind": "docs",
+      "hosts": ["platform.claude.com"],
+      "host_suffixes": [],
+      "protocol": "HTTPS/HTML",
+      "sources": ["cowork-skills/wikimedia-data-collection/README.md"],
+      "access_policy_ref": "Reference docs; no data collection",
+      "verified": "2026-09"
+    },
+    {
+      "id": "arxiv-web",
+      "service": "arXiv abstract/HTML pages",
+      "kind": "docs",
+      "hosts": ["arxiv.org"],
+      "host_suffixes": [],
+      "protocol": "HTTPS/HTML",
+      "sources": ["agent-tooling/scripts/tests/test_source_discovery.py"],
+      "access_policy_ref": "Prefer the `export.arxiv.org` API connector for metadata; the HTML page is a fallback",
+      "verified": "2026-09"
+    }
+  ]
+}

@@ -12,10 +12,12 @@ compared, tested, or rolled back:
 
 Ownership contract (the reason this is a script and not a checklist):
 
-  * It writes ONLY the keys it owns: `permission`, `agent`, and `env.AGENT_TOOLING_ROOT`
-    in the OpenCode config; `env.AGENT_TOOLING_ROOT` in Claude's settings.json.
-    Provider blocks, plugin lists, permissions.allow and every other key are preserved
-    byte-for-byte.
+  * It writes ONLY the keys it owns in the OpenCode config: `permission`, `agent`,
+    `enabled_providers`, `model`, and `env.AGENT_TOOLING_ROOT` (the last in Claude's
+    settings.json too). Provider blocks, plugin lists, permissions.allow and every other
+    key are preserved byte-for-byte. An owned key absent from machine.json is REMOVED,
+    except `enabled_providers`, which is preserved when absent because deleting it would
+    widen provider access (fail open).
   * It BACKS UP before writing, using the local epoch-ms convention already present in
     ~/.claude/backups/.
   * It refuses to run without machine.json. A guessed data_root is the failure D23 exists
@@ -58,7 +60,11 @@ HUB_MACHINE = AGENT_HUB / "machine.json"
 LEGACY_MACHINE = OPENCODE_HOME / "machine.json"
 
 OWNED_OPENCODE_KEYS = {"permission", "agent", "enabled_providers", "model"}
-OWNED_ENV_KEYS = {"AGENT_TOOLING_ROOT"}
+# Keys whose absence from machine.json must NOT delete the live value. Deleting them
+# widens access (fail open): `enabled_providers` is the D20/D22 provider allow-list,
+# and OpenCode enables all providers when the key is absent. An absent key preserves
+# the live control; --check reports the difference so it is not silent.
+PRESERVE_ON_ABSENT = {"enabled_providers"}
 
 # Skills that live in this repo but must not be deployed yet. Each entry names why, and
 # what would unblock it — an exclusion without a removal condition becomes permanent
@@ -223,8 +229,10 @@ def build_config(machine: dict) -> dict:
     # Provider allow-list. This is the control that encodes D20/D22 (no participant
     # data through third-party hosts). `enabled_providers` is stable; the
     # `experimental.policies` form is not, so prefer this one.
-    if machine.get("enabled_providers"):
-        cfg["enabled_providers"] = list(machine["enabled_providers"])
+    # Presence, not truthiness: `enabled_providers: []` is an explicit deny-all and
+    # must be emitted as [], not treated as absent (which would widen access).
+    if "enabled_providers" in machine:
+        cfg["enabled_providers"] = list(machine["enabled_providers"] or [])
 
     # Machine-specific extra allowed paths, merged into external_directory.
     #
@@ -270,6 +278,15 @@ def compute_merged(machine: dict, existing: dict | None = None) -> tuple[dict, d
     if "model" in cfg:
         owned["model"] = cfg["model"]
     merged = merge_owned(existing or {}, owned)
+    # install.py OWNS these keys. If machine.json no longer specifies one, a deploy
+    # must REMOVE the live value rather than preserve it — otherwise dropping a
+    # provider control (or a model) from machine.json silently no-ops, and --check
+    # reports "in sync" while the old control is still live. Exception: a key in
+    # PRESERVE_ON_ABSENT is left in place when absent, because removing it would
+    # widen access (see the constant).
+    for k in OWNED_OPENCODE_KEYS:
+        if k not in owned and k not in PRESERVE_ON_ABSENT:
+            merged.pop(k, None)
     merged.setdefault("$schema", cfg.get("$schema", "https://opencode.ai/config.json"))
     return merged, owned
 
@@ -401,21 +418,35 @@ def assert_version() -> None:
         say(f"  WARN: `opencode --version` unavailable — parity with {pinned} not verified")
 
 
-def check_symlinks() -> tuple[int, list[str]]:
+def symlink_pairs() -> tuple[tuple[str, Path, Path], ...]:
+    """(kind, live dir, source dir) for every managed symlink set."""
+    return (
+        ("skills", CLAUDE_HOME / "skills", SKILLS_SRC),
+        ("agents", OPENCODE_HOME / "agents", HERE / "agents"),
+        ("plugins", OPENCODE_HOME / "plugins", HERE / "plugins"),
+    )
+
+
+def check_symlinks_roots(pairs) -> tuple[int, list[str]]:
     """The deployed symlink set vs the repo's, sourced the same way deploy sources it.
+
+    Two directions, both real failures:
+      * a managed entry with no live link, or one pointing elsewhere (missing/drift);
+      * a live symlink that points INTO our source tree but is not in the source set
+        (a removed or excluded skill, a hand-added link). One pointing outside our
+        tree (e.g. ~/agent/skills) is not ours and is deliberately left alone.
 
     Deliberately not the staged tree: --check must work without a prior --stage.
     """
     problems: list[str] = []
-    for kind, live, source in (("skills", CLAUDE_HOME / "skills", SKILLS_SRC),
-                               ("agents", OPENCODE_HOME / "agents", HERE / "agents"),
-                               ("plugins", OPENCODE_HOME / "plugins", HERE / "plugins")):
+    for kind, live, source in pairs:
         if not source.is_dir():
             continue
         names = sorted(
             p.name for p in source.iterdir()
             if p.name != "MANIFEST.json" and p.name not in EXCLUDE_FROM_DEPLOY
         )
+        want_names = set(names)
         for n in names:
             target = live / n
             want = source / n
@@ -430,7 +461,26 @@ def check_symlinks() -> tuple[int, list[str]]:
                     problems.append(f"{kind}/{n} -> {os.path.realpath(target)} (expected {want})")
             except OSError:
                 problems.append(f"{kind}/{n} -> {target} (unresolvable)")
+        if not live.is_dir():
+            continue
+        src_resolved = source.resolve()
+        for entry in sorted(live.iterdir()):
+            if entry.name in want_names or entry.name == "MANIFEST.json":
+                continue
+            if not entry.is_symlink():
+                continue                       # a regular file: not ours, leave it
+            try:
+                tgt = entry.resolve()
+            except OSError:
+                problems.append(f"{kind}/{entry.name} (unresolvable symlink)")
+                continue
+            if tgt == src_resolved or src_resolved in tgt.parents:
+                problems.append(f"{kind}/{entry.name} (stale symlink not in the source set)")
     return len(problems), problems
+
+
+def check_symlinks() -> tuple[int, list[str]]:
+    return check_symlinks_roots(symlink_pairs())
 
 
 def phase_check(machine: dict) -> int:
@@ -455,8 +505,18 @@ def phase_check(machine: dict) -> int:
             drift += 1
     _, owned = compute_merged(machine, live)
     diffs: list[str] = []
-    for k in sorted(owned):
-        diffs += name_diffs(owned[k], live.get(k), k)
+    # Iterate the OWNED key set, not just the generated ones. A key install.py owns
+    # but machine.json no longer specifies must be reported as extra: the next deploy
+    # would remove it, and a check that only looks at generated keys cannot see it.
+    for k in sorted(OWNED_OPENCODE_KEYS):
+        if k in owned:
+            diffs += name_diffs(owned[k], live.get(k), k)
+        elif k in live:
+            if k in PRESERVE_ON_ABSENT:
+                diffs.append(f"{k} (live but absent from machine.json — preserved, not "
+                             "removed; set it explicitly to change the control)")
+            else:
+                diffs.append(f"{k} (extra — a deploy would remove it; absent from machine.json)")
     if diffs:
         say(f"  config drift — {len(diffs)} key(s) differ from the generated baseline:")
         for d in diffs:
@@ -573,12 +633,11 @@ def phase_deploy(machine: dict, dry: bool, batch: bool) -> None:
     say()
     assert_version()
 
-    # 0. Remove any shadowing .jsonc BEFORE writing opencode.json, or the file we
-    #    write could be overridden by one that already exists.
-    neutralise_jsonc(dry)
-
-    # 1. OpenCode config
+    # Parse BOTH configs before any write. A half-deploy (opencode.json written,
+    # settings.json not) is the worst outcome, and an unparseable settings.json used
+    # to crash AFTER opencode.json was already on disk. Both parses now gate the run.
     oc_path = OPENCODE_HOME / "opencode.json"
+    cs_path = CLAUDE_HOME / "settings.json"
     existing = {}
     if oc_path.exists():
         try:
@@ -586,6 +645,19 @@ def phase_deploy(machine: dict, dry: bool, batch: bool) -> None:
         except Exception as e:
             say(f"  WARN: could not parse {oc_path}: {e}; refusing to overwrite")
             sys.exit(2)
+    cj: dict = {}
+    if cs_path.exists():
+        try:
+            cj = load_json(cs_path)
+        except Exception as e:
+            say(f"  WARN: could not parse {cs_path}: {e}; refusing to overwrite")
+            sys.exit(2)
+
+    # 0. Remove any shadowing .jsonc BEFORE writing opencode.json, or the file we
+    #    write could be overridden by one that already exists.
+    neutralise_jsonc(dry)
+
+    # 1. OpenCode config
     merged, owned = compute_merged(machine, existing)
     env_block = {"AGENT_TOOLING_ROOT": str(REPO_ROOT / "agent-tooling")}
 
@@ -598,12 +670,10 @@ def phase_deploy(machine: dict, dry: bool, batch: bool) -> None:
         oc_path.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
         planned("WROTE", oc_path)
 
-    # 2. Claude settings env
-    cs_path = CLAUDE_HOME / "settings.json"
+    # 2. Claude settings env (cj was parsed before any write above)
     if dry:
         planned("MERGE", cs_path, f"env.AGENT_TOOLING_ROOT={env_block['AGENT_TOOLING_ROOT']}")
     else:
-        cj = load_json(cs_path) if cs_path.exists() else {}
         backup(cs_path, dry=False)
         cj.setdefault("env", {}).update(env_block)
         cs_path.write_text(json.dumps(cj, indent=2) + "\n", encoding="utf-8")

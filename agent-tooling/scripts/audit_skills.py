@@ -9,8 +9,9 @@ skills and a model choosing between them:
                       vocabulary between descriptions.
   DUPLICATE NEGATION  two skills both say "use me INSTEAD of <the same thing>", which
                       is an outright contradiction if the things are the same.
-  DANGLING REFERENCE  an agent profile or a skill names a skill/playbook that does not
-                      exist. Silent at runtime, and the failure looks like "the agent
+  DANGLING REFERENCE  an agent profile names a skill/playbook that does not exist, or a
+                      skill names a reference path (`playbooks/…`, `skills/…`) that does
+                      not exist. Silent at runtime, and the failure looks like "the agent
                       ignored the process" rather than "the file was wrong".
   ORPHAN              a skill nothing references and that names nothing. It cannot be
                       discovered through cross-reference and is probably dead.
@@ -208,6 +209,20 @@ def main() -> int:
                 if not resolves(ref):
                     problems.append(
                         f"DANGLING REFERENCE  {af.name} names `{ref}` which does not resolve")
+
+    # 3b. DANGLING PATH REFERENCE in a skill body — the D15 class: a skill still
+    #     pointing at a playbook that was demoted, moved or renamed. Only PATH-shaped
+    #     references are judged. Skill bodies are full of legitimate hyphenated prose
+    #     (`user-agent`, `crawl-delay`, `all-access`), so applying the profiles'
+    #     bare-name rule to them would be a false-positive storm.
+    ref_path_re = re.compile(
+        r"`((?:agent-tooling/)?(?:playbooks|skills|settings|policies|scripts|agents|hooks|"
+        r"git-hooks)/[A-Za-z0-9._/-]+)`")
+    for name, s in skills.items():
+        for ref in ref_path_re.findall(s["body"]):
+            if not ((REPO / "agent-tooling" / ref).exists() or (REPO / ref).exists()):
+                problems.append(
+                    f"DANGLING REFERENCE  {name}/SKILL.md names `{ref}` which does not resolve")
 
     # 4. ORPHAN — advisory, not a defect. A leaf skill with no cross-references is
     #    legitimate; it is discovered by description. Reported separately so it never

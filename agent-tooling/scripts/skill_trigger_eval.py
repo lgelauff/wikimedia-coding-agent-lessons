@@ -8,13 +8,21 @@ measures a description's pull, but it structurally cannot see the failure this
 library actually risks: sixteen skills competing, where the wrong one answers.
 
 So this runs each query against the **real installed set** and records *which*
-skill fired. Five outcomes:
+skill fired. Six outcomes:
 
   HIT      the expected skill fired
   MISS     a skill was expected, none fired          (description too weak)
+           — or a playbook was expected and never reached
   CROWDED  a skill was expected, a different one won (descriptions overlap)
+           — or a skill fired where a playbook was expected
   OVERFIRE no skill expected, one fired              (description too greedy)
   QUIET    no skill expected, none fired
+  PLAYBOOK a playbook was expected and reached, no skill hijacked it
+
+PLAYBOOK exists because a query may expect a playbook rather than a skill (the
+D15 demotion moved `liftwing-llm` to `playbooks/liftwing-llm.md`). Without it a
+playbook case with no `expect_skill` silently means "no skill should fire" and
+never checks the playbook — the opposite of its note.
 
 CROWDED is the one worth building this for. It is invisible to any per-skill
 eval, and it is the predictable consequence of adding skills whose descriptions
@@ -56,11 +64,34 @@ def _looks_broken(text):
     return any(s in low for s in _BROKEN_SIGNS)
 
 
-def which_skill_fires(query, timeout, model=None, cwd=None, plan_mode=False):
-    """Run one query; return the skill name that fired, or None.
+def _route_from_content(items, playbook):
+    """Decide routing from one assistant message's content array, or None to keep going.
 
-    Returns the *first* Skill tool call. Kills the process immediately after,
-    so the task itself never runs.
+    Skill outranks prose: a message like `[text("consult playbooks/x.md"), tool_use
+    Skill]` is CROWDED, not PLAYBOOK. Scanning items in one pass and returning on the
+    first playbook mention would report the opposite of what happened. Pure, so it is
+    unit-testable without a live session.
+    """
+    for item in items:                                   # pass 1: a Skill call wins
+        if item.get("type") == "tool_use" and item.get("name") == "Skill":
+            return {"fired": item.get("input", {}).get("skill"), "saw_playbook": False}
+    for item in items:                                   # pass 2: broken, then reach
+        if item.get("type") == "text" and _looks_broken(item.get("text", "")):
+            return {"fired": BROKEN, "saw_playbook": False}
+        if playbook and (playbook in json.dumps(item.get("input", {}))
+                         or playbook in item.get("text", "")):
+            return {"fired": None, "saw_playbook": True}
+    return None
+
+
+def which_skill_fires(query, timeout, model=None, cwd=None, plan_mode=False, playbook=None):
+    """Run one query; return {"fired": skill|BROKEN|None, "saw_playbook": bool}.
+
+    Returns the *first* Skill tool call. Kills the process immediately after, so
+    the task itself never runs. When `playbook` is given (an `expect_playbook`
+    case), the target is not a skill: a Skill call means a skill hijacked the
+    playbook route, and the run is killed as soon as the playbook path appears in
+    a tool input or in prose — so a playbook case does not run the task either.
     """
     # Plan mode looks like the safe choice — the session decides but cannot act.
     # It is not safe for *measurement*: it suppresses routing. Measured on
@@ -118,38 +149,40 @@ def which_skill_fires(query, timeout, model=None, cwd=None, plan_mode=False):
                     if t == "content_block_start":
                         cb = se.get("content_block", {})
                         if cb.get("type") == "tool_use":
-                            pending = "Skill" if cb.get("name") == "Skill" else None
+                            pending = cb.get("name")
                             acc = ""
                     elif t == "content_block_delta" and pending:
                         d = se.get("delta", {})
                         if d.get("type") == "input_json_delta":
                             acc += d.get("partial_json", "")
+                            if pending == "Skill":
+                                name = _skill_from_json(acc)
+                                if name:
+                                    return {"fired": name, "saw_playbook": False}
+                    elif t == "content_block_stop" and pending:
+                        if pending == "Skill":
                             name = _skill_from_json(acc)
                             if name:
-                                return name
-                    elif t == "content_block_stop" and pending:
-                        name = _skill_from_json(acc)
-                        if name:
-                            return name
+                                return {"fired": name, "saw_playbook": False}
                         pending = None
 
                 elif ev.get("type") == "assistant":
-                    for item in ev.get("message", {}).get("content", []):
-                        if item.get("type") == "tool_use" and item.get("name") == "Skill":
-                            return item.get("input", {}).get("skill")
-                        # A broken session answers every query with an error and no
-                        # tool call, which scores as MISS across the board — a
-                        # harness reporting 0/20 because it cannot run at all is
-                        # worse than one that refuses to.
-                        if item.get("type") == "text" and _looks_broken(item.get("text", "")):
-                            return BROKEN
+                    # Precedence (Skill > prose) is decided over the whole message in
+                    # _route_from_content, not item-by-item. A broken session answers
+                    # every query with an error and no tool call, which scores as MISS
+                    # across the board — a harness reporting 0/20 because it cannot run
+                    # at all is worse than one that refuses to.
+                    routed = _route_from_content(
+                        ev.get("message", {}).get("content", []), playbook)
+                    if routed:
+                        return routed
                 elif ev.get("type") == "result":
-                    return None
+                    return {"fired": None, "saw_playbook": False}
     finally:
         if proc.poll() is None:
             proc.kill()
             proc.wait()
-    return None
+    return {"fired": None, "saw_playbook": False}
 
 
 def _skill_from_json(partial):
@@ -169,7 +202,19 @@ def _skill_from_json(partial):
     return rest[j + 1:k] if k and k > j else None
 
 
-def classify(expected, fired):
+def classify(expected, fired, expect_playbook=None, saw_playbook=False):
+    """Map an expectation and an observation to an outcome.
+
+    A query may expect a *playbook* instead of a skill (the D15 demotion turned
+    `liftwing-llm` from a skill into `playbooks/liftwing-llm.md`). A playbook case
+    passes only when the playbook is reached and no skill hijacks it; otherwise a
+    bare `expect_skill: null` would silently mean "no skill should fire" and the
+    case would never check the playbook at all.
+    """
+    if expect_playbook:
+        if fired is not None:
+            return "CROWDED"          # a skill fired where a playbook was expected
+        return "PLAYBOOK" if saw_playbook else "MISS"
     if expected is None:
         return "QUIET" if fired is None else "OVERFIRE"
     if fired is None:
@@ -206,12 +251,19 @@ def main():
         return 2
 
     def one(q):
-        votes = [which_skill_fires(q["query"], a.timeout, a.model, a.cwd, a.plan_mode)
+        expect_playbook = q.get("expect_playbook")
+        votes = [which_skill_fires(q["query"], a.timeout, a.model, a.cwd, a.plan_mode,
+                                   expect_playbook)
                  for _ in range(a.runs)]
-        fired = Counter(votes).most_common(1)[0][0]
+        fired = Counter(v["fired"] for v in votes).most_common(1)[0][0]
+        # Majority, matching `fired`: `any()` would let one lucky run mark a flaky
+        # case PLAYBOOK, contradicting the advertised "majority wins".
+        saw_playbook = sum(1 for v in votes if v["saw_playbook"]) > len(votes) // 2
         return {"id": q["id"], "expected": q.get("expect_skill"),
-                "fired": fired, "votes": votes,
-                "outcome": classify(q.get("expect_skill"), fired)}
+                "expect_playbook": expect_playbook,
+                "fired": fired, "saw_playbook": saw_playbook, "votes": votes,
+                "outcome": classify(q.get("expect_skill"), fired,
+                                    expect_playbook, saw_playbook)}
 
     print(f"running {len(queries)} queries x{a.runs} ...", file=sys.stderr)
     with ThreadPoolExecutor(max_workers=a.workers) as ex:
@@ -226,22 +278,23 @@ def main():
               f"(usually: re-authenticate the CLI) and re-run.", file=sys.stderr)
         return 2
 
-    order = {"CROWDED": 0, "OVERFIRE": 1, "MISS": 2, "HIT": 3, "QUIET": 4}
+    order = {"CROWDED": 0, "OVERFIRE": 1, "MISS": 2, "HIT": 3, "PLAYBOOK": 4, "QUIET": 5}
     results.sort(key=lambda r: (order.get(r["outcome"], 9), r["id"]))
 
     counts = Counter(r["outcome"] for r in results)
     width = max(len(r["id"]) for r in results)
     print()
     for r in results:
-        exp = r["expected"] or "(none)"
-        got = r["fired"] or "(none)"
+        exp = r["expected"] or r.get("expect_playbook") or "(none)"
+        got = r["fired"] or ("playbook" if r.get("saw_playbook") else "(none)")
         flag = "  <-- " if r["outcome"] in ("CROWDED", "OVERFIRE", "MISS") else "      "
         print(f"{r['outcome']:<9} {r['id']:<{width}}  expected={exp:<26} fired={got}{flag}")
     print()
     total = len(results)
-    good = counts["HIT"] + counts["QUIET"]
+    good = counts["HIT"] + counts["QUIET"] + counts["PLAYBOOK"]
     print(f"{good}/{total} correct  |  " + "  ".join(
-        f"{k}={counts[k]}" for k in ("HIT", "QUIET", "MISS", "CROWDED", "OVERFIRE") if counts[k]))
+        f"{k}={counts[k]}" for k in ("HIT", "QUIET", "PLAYBOOK", "MISS", "CROWDED", "OVERFIRE")
+        if counts[k]))
 
     if a.json_out:
         json.dump({"results": results, "counts": dict(counts)},
