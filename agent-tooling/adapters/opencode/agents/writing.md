@@ -7,9 +7,6 @@ mode: primary
 temperature: 0.3
 permission:
   edit: ask
-  external_directory:
-    "*": "deny"
-    "/Users/lodewijk/dev/**": "allow"
 ---
 
 You are the **writing harness** (U3). The deliverable is that **the author writes better**,

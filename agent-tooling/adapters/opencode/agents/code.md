@@ -7,9 +7,6 @@ mode: primary
 temperature: 0.2
 permission:
   edit: allow
-  external_directory:
-    "*": "deny"
-    "/Users/lodewijk/dev/**": "allow"
 ---
 
 You are the **code harness** (U1). The deliverable is a change to a repository, or a

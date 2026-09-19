@@ -6,7 +6,12 @@
     "Placeholders ${repo_root} ${data_root} ${python} are substituted from machine.json.",
     "Keys whose value or name references ${data_root} are DROPPED when data_root is null.",
     "Permission ordering: OpenCode evaluates last-matching-rule-wins, so the catch-all",
-    "'*' comes FIRST and specific rules after. Reordering this file can fail OPEN."
+    "'*' comes FIRST and specific rules after. Reordering this file can fail OPEN.",
+    "The boundary denies at the end of the bash block are best-effort, NOT a control:",
+    "they match literal path strings only, so a variable, a glob, or an encoding evades",
+    "them, and OpenCode does not path-scan most bash commands at all. The real control",
+    "for the crown jewels is the OS (~/Data_pii root-owned mode 700) and, on hague,",
+    "data_root being null. Do not read these rules as a path jail."
   ],
 
   "opencode_version": "1.18.30",
@@ -55,7 +60,13 @@
         "git log *": "allow",
         "git show *": "allow",
         "git branch *": "allow",
-        "git -C *": "allow",
+        "git -C * status *": "allow",
+        "git -C * diff *": "allow",
+        "git -C * log *": "allow",
+        "git -C * show *": "allow",
+        "git -C * branch *": "allow",
+        "git -C * rev-parse *": "allow",
+        "git -C * ls-files *": "allow",
         "gh pr view *": "allow",
         "gh pr list *": "allow",
         "gh pr diff *": "allow",
@@ -63,17 +74,61 @@
 
         "git push *": "ask",
         "git commit *": "ask",
+        "git -C * push *": "ask",
+        "git -C * commit *": "ask",
         "gh pr create *": "ask",
 
         "gh pr merge *": "deny",
         "gh pr close *": "deny",
         "gh repo delete *": "deny",
+        "git -C * reset *": "deny",
+        "git -C * clean *": "deny",
         "ssh *": "deny",
         "scp *": "deny",
         "sudo *": "deny",
         "rm -rf *": "deny",
         "curl *": "deny",
-        "wget *": "deny"
+        "wget *": "deny",
+
+        "*.env*": "deny",
+        "*.env.example*": "allow",
+        "*.key*": "deny",
+        "*.pem*": "deny",
+        "*id_rsa*": "deny",
+        "*id_ed25519*": "deny",
+        "*/.ssh/*": "deny",
+        "*voice-samples*": "deny",
+        "*${data_root}*": "deny"
+      }
+    },
+
+    "agent": {
+      "build": {
+        "permission": {
+          "bash": {
+            "mkdir *": "allow",
+            "cp *": "allow",
+            "mv *": "allow",
+            "ln *": "allow",
+            "rmdir *": "allow",
+            "touch *": "allow",
+            "test *": "allow",
+            "diff *": "allow",
+            "sed *": "allow",
+            "head *": "allow",
+            "tail *": "allow",
+            "stat *": "allow",
+            "du *": "allow",
+            "which *": "allow",
+            "jq *": "allow",
+            "sort *": "allow",
+            "uniq *": "allow",
+            "node --check *": "allow",
+
+            "sed -i *": "deny",
+            "sed --in-place *": "deny"
+          }
+        }
       }
     }
   }

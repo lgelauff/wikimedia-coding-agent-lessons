@@ -7,13 +7,6 @@ mode: subagent
 temperature: 0.1
 permission:
   edit: deny
-  bash:
-    "*": "ask"
-    "curl *": "deny"
-    "wget *": "deny"
-  external_directory:
-    "*": "deny"
-    "/Users/lodewijk/dev/**": "allow"
 ---
 
 You are the **responsible information seeking harness** (U4). You are invoked by other

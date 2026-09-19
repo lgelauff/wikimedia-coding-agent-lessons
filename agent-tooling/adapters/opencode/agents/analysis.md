@@ -8,10 +8,6 @@ temperature: 0.1
 permission:
   edit: allow
   webfetch: deny
-  external_directory:
-    "*": "deny"
-    "/Users/lodewijk/dev/**": "allow"
-    "/Users/lodewijk/Data_pii/**": "deny"
 ---
 
 You are the **analysis harness** (U2). The deliverable is a **reproducible script** and a
