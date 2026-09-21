@@ -165,4 +165,11 @@ Two habits that prevent it:
 - **When auditing your own background work, search for the waits, not just the jobs.** `pgrep` for the
   script names finds the work; it does not find the shell you left watching for it. The watcher
   outlives the job by definition.
+- **`until ! pgrep -f "<pattern>"; do sleep 20; done` never terminates when run through an agent
+  shell.** The harness wraps the loop in `zsh -c '… eval "until ! pgrep -f \"<pattern>\" …"'`, so the
+  pattern appears in the watcher's *own* command line, and `pgrep -f` always finds the watcher itself.
+  Six such loops kept polling for 13+ hours after their job had finished (2026-09-21), and showed in
+  the task list as live work. Wait on something the watcher cannot match: `while kill -0 <pid>` on
+  the job's PID captured at launch, or a sentinel file the job writes last. If `pgrep` is unavoidable,
+  make the pattern unmatchable by its own text, e.g. `pgrep -f "[s]ection_labels_multiwiki"`.
 
