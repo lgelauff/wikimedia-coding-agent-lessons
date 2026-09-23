@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "wikimedia-agent-tooling",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Reusable Claude Code agent tooling (PR quality-gate skill, hooks, scripts) from the wikimedia-coding-agent-lessons repo.",
   "owner": {
     "name": "Lodewijk Gelauff"
