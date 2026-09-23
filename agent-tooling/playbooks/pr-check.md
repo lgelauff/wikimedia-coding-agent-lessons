@@ -12,16 +12,24 @@ An agent-neutral procedure for vetting a pull request and ending with one verdic
 - **Read-only.** Assess, don't fix or push.
 - **Concurrency-safe.** Analyze committed refs; if you need a clean checkout, use a throwaway worktree, never the main one.
 - **Reuse existing reviewers/runners** the host environment already provides rather than reimplementing them.
+- **Deterministic before subjective.** Anything with a right answer runs as a check, not as a reviewer. The panel exists for questions that need a point of view — and for naming the checks we are still missing.
+- **The panel sets the price, not the diff** [confirmed, 19 runs: UI-scoped ~890k subagent tokens vs ~320k for a single-language scope; a 62-line and a 262-line diff both ~328k]. Narrow scope globs are the cheapest lever; no panel at all on a diff that warrants none is cheaper still.
 
 ## Steps
 
 **0. Scope.** Compute the changed files and scope flags (run the bundled `scope.py` with the project config). Flags typically include doc-only, templates/CSS, JS, DB/migrations, ops/deploy, backend logic, sensitive (auth/proxy/secret/SQL), and runtime (user-facing flows). Doc-only → skip to a light prose/accuracy pass and the verdict.
 
-**1. Mechanical review.** Run the environment's diff reviewer (or an inline correctness + reuse/efficiency pass). Capture findings with file:line + severity.
+**1. Deterministic gate — no model in it.** Run everything that has a right answer: the project's `test_command`, linters, type checks, the repo's own guards, a secret scan, and any `sensitive_patterns` sweep over the diff. **A red gate caps the verdict at *needs-changes* and the panel does not convene** — the fix comes first, and a whole panel run is saved rather than made cheaper. Record what ran and what it said; that record is the panel's evidence in step 3.
 
-**2. Tests.** Run the project's `test_command`. A red suite caps the verdict at *needs-changes*; record which tests failed.
+**2. Evidence pack.** Assemble once, for everyone: the diff, the files it touches, the gate's output, and the scope flags. Reviewers read this instead of exploring the repo separately — duplicated exploration across reviewers is the single largest avoidable cost in this procedure. A reviewer that needs more may request a bounded check (a search, a file, one test) from the runner; it does not go browsing.
 
-**3. Expert panel + cross-review.** Convene reviewers matched to the scope flags (a generalist always; plus accessibility/usability for UI, frontend for JS, database for schema/migrations, ops for deploy). Run them in parallel, then a **cross-review** round where each confirms / disputes / supplements the others (this kills false positives and surfaces gaps), then synthesize. Scale to the change.
+**3. Expert panel + cross-review — the subjective part only.** Convene reviewers matched to the scope flags (a generalist always; plus accessibility/usability for UI, frontend for JS, database for schema/migrations, ops for deploy). Scope picks **viewpoints**, not file types: the question is whose perspective this change needs.
+
+A reviewer is there for what has no right answer — is this the right abstraction, will a user understand this wording, does this design survive the next change, what does this look like to someone who reviews for security. **Write reviewer prompts as viewpoints, never as checklists:** any checklist item a tool could answer belongs in step 1, and a reviewer running it is a linter with worse precision at a far higher price.
+
+Run them in parallel, then a **cross-review** round where each confirms / disputes / supplements the others (this kills false positives and surfaces gaps), then synthesize. Scale to the change.
+
+**3b. Gate proposals — the panel's second output.** Reviewers also name the *objective* questions the gate missed: "this should have been caught by a check". Each proposal names the check, what it would have caught here, and where it belongs (test, lint rule, guard, scope pattern). These are recorded in the verdict as a separate list and become gate work, so the same judgment is never bought twice. A finding a reviewer had to reason out once is a finding a check should own forever.
 
 **4. Security review (conditional).** Only if the *sensitive* flag fired. A real security finding caps the verdict at *needs-changes*.
 
@@ -34,7 +42,7 @@ An agent-neutral procedure for vetting a pull request and ending with one verdic
 
 ## Verdict
 
-End with **GO / MERGE-WITH-FIXES / NEEDS-CHANGES** and one line of rationale, then: must-fix (deduped, cross-confirmed, by severity, with file:line + fix), should-fix/over-claims, security (if run), local-verification results (reproduced map + pathway timings), and the staging call.
+End with **GO / MERGE-WITH-FIXES / NEEDS-CHANGES** and one line of rationale, then: must-fix (deduped, cross-confirmed, by severity, with file:line + fix), should-fix/over-claims, security (if run), local-verification results (reproduced map + pathway timings), **gate proposals from step 3b** (check → what it would have caught → where it belongs), and the staging call.
 
 **Persist it as a handoff.** Besides reporting in-conversation, write the verdict to a predetermined, git-ignored folder in the project (a `report_dir`), as a file keyed by PR id or branch. It must stand alone for a reader with zero session context (PR id + head SHA, scope, test result, must-fix with file:line + fix, reproduced-vs-flagged, staging call) — so the next agent or a human can act on it cold.
 

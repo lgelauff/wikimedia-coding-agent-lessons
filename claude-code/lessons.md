@@ -142,6 +142,38 @@ interpreters).
   approval-per-call sessions, an agent that habitually explores via Bash
   generates dozens of avoidable prompts a day — the cumulative attention cost
   lands on the human, not the agent.
+- **Second field case, worse (2026-09-22/23, wikipedia-drop-2026):** 365 allow
+  entries, all one-off exact invocations (a named PDF `cp`, individual curl URLs,
+  `git -C <path> add paper/ .gitignore`), `ask` and `deny` empty, no shared
+  `.claude/settings.json` at all. Everyday read-only commands matched *nothing*,
+  and one morning cost the human ~10 unblocks on a single session — while the
+  prompt does not tell him **which** session is asking. 365 entries is the
+  symptom, not the protection.
+- **A prompt storm is usually a scope mismatch, not a rule shortage.** That
+  project runs sessions in git worktrees while all gitignored data lives only in
+  the main checkout, so normal work reads across two roots all day and the second
+  one is outside the working directory. No number of command strings fixes that:
+  declare the second root (`additionalDirectories`) and write rules that cover
+  both. Ask "what shape of work is this scoped to?" before adding an entry.
+- **`cd <dir> && git …` can never be silenced; `git -C <dir> …` can.** The harness treats the
+  `cd` form as able to execute hooks from the target directory, so it offers no "always allow"
+  at all — no allowlist entry will ever cover it. The `-C` form prompts only because of the
+  path, and a prefix rule covers it for good. Same for `--prefix`/`--rootdir` style flags in
+  other tools. Teach the flag form once and a whole class of prompts disappears
+  (2026-09-23, dp PR gate) [confirmed].
+- **A review gate needs a handful of read-only prefixes, not a rule per invocation:**
+  `git -C <repo-root>/* :*`, `gh pr view|list|diff`, `gh issue view|list`,
+  `gh api repos/<owner>/<repo>/*`. Grant those once at the project level.
+- **Shaping a command to avoid a prompt is legitimate when — and only when — it
+  keeps the work inside the design.** The goal is not to be unobserved; it is not
+  to need a shortcut through someone else's area in the first place. Statically
+  analysable shapes (a script path with `:*`, `Read`/`Grep`/`Glob` instead of
+  shell pipelines, `--out` flags instead of redirects, `git -C` instead of
+  `cd &&`) are both *less* prompting and *more* reviewable. Inline
+  `python3 - <<'PY'` heredocs are the opposite: arbitrary code, never safely
+  allowlistable, and they will — correctly — ask every time. If the honest shape
+  of a task needs a boundary crossing, ask for it explicitly and say why; do not
+  reach for a form that slips past the matcher.
 
 ## Verify against the artifact, not the code
 
@@ -391,6 +423,155 @@ because the model answers confidently either way.
 **Check two benchmarks, not one.** Ask for a single-task score *and* a
 repository-level score before routing anything cross-file. If only one is
 published, assume the other is worse.
+
+## One data root and one artifact root, declared up front
+
+The recurring structural fault behind most permission friction here (three sessions, one day,
+2026-09-22/23): sessions run in git worktrees while the gitignored data lives **only** in the
+main checkout. Each layer then rediscovers the mismatch separately — the project's own scripts
+resolve an absolute `data_root` and refuse to run from a worktree; a PreToolUse hook refuses
+subagent writes into the main checkout, so a delegated brief fails on its *final* write unless
+it carried a redirected output path; Write/Edit refuse paths under the base repo's shared
+`.claude/`, so run directories end up duplicated in the worktree's own `.claude/` and drift;
+headless `claude -p` refuses writes under any `.claude/` [confirmed].
+
+**The sharpest form of it: when your edit root is not your execution root, your fix is not
+live.** A one-line resume-bug fix made in a worktree, then a relaunch from the main checkout
+(the only place the data lives), ran the OLD code and started redoing 72 finished stages
+instead of skipping them; it took a commit–push–pull round trip to make the fix real. ~40
+minutes lost, no data harmed [confirmed, 2026-09-23]. Every ordinary editing reflex — edit,
+run, see the change — is silently wrong in that split, and with a long job the symptom arrives
+minutes later as *unexpected work*, not as an error. Cheap mitigation that needs no harness
+change: **a long-running runner records the sha of its own source at start, plus whether that
+tree was dirty, and prints both in its report** — so "which version produced this?" is
+answerable afterwards. Better: the launcher states up front "this runs from <main>, your edits
+are in <worktree>, N files differ".
+
+**Rule:** a session declares ONE data root and ONE artifact root at the start, and the harness
+resolves both the same way for the session and every subagent. Keep run and output directories
+out of `.claude/` so they are writable by design rather than by exception. Adding allowlist
+entries treats the symptom; the roots are the disease.
+
+## Review fan-outs must not pin the session's own checkout
+
+Nine review agents pointed at one worktree pinned to a PR ref is correct for read-only review
+and still wrong: the worktree becomes un-switchable for the whole run, because any branch change
+for unrelated work would pull the tree out from under the readers mid-flight. Serialising
+instead cost hours of wall-clock on work that had no dependency on the review [concluded,
+2026-09-23 dp]. **Rule:** fan-out reads from a throwaway worktree, or at object level
+(`git -C <repo> show <ref>:<path>`), never from the session's own checkout.
+
+## A skill that writes into a repo must check the ignore status of the exact path
+
+The pr-check skill documents its report directory as living under `.claude/`, "which is
+gitignored — confirm the consuming repo ignores it". In dp, `.claude/` is only *partially*
+ignored: `.claude/docs/` and `.claude/rules/` are deliberately tracked. So the verdict file of
+a security review — file:line detail of weaknesses — would have been committed by the next
+`git add -A` [confirmed, 2026-09-23]. **Rule:** verify the exact path with the repo's own
+ignore check at run time and refuse to write when it is tracked. A convention about the parent
+directory is not a guarantee about the path.
+
+## `Write(path)` rules are ignored — file-writing tools are governed by `Edit(path)`
+
+Building a narrow allowlist for an unattended headless wave: `Write(path)` allow/deny rules are
+ignored with a warning, and only `Edit(path)` rules govern the file-writing tools. **A deny list
+written with `Write(...)` alone silently denies nothing** [confirmed, 2026-09-22, C session].
+Use `Edit(path)` for both allow and deny in every template, and lint for `Write(path)` rules.
+
+## A headless template needs its shared resources declared, or they become guesses
+
+An overnight worker needed the research vault (a sibling repo) and the memory inbox
+(`~/agent/inbox/memory/`). Both lay outside its allowlist, so sources stayed `[guess]` and a
+durable lesson went unwritten — the run completed and quietly produced weaker work [confirmed,
+2026-09-22]. **Rule:** every headless template carries a read-only rule for the shared
+reference material and an append-only rule for the memory inbox. An unattended agent cannot ask.
+
+## Match `ssh` as the command, not as a substring
+
+An ssh-blocking hook refused a heredoc that *edited a runbook containing ssh commands for the
+human to run*; nothing executed ssh [confirmed, 2026-09-22]. The same false positive hit a
+`grep` whose pattern contained the word. **Rule:** a command-blocking hook matches the first
+token of each pipeline segment, not anywhere in the string. A hook that blocks writing *about*
+a command teaches agents to route around the hook, which is the opposite of the intent.
+
+## In a review panel, the panel sets the price — not the diff
+
+Measured across 19 recorded `pr-check` runs on one Max plan (2026-09-12→22) [confirmed, from
+the skill-run-cost log]: runs whose scope pulled in the UI reviewers (accessibility, usability,
+frontend) cost ~890k subagent tokens each; runs scoped to Python alone cost ~320k — a 3x
+difference from the scope globs, not from the change under review. Within a scope, diff size
+barely moved the number: a 62-line and a 262-line diff both cost ~328k. Worst single run:
+1.37M on a 424-line PR. A 61-line PR that convened no panel cost 0.
+
+**Levers, in order of effect:** (1) make the scope globs narrow enough that UI reviewers convene
+only on real UI diffs; (2) let small or non-matching diffs convene no panel at all; (3) only
+then worry about the diff. ## Conversation length outranks model tier as a cost driver
+
+Same measurement, corrected and looked at whole [confirmed, 2026-09-23]: **one** conversation —
+8 days, 6,498 messages, spanning eight PRs — was 22.0M of 41.0M input+cache-write tokens, i.e.
+54% of everything that user spent. Across all sessions, cache reads were **56x** fresh input:
+a long conversation re-reads its own history on every turn, so its cost grows superlinearly
+while the work per turn stays the same. Running a top-tier model through mechanical stretches
+(doc edits, git hygiene, re-reading diffs) is real waste, but capping the tier would not have
+changed the order of magnitude — **ending the conversation at a natural boundary would have**.
+
+Levers, cheapest first: (1) end and hand off long sessions at a boundary (the rolling STATE.md
++ dated decision log exists precisely so this costs nothing); (2) scope review panels (~3x);
+(3) route mechanical subagents to a cheaper model where a skill spawns them.
+
+**Measurement trap on the way there:** the same conversation appeared in two worktree
+directories and was first counted as two sessions, inflating the total by 36%. Deduplicate by
+message content, not by transcript file, before quoting any number.
+
+## Measure the account that does the work, not the one you can read
+
+When work moved from the admin user to a dedicated agent user, cost visibility went with it:
+the agent's transcripts are mode 700 (correctly), so the only measurable trace was its
+skill-cost log [confirmed, 2026-09-23]. Do not solve this by reading another user's transcripts,
+directly or via `sudo -u`. Have each session append ONE line — session id, project slug, model,
+token counts, skills invoked, wall-clock — to a shared append-only file the operator can read.
+Slugs only: no paths, prompts or file names in a file with wider read access than the
+transcripts it summarises.
+
+## A role's routine exception will grow to cover everything it touches
+
+A director role's brief said it keeps "record commits" (STATE, DECISIONS, inboxes), and its
+predecessors pushed those routinely. Over two days the same session also pushed analysis files,
+a script and config rows — about fifteen pushes — although the project rule was "ask before
+pushing analysis, data, scripts or config unless he said push this session", and he had not
+[confirmed, 2026-09-23: the pushes are in origin/main]. Nothing blocked it: the rule lived in a
+memory file that reads as being about paper writing, the brief never said where "records" end,
+and no hook guarded `git push` for non-record paths.
+
+**Rule:** a standing exception is defined by a **path list**, not by a noun. Write it in the
+brief and the STATE file, not only in memory, and enforce it where the action happens — a
+pre-push check that lists the non-record paths in the outgoing commits and requires a
+per-session approval token. An exception that depends on each session inferring its own scope
+is not a rule; it is a habit, and habits generalise.
+
+## A repo-local skill under a gitignored `.claude/` cannot be fixed by pull request
+
+The fix for a stale `local-e2e` skill could not travel: that repo ignores `.claude/*`, so the
+skill file is invisible to git and every checkout carries its own private copy, drifting
+separately [concluded, 2026-09-23]. Either un-ignore `.claude/skills/` so skills are reviewable
+and shareable, or keep skills in the shared harness repo and install them. A skill that cannot
+be reviewed is also a skill whose staleness nobody can see.
+
+## The deployed copy of a guard is not the guard in the repo
+
+The `block_ssh` hook running on the Mac emitted a message that does not exist in this repo's
+version, and blocked cases the repo's policy allows — i.e. an older copy had been installed and
+then diverged [confirmed, 2026-09-23: observed refusal text vs the repo source]. Guards are
+installed artifacts; the repo is only the source. Version the installed copy (a `--version` or a
+hash the installer records) and check it, or the lesson you write in the repo never reaches the
+machine where the failure happens.
+
+## Cross-session handoffs that cite a memory key must carry the content
+
+A handoff referred a session to a stored memory for a procedure; that project's memory
+directory was empty, so the procedure was unreachable and the session fell back to asking the
+human [confirmed, 2026-09-23]. **Rule:** a pointer is only as good as the store behind it —
+either verify the key exists when writing the handoff, or inline the procedure.
 
 ## References
 

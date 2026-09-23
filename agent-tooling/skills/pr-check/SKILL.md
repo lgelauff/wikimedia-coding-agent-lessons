@@ -8,9 +8,11 @@ description: >-
   the diff, tell me if it's good" or "vet PR 412 before I merge it". Use it
   INSTEAD of doing that by hand: running the suite and reading the diff yourself
   is the obvious move and it is the one that misses things, because a green suite
-  says nothing about the changes it does not cover. This scopes the diff, runs the
-  project's tests, convenes a type-matched panel of expert reviewers with a
-  cross-review round, adds a security pass and targeted local verification when
+  says nothing about the changes it does not cover. This scopes the diff, runs a
+  deterministic gate (tests, linters, guards) that must pass before any reviewer
+  is convened, then convenes a type-matched panel of expert reviewers — for the
+  subjective questions only, with a cross-review round and a required list of the
+  objective checks the gate still misses — adds a security pass and targeted local verification when
   the diff warrants them, and returns a go / merge-with-fixes / needs-changes
   verdict plus a call on whether a human should test on staging.
 ---
@@ -54,11 +56,14 @@ python3 "${AGENT_TOOLING_ROOT}/scripts/scope.py" --config .claude/pr-check.json 
 (Allowlist `Bash(python3 *agent-tooling/scripts/scope.py*)` to make it prompt-free.)
 It returns `{files, flags}`. Branch on the flags for the rest.
 
-## 4. Review, tests, panel (steps 1–3)
+## 4. Gate, evidence, panel (steps 1–3b)
 
-- **Step 1:** `/code-review high` (never `/code-review ultra` — billed/user-only; *suggest* it in the verdict for high-risk changes).
-- **Step 2:** run the config's `test_command`. Red suite → caps at needs-changes.
-- **Step 3:** the expert panel + cross-review via the **Workflow** tool. Adapt [`references/panel-workflow.js`](references/panel-workflow.js): set `ROLES` from the config's reviewer map for the flags that fired (a generalist always), point all agents at a **pinned ref or worktree** (not the live tree, which may have concurrent edits), and pass the changed files.
+- **Step 1 — deterministic gate, no model in it.** Run the config's `test_command`, the repo's linters/type checks/guards, a secret scan, and the `sensitive_patterns` sweep over the diff. Then `/code-review high` for the mechanical diff pass (never `/code-review ultra` — billed/user-only; *suggest* it in the verdict for high-risk changes). **Red gate → verdict caps at needs-changes and you do NOT convene the panel.** Say so plainly and stop; a panel on a red gate spends its budget reviewing code that is about to change.
+- **Step 2 — evidence pack.** Collect once, for all reviewers: the diff, the touched files, the gate output, the scope flags. Pass it into the panel prompt. Reviewers must not go exploring; when one needs more, it names a bounded request (a search, one file, one test) that you run and feed back. Duplicated exploration across reviewers is the largest avoidable cost here.
+- **Step 3 — panel + cross-review via the Workflow tool.** Adapt [`references/panel-workflow.js`](references/panel-workflow.js): set `ROLES` from the config's reviewer map for the flags that fired (a generalist always), point all agents at a **pinned ref or worktree** (not the live tree, which may have concurrent edits), and pass the evidence pack.
+  - **Write each role's prompt as a viewpoint, not a checklist.** "You review for the person who maintains this in a year" / "…for a screen-reader user" / "…for someone who has to operate this at 3am". Anything with a right answer belongs in step 1; a reviewer executing a checklist is a linter with worse precision at a far higher price.
+  - Scope picks **viewpoints**, not file types: whose perspective does this change need?
+- **Step 3b — gate proposals.** Ask every reviewer, as a required second output: *which objective questions did the gate miss?* Each proposal names the check, what it would have caught in this PR, and where it belongs (test, lint rule, repo guard, scope pattern). Carry them into the verdict as their own section. A finding a reviewer had to reason out once is a finding a check should own forever — this is how the panel gets cheaper over time instead of more expensive.
 
 ## 5. Conditional steps (4–6)
 
@@ -73,6 +78,8 @@ Emit the playbook's verdict format in chat. Be decisive; weight reproduced behav
 Then **persist it as a handoff** so it survives the session and another agent can pick it up:
 - Write the full verdict (the playbook's verdict structure — must-fix, security, local-verification, staging call, checklist) to `<report_dir>/pr-<N>.md` (or `<report_dir>/<branch>.md` when run on a branch), where `report_dir` comes from the config (default `.claude/pr-check`).
 - Create the dir if needed (`mkdir -p`). It lives under `.claude/`, which is gitignored — confirm the consuming repo ignores it (don't commit handoffs).
+- Include the **gate proposals** (step 3b) as their own section, so they can be turned into checks later without re-reading the whole verdict.
+- **Check the exact path's ignore status at run time** (`git check-ignore -q <path>`), not the convention that `.claude/` is ignored: repos exist where `.claude/` is only partially ignored, and a verdict file naming security weaknesses would then be committed by the next `git add -A`. If the path is tracked, stop and ask where to write instead.
 - Make the file **stand alone for a cold reader**: PR id + head SHA, the scope flags, test result, must-fix with file:line + fix, what was reproduced vs only-flagged, and the staging recommendation — like a fresh agent would need with zero session context.
 - Tell the user the path you wrote.
 

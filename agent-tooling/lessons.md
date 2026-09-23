@@ -173,3 +173,80 @@ Two habits that prevent it:
   the job's PID captured at launch, or a sentinel file the job writes last. If `pgrep` is unavoidable,
   make the pattern unmatchable by its own text, e.g. `pgrep -f "[s]ection_labels_multiwiki"`.
 
+
+## Unordered set iteration makes an analysis nondeterministic, and a seed does not save you
+
+Re-running an 80-stage pipeline against committed outputs: ~190 files reproduced byte-identical,
+6 did not. Two traced to one cause — Python randomises string hashing per process, so
+`for x in set(...)` yields a different order each run. One case only reordered a printed list;
+the other picked a different representative file per article (`cand = [f for f in units.get(art, ())]; bf = cand[0]`),
+which shifted the analysis population by 3 articles and moved a published-adjacent result in the
+third decimal. A third case left every point estimate identical and moved only the bootstrap
+CIs: the script *was* seeded, but the resample drew against differently ordered arrays
+[confirmed on all three, 2026-09-23; 9 unsorted `for ... in set(` loops in that repo by grep, so
+the blast radius is concluded, not measured].
+
+- **Sort at every point where order can leak into a result**: building an array, drawing a
+  sample, or any "pick one" decision. A seeded RNG only protects you if what it draws against is
+  stable.
+- **Make byte-identical re-runs a first-class check** in any analysis pipeline. Self-tests pass
+  happily while the numbers move; only re-running and diffing the artifacts sees it.
+
+## A checksum manifest for another host must be built from the real directory entries
+
+Verifying a laptop→server copy with `sha256sum -c`: all 18 accented filenames failed although
+the bytes were identical. The manifest's paths were Unicode-NFC (taken from a tool's output)
+while the macOS directory entries are NFD. APFS matches either form; Linux ext4 does not
+[confirmed, 2026-09-22]. Build any `.sum` destined for another host from the filesystem itself
+(`find -print0 | xargs -0 shasum`), and verify it once on the target before trusting it.
+
+## A service an agent must reason about needs an unauthenticated build identifier
+
+Determining which branch was live on a deployment was not answerable in-band: the branch lives
+in the cloud pipeline's source stage, the deployed app exposes no version marker, the platform's
+deployment API had no records, and the relevant CLI was not installed. The agent could only hand
+the human commands to run elsewhere [confirmed, 2026-09-23]. Expose a build id (commit SHA plus
+build time) on an unauthenticated endpoint; "what is actually running" then stops requiring
+console access, for agents and humans alike.
+
+Corollary, from the other direction (2026-09-23, wiki-polis e2e on hague) [confirmed]: a
+version gate that greps the SERVED HTML for a commit string breaks the day the app becomes an
+SPA shell — the page renders nothing to grep and the gate reports "no version" rather than
+failing loudly. Read the identifier from the API (`GET /api/v1/session` → `data.gitVersion`) or
+the startup log. Assert against a machine-readable surface, never against rendered markup.
+
+## A tool that works in your login shell is absent in the scripts that need it
+
+`dev.sh` assumed `npm` on PATH. Node had been installed per-user under
+`~/.local/node-v24/bin` with the PATH line in `~/.profile`, which non-interactive and
+non-login shells never read, so the script failed for the agent while `node -v` worked fine
+when a human checked [confirmed, 2026-09-22/23]. Either export the PATH where the script will
+actually see it (a wrapper, the service unit, or an absolute interpreter path in the script) or
+install the runtime somewhere already on the default PATH. "It works when I log in and try it"
+does not test what an unattended run sees.
+
+## The cheapest readiness gate is not having one
+
+dp's browser suite starts the app **in-process on an ephemeral port** instead of orchestrating
+containers: the Playwright global setup builds the bundle, loads a checked-in config override
+via an env var, creates the schema in an in-memory SQLite database, seeds it, calls
+`listen(0)`, and writes the assigned port to a state file the workers read. No health endpoint,
+no polling, no sleep, and therefore no timeout path — the setup resolves or throws, and the run
+fails fast [confirmed, 2026-09-23, reported from that repo's workflows and config]. PR runs
+~2 min, weekly browser runs ~6-8 min.
+
+Three companions to it, all worth copying:
+
+- **Shorten real waits, don't fake the clock.** A `timers` config block (nudge delays 50ms, poll
+  windows 10s) plus an outright ban on `waitForTimeout` took that suite from ~9.5 min to under a
+  minute. Real timers still fire on their own schedule, so the code under test is the real code.
+- **One checked-in override file with only safe values**; real credentials come from the CI
+  secret. Not a second config tree.
+- **One seeded group per spec with explicit ids**, so specs cannot leak state into each other.
+  Fixtures synthetic; nothing production-reachable from CI.
+
+Where it stops: that design works because the app is one process with a swappable in-memory
+backend. A stack that genuinely needs containers still needs compose, pinned images and a
+readiness gate — take the principles, not the shortcut. And note what their setup pays for
+elsewhere: the suite makes real third-party API calls, so it is not hermetic, runs only 2
+workers, needs a 180s per-test timeout and a credential to run at all.

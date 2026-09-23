@@ -21,6 +21,12 @@ def test_blocks_ssh_family():
         "(ssh host uptime)",                         # subshell
         "true & ssh host uptime",                    # single-& background
         "sudo ssh host",                             # prefix command — must NOT bypass
+        "env FOO=1 ssh host",                        # assignment + wrapper
+        "timeout -k 5 30 ssh host",                  # wrapper with its own flags
+        "/usr/bin/ssh host",                         # absolute path
+        "nohup autossh -M 0 host &",                 # wrapper + background
+        "ls; ssh host",                              # second segment
+        "slogin host",                               # ssh alias
     ]:
         assert p.is_ssh(cmd), f"should block: {cmd}"
 
@@ -35,5 +41,13 @@ def test_allows_non_ssh():
         "",
         'echo "=== just the ssh one now ==="',   # ssh MENTIONED in a quoted string — the FP
         "git commit -m 'notes about ssh setup'",  # ssh in a quoted commit message
+        # --- field false positives, 2026-09-23. Writing ABOUT ssh is not running it.
+        "grep -n -E 'start|ssh |tmux' notes.md",       # ssh inside a grep pattern
+        "ls -l ~/.ssh/config",                          # a path, not a command
+        "cat runbook.md <<EOF\nRun: ssh hague-agent\nEOF",   # heredoc body is data
+        "python3 - <<'PY'\nprint('ssh host')\nPY",           # quoted heredoc body
+        "rg 'ssh' agent-tooling/",                      # searching for the word
+        "git log --oneline --grep=ssh",                 # ssh as a flag value
+        "python3 -m unittest agent-tooling.policies.tests.test_is_ssh_command",
     ]:
         assert p.is_ssh(cmd) is None, f"should allow: {cmd}"
