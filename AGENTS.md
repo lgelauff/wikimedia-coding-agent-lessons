@@ -77,6 +77,7 @@ python3 -m unittest agent-tooling.scripts.tests.test_audit_skills \
                     agent-tooling.scripts.tests.test_mandated_services \
                     agent-tooling.scripts.tests.test_backup_harness \
                     agent-tooling.scripts.tests.test_skill_trigger_eval \
+                    agent-tooling.scripts.tests.test_script_approval \
                     agent-tooling.policies.tests.test_webfetch_mandated
 ```
 

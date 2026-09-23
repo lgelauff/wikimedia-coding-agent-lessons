@@ -696,3 +696,26 @@ ignored files as unchanged, so "no uncommitted work" was true to git and false t
   first.
 - Background dev servers must die with the session that started them — record the PID at
   launch and kill it at session end, rather than leaving an orphan holding a lock.
+
+## Approve a script by its content, not by the command that launches it
+
+Approving `python3 analysis/foo.py` tells the human nothing about what `foo.py` does, and a
+path-based allow rule (`Bash(python3 analysis/*)`) lets an edited `foo.py` run unseen. Worse,
+the natural way to stop the prompts — `python3 *` — pre-approves arbitrary code; that exact
+entry was found in a project allowlist on 2026-09-23 next to `git push:*`.
+
+**Two mechanisms, split by how often the script changes** (Lodewijk, 2026-09-23):
+
+- **Under active iteration → hash approval** (`agent-tooling/scripts/script_approval.py`). The
+  agent shows the script and runs `approve`, which is deliberately *not* allowlisted, so the
+  human's permission prompt is the approval; the SHA-256 is recorded. `run` is allowlisted and
+  refuses anything whose bytes differ — an edit forces a fresh look. Cheap to change; on a
+  machine where the agent runs as the human, the ledger is protected only by a deny rule
+  (friction), unless it is root-owned (a real boundary).
+- **Stable → a root-owned, read-only folder** the agent can run from but not write to (the
+  pattern already used for `/usr/local/bin/deliver.py` and `/etc/claude-code/`). A real
+  boundary, and the allow rule becomes safe precisely because the agent cannot write there.
+  Each change costs a sudo copy, which is fine for tools that rarely change.
+
+Keep the ledger in the **main** checkout's `.claude/`, never a worktree's: a worktree is removed
+together with its ignored files, and an approvals ledger is exactly such a file.
