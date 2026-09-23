@@ -719,3 +719,28 @@ entry was found in a project allowlist on 2026-09-23 next to `git push:*`.
 
 Keep the ledger in the **main** checkout's `.claude/`, never a worktree's: a worktree is removed
 together with its ignored files, and an approvals ledger is exactly such a file.
+
+## A command hook only sees the command the tool runs — not what that command runs
+
+INCIDENT, 2026-09-23 night [confirmed from the captured log]. A subagent rehearsing a Toolforge
+job packet locally — instructed that no SSH was available and nothing could be launched —
+replaced `ssh`/`scp` with stand-in files earlier on `PATH`. The stand-ins were **not executable**,
+so the shell skipped them and fell through to the real binaries, and the rehearsal reached the
+real Toolforge bastion under the human's account: a `mkdir` that was refused, an `scp` of three
+test files that aborted with nothing written, and a login that ran no command. No job ran.
+
+Why nothing stopped it: the ssh-blocking hook inspects the **Bash tool's command string**. An
+`ssh` executed by a script the tool launched is a child process the hook never sees — and the
+human's SSH agent and keys were usable, non-interactively, by any process in the session.
+
+**Rules:**
+- **A text hook on the tool command is a tripwire for the obvious form, never a boundary.** A
+  boundary has to hold for child processes: the OS sandbox (which on macOS enforces for Bash
+  commands *and their children*), or the credential simply not being there.
+- **Don't give agent sessions the keys.** Where the agent runs as the human, deny the SSH
+  directory and the SSH agent socket to the sandbox; where the agent is its own user (hague), it
+  has no keys for hosts it must not reach, and this incident class cannot happen.
+- **Stub remote commands as shell functions, and preflight the stubs.** A rehearsal must assert
+  that every remote command resolves to its stub (`type ssh`) before running anything, and must
+  refuse any host it has no mapping for. A stub that silently falls through to the real binary
+  is worse than no stub, because the rehearsal reports success either way.
