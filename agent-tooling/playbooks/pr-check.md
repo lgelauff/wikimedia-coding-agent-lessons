@@ -17,9 +17,20 @@ An agent-neutral procedure for vetting a pull request and ending with one verdic
 
 ## Steps
 
-**0. Scope.** Compute the changed files and scope flags (run the bundled `scope.py` with the project config). Flags typically include doc-only, templates/CSS, JS, DB/migrations, ops/deploy, backend logic, sensitive (auth/proxy/secret/SQL), and runtime (user-facing flows). Doc-only → skip to a light prose/accuracy pass and the verdict.
+**0. Scope and size.** Compute the changed files and scope flags (run the bundled `scope.py` with the project config). Flags typically include doc-only, templates/CSS, JS, DB/migrations, ops/deploy, backend logic, sensitive (auth/proxy/secret/SQL, matched on code paths only — see `sensitive_exclude`), and runtime (user-facing flows). Doc-only → skip to a light prose/accuracy pass and the verdict.
 
-**1. Deterministic gate — no model in it.** Run everything that has a right answer: the project's `test_command`, linters, type checks, the repo's own guards, a secret scan, and any `sensitive_patterns` sweep over the diff. **A red gate caps the verdict at *needs-changes* and the panel does not convene** — the fix comes first, and a whole panel run is saved rather than made cheaper. Record what ran and what it said; that record is the panel's evidence in step 3.
+Then the **size gate**. Count changed lines (added + removed, excluding generated and lock files). **Over ~400 changed lines, stop:** report the size, recommend splitting (name the seams you can see), and do not convene the panel unless the user says to proceed. Steps 0–1 may still run — they are cheap and inform the split. The threshold is a heuristic, not a law: Google calls ~100 lines reasonable and ~1000 "usually too large", and the familiar 200–400-lines-per-sitting figure is a 2006 pre-CI vendor study [confirmed, 2026-09-23 literature pass, sources in `agent-tooling/lessons.md` → "Code review: what the evidence actually supports"]. A panel on a 1,500-line diff produces confident output whose defect coverage nobody should trust.
+
+**1. Deterministic gate — no model in it.** Run everything that has a right answer: the project's `test_command`, linters, type checks, the repo's own guards, a secret scan, a dependency-vulnerability scan on production dependencies, and the `sensitive_patterns` sweep over the diff. Two checks belong here because the author is usually an LLM and nothing in CI does them:
+
+- **Delete-the-fix.** For each test the change adds or alters alongside a fix, revert the non-test part of the change in a **throwaway worktree** and run those tests: they must fail, with the failure the test claims to guard. A test that passes without the fix is vacuous — a gate failure, not a nit.
+- **Every new dependency exists and is the one meant.** Look each added package up in its registry (name, publisher, age, download count) and compare it with what the code imports. Hallucinated package names are a live supply-chain vector.
+
+Where the project has them, add **sink-specific checks** (DOM sinks, raw SQL, shell-outs, deserialisation) over generic security lint, which is high-noise; the security of generated code does not improve with model size, so "an agent wrote it" is a reason for these, not a reason to relax.
+
+**A red gate caps the verdict at *needs-changes* and the panel does not convene** — the fix comes first, and a whole panel run is saved rather than made cheaper. **Only the deterministic tools in this step can turn the gate red.** Record what ran and what it said; that record is the panel's evidence in step 3.
+
+**1b. Mechanical model pass (optional, after a green gate).** If the host provides an automated diff reviewer, run it now, *after* the gate and outside it. Its findings go into the evidence pack and are weighed in step 3 like any reviewer's — confirmed, disputed, or reproduced in step 5. They never turn the gate red on their own: a model's opinion is not a check.
 
 **2. Evidence pack — a floor, not a ceiling.** Assemble once, for everyone: the diff, the files it touches, the gate's output, and the scope flags. It exists so that N reviewers do not each re-derive the same context; it does **not** replace exploration.
 
@@ -44,45 +55,29 @@ Run them in parallel, then a **cross-review** round where each confirms / disput
 
 **6. Human-staging recommendation.** Advise a person-driven staging pass when: the change hits live-backend behavior local verification can't reproduce; it's an accessibility/screen-reader change needing human judgment; the runtime flag fired but step 5 was skipped/failed; or it changes irreversible/identity-exposing flows. Otherwise state plainly that none is needed.
 
-## What the evidence says to put where (2026-09-23 review of the literature)
+## Why the steps are shaped this way
 
-Sources and caveats in `claude-code/lessons.md` ("Code review: what the evidence actually
-supports"). The short form, as instructions:
+Rationale only — every instruction above is already in a numbered step. Sources and caveats are
+in `agent-tooling/lessons.md` → "Code review: what the evidence actually supports" (literature
+pass, 2026-09-23).
 
-- **Size gate, before anything else.** Google calls 100 lines reasonable and 1000 "usually too
-  large"; the classic (2006, pre-CI, vendor) heuristic is 200–400 lines per sitting. Over ~400
-  changed lines, say so in the verdict and recommend splitting — a panel on a 1,500-line diff
-  produces confident output whose defect coverage nobody should trust.
-- **Into the deterministic gate, never a reviewer:** formatting, style, import order,
-  lint-fixable patterns, type errors, test execution, coverage delta, dependency CVE scan,
-  secret scan, bundle-size budget, licence check. Evidence: ~75% of human review comments are
-  maintainability, only ~20–25% functional defects — reviewer attention drains into exactly the
-  things a linter should own.
-- **Reviewer viewpoints, from what the evidence says needs judgment:** does this improve the
-  overall health of the code even if imperfect; does it do what the *issue* asked; is it
-  comprehensible to whoever maintains it; are the names right; do the comments say *why*; are
-  these the right tests; what is the blast radius (API/semver).
-- **Checklists are a routing device, not a detector.** The published studies are student
-  populations; there is no strong industrial evidence they raise defect yield. Use one to decide
-  what humans look at *after* CI, never as a reviewer's script.
-- **When the author is an LLM (i.e. most of our diffs), three checks earn their place:**
-  1. **Delete-the-fix:** would the new test actually fail without the change? Google's "tests do
-     not test themselves"; Node.js requires a test that fails before and passes after. Nothing in
-     CI does this for you, and on an LLM-authored diff it is the highest-value human step.
-  2. **Every new dependency: does the package exist, and is it the one meant?** Hallucinated
-     package names are a live supply-chain vector.
-  3. **Security of generated code is not improving with model size** — one 2025 study found 45%
-     of AI-generated samples introduced an OWASP Top 10 flaw, with XSS defended in 14% of
-     relevant cases. Treat "an agent wrote it" as a reason for the sink-specific checks, not a
-     reason to relax.
-- **JS/TS specifics worth gating:** `typescript-eslint` `recommended-type-checked` (the
-  type-aware rules — `no-floating-promises`, `no-misused-promises` — are the ones that catch real
-  async bugs); `tsc --noEmit` with `strict`; a ratchet on `any`/`ts-expect-error` counts rather
-  than a hard gate; DOM-sink rules (`innerHTML`, `eval`, `new Function`, string `setTimeout`,
-  `dangerouslySetInnerHTML`) over generic security lint, which is high-noise. `npm audit` gates
-  on production dependencies only — its default output is the main false-positive generator.
-- **The seam no linter sees:** serialization/validation between the SPA and the API. Neither
-  side's tooling reads both ends; put it in a reviewer's viewpoint explicitly.
+- **Deterministic before subjective:** ~75% of human review comments concern maintainability
+  and only ~20–25% functional defects (Bacchelli & Bird, ICSE 2013), so reviewer attention
+  drains into what a linter should own. Formatting, style, types, test execution, coverage
+  delta, dependency and secret scans, bundle and licence budgets all belong in step 1.
+- **Viewpoints, not checklists:** the evidence that checklists raise defect yield comes from
+  student populations; use one to route human attention after CI, never as a reviewer's script.
+  What does need judgment: overall code health, whether the change does what the *issue* asked,
+  comprehensibility, naming, comments that say *why*, whether these are the right tests, and
+  API/semver blast radius.
+- **LLM-authored diffs:** one 2025 study found 45% of AI-generated samples introduced an OWASP
+  Top 10 flaw and no improvement with newer or larger models — hence delete-the-fix, dependency
+  existence and sink-specific checks in step 1.
+- **The seam no linter sees:** serialization and validation between a client and its API.
+  Neither side's tooling reads both ends, so it belongs in a reviewer's viewpoint explicitly.
+
+The concrete tools for a given stack (which lint rules, which type-checker flags, which audit
+command) are project configuration, not method; an adapter may carry an example stack.
 
 ## Verdict
 

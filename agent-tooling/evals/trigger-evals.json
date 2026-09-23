@@ -128,6 +128,17 @@
       "id": "arxiv-near-miss-diff",
       "query": "I rewrote the intro and tightened the methods section, show me what changed in the paper",
       "expect_skill": "latex-change-review"
+    },
+    {
+      "id": "e2e-rethink",
+      "query": "our playwright suite takes 20 minutes now and a lot of the failures are flaky. do our end-to-end tests still make sense, or should we rethink which flows we cover",
+      "expect_skill": "e2e-design"
+    },
+    {
+      "id": "e2e-near-miss-local-ui",
+      "query": "test the UI locally — I changed the join button on the room page, check it still works in a browser",
+      "expect_skill": "browser-verify",
+      "note": "Near-miss for e2e-design: checking one change in a browser is verification, not suite design. Routing this to e2e-design is a crowding failure."
     }
   ]
 }

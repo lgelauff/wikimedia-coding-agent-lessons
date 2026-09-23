@@ -10,13 +10,17 @@ Config (JSON), all keys optional except `scope`:
   {
     "base_ref": "origin/main",
     "scope": { "FLAG": ["glob", ...], ... },   # path globs per flag
-    "sensitive_patterns": ["oauth", "csrf", ...] # substrings matched in ADDED diff lines
+    "sensitive_patterns": ["oauth", "csrf", ...], # substrings matched in ADDED diff lines
+    "sensitive_exclude": ["i18n/*", "*.md", ...]  # paths whose added lines SENSITIVE ignores
   }
 
 A flag is set if any changed file matches any of its globs. DOCS_ONLY is derived
 (every changed file ends in .md). SENSITIVE is set if any added (`+`) diff line
-contains a sensitive pattern (case-insensitive). Globs use fnmatch — `*` may cross
-`/`, so matching is intentionally permissive (over-scoping is safer than missing).
+contains a sensitive pattern (case-insensitive), except lines added to a file
+matching a `sensitive_exclude` glob — translated strings and docs say "log in"
+and "session" without being auth code, and a false SENSITIVE buys a whole
+security pass. Globs use fnmatch — `*` may cross `/`, so matching is
+intentionally permissive (over-scoping is safer than missing).
 
 Usage:
   scope.py --config .claude/pr-check.json --pr 174
@@ -30,7 +34,11 @@ import sys
 
 
 def classify(files, added_lines, config):
-    """Pure core: (files, added_lines, config) -> {files, flags}. Used by tests."""
+    """Pure core: (files, added_lines, config) -> {files, flags}. Used by tests.
+
+    `added_lines` is either {path: [line, ...]} (so `sensitive_exclude` can
+    apply) or a flat list of lines whose path is unknown (never excluded).
+    """
     scope = config.get("scope", {})
     flags = {}
     for flag, globs in scope.items():
@@ -39,9 +47,35 @@ def classify(files, added_lines, config):
         )
     flags["DOCS_ONLY"] = bool(files) and all(f.endswith(".md") for f in files)
     pats = [p.lower() for p in config.get("sensitive_patterns", [])]
-    blob = "\n".join(added_lines).lower()
+    exclude = config.get("sensitive_exclude", [])
+    if isinstance(added_lines, dict):
+        kept = [ln for path, lines in added_lines.items()
+                if not any(fnmatch.fnmatch(path, g) for g in exclude)
+                for ln in lines]
+    else:
+        kept = list(added_lines)
+    blob = "\n".join(kept).lower()
     flags["SENSITIVE"] = any(p in blob for p in pats)
     return {"files": files, "flags": flags}
+
+
+def added_by_file(diff):
+    """Unified diff text -> {path: [added line, ...]} (path from the `+++ b/` header)."""
+    out = {}
+    path = None
+    prev = ""
+    for ln in diff.splitlines():
+        header = ln.startswith("+++ ") and prev.startswith("--- ")
+        prev = ln
+        if header:
+            target = ln[4:].split("\t", 1)[0]
+            path = None if target == "/dev/null" else (
+                target[2:] if target.startswith("b/") else target)
+            if path is not None:
+                out.setdefault(path, [])
+        elif ln.startswith("+") and path is not None:
+            out[path].append(ln[1:])
+    return out
 
 
 def _run(cmd):
@@ -59,9 +93,7 @@ def _gather(args):
         files = _run(["git", "diff", "--name-only", rng])
         diff = _run(["git", "diff", rng])
     file_list = [f for f in files.splitlines() if f.strip()]
-    added = [ln[1:] for ln in diff.splitlines()
-             if ln.startswith("+") and not ln.startswith("+++")]
-    return file_list, added
+    return file_list, added_by_file(diff)
 
 
 def main():

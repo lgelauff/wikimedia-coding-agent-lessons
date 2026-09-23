@@ -1,0 +1,8 @@
+{
+  "_comment": "Per-project config for the e2e-design skill. Copy to .claude/e2e-design.json in the consuming repo and adjust. Values below are placeholders, not any one repo's binding.",
+  "e2e_command": "npm exec -- playwright test",
+  "spec_dir": "e2e/specs",
+  "notes_dir": ".claude/e2e-design",
+  "ci_provider": "github-actions",
+  "_ci_provider_values": "github-actions (runs read with gh run list / gh run view) | gitlab-ci (glab ci list) | none (ask the user for recent runtimes and retries)"
+}

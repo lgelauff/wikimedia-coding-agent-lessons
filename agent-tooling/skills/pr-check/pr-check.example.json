@@ -1,7 +1,7 @@
 {
   "_comment": "Per-project config for the pr-check skill. Copy to .claude/pr-check.json in the consuming repo and adjust. This example is the wiki-polis (Flask v2) binding.",
   "base_ref": "origin/main",
-  "test_command": "cd v2 && DATABASE_URL=\"sqlite:///:memory:\" SECRET_KEY=\"00000000000000000000000000000000\" FLASK_DEBUG=1 uv run pytest -q",
+  "test_command": "DATABASE_URL=\"sqlite:///:memory:\" SECRET_KEY=\"00000000000000000000000000000000\" FLASK_DEBUG=1 uv --directory v2 run pytest -q",
   "scope": {
     "TEMPLATES_CSS": ["v2/templates/*.html", "v2/static/*.css"],
     "JS": ["*.js"],
@@ -11,6 +11,7 @@
     "RUNTIME": ["v2/templates/conversation.html", "v2/templates/reveal.html", "v2/polis_admin.py"]
   },
   "sensitive_patterns": ["oauth", "login", "session[", "csrf", "secret", "token", "access_policy", "is_global_admin", "_require_mod", ".execute("],
+  "sensitive_exclude": ["*i18n/*", "*locales/*", "*.po", "*.md", "*CHANGELOG*", "docs/*"],
   "reviewers": {
     "_always": ["senior-engineer"],
     "TEMPLATES_CSS": ["accessibility", "usability"],

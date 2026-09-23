@@ -505,7 +505,9 @@ barely moved the number: a 62-line and a 262-line diff both cost ~328k. Worst si
 
 **Levers, in order of effect:** (1) make the scope globs narrow enough that UI reviewers convene
 only on real UI diffs; (2) let small or non-matching diffs convene no panel at all; (3) only
-then worry about the diff. ## Conversation length outranks model tier as a cost driver
+then worry about the diff.
+
+## Conversation length outranks model tier as a cost driver
 
 Same measurement, corrected and looked at whole [confirmed, 2026-09-23]: **one** conversation —
 8 days, 6,498 messages, spanning eight PRs — was 22.0M of 41.0M input+cache-write tokens, i.e.
@@ -616,46 +618,9 @@ review — the most expensive conditional step in the procedure. Apply sensitive
 to code paths only, exclude i18n catalogues, docs and changelogs, and make the verdict say when
 a flag fired on text rather than code.
 
-## Code review: what the evidence actually supports
-
-Literature pass, 2026-09-23. Numbers with their caveats, because several are weaker than their
-reputation.
-
-- **Size.** Google: 100 lines reasonable, 1000 "usually too large"
-  (google.github.io/eng-practices, developer/small-cls). The familiar 200–400 lines / ≤500
-  LOC-per-hour / 70–90% defect-discovery figures are the 2006 Cisco–SmartBear study: pre-CI,
-  C-family code, published by a tool vendor. Use as a heuristic, never quote as a law.
-- **Latency.** Respond within one business day; Chromium asks reviewers to check 2–3x/day and
-  add a second reviewer after two days. Speed of *each* response matters more than total elapsed.
-- **What humans are bad at.** Bacchelli & Bird (ICSE 2013): ~75% of review comments concern
-  maintainability, only ~20–25% functional defects. Attention drains into what a linter should
-  own — which is the empirical case for the deterministic gate, and for Google's "Nit:"
-  convention on non-blocking polish. Google's own answer is Tricorder: 110+ analyzers feeding
-  results into the review.
-- **What needs judgment** (eng-practices, reviewer/looking-for): does it improve overall code
-  health even if imperfect; does it do what the *issue* asked; complexity and comprehensibility;
-  naming; do comments say *why*; are these the right tests; API/semver blast radius.
-- **Checklists: evidence is thin.** The studies are student populations (e.g. Chong et al.,
-  ICSE-SEET 2021); no strong industrial result shows they raise defect yield. Treat a checklist
-  as a routing device for what humans look at after CI, not as a detector.
-- **Reviewing LLM-authored code.** Veracode 2025: 45% of AI-generated samples introduced an
-  OWASP Top 10 flaw; XSS defended in 14% of relevant cases; JavaScript the worst language at
-  ~43% failure; **security did not improve with newer or larger models**. DORA 2025: AI raises
-  throughput and correlates with higher instability. GitHub states its own review bot "is not
-  guaranteed to spot all problems". Practical focus, in order: (1) delete-the-fix — would the new
-  test fail without the change? Google: "tests do not test themselves"; Node.js requires a test
-  that fails before and passes after. Nothing in CI does this for you. (2) Does every new
-  dependency exist, and is it the intended package — hallucinated names are a live supply-chain
-  vector. (3) Does the change do what the *issue* asked, not what the prompt said.
-- **JS/TS gates worth having.** `typescript-eslint` `recommended-type-checked` (the type-aware
-  rules `no-floating-promises` / `no-misused-promises` catch the real async bugs; they need
-  `parserOptions.project`, so they are slow); `tsc --noEmit` with `strict`; a ratchet on
-  `any`/`ts-expect-error` counts rather than a hard gate; DOM-sink rules (`innerHTML`, `eval`,
-  `new Function`, string `setTimeout`, `dangerouslySetInnerHTML`) in preference to generic
-  security lint, which is high-noise. `npm audit` on production dependencies only — its defaults
-  (devDependencies, unreachable transitives) are the main false-positive source.
-- **The seam nothing lints:** serialization and validation between an SPA and its API. Neither
-  side's tooling reads both ends; it needs a named reviewer viewpoint.
+*(The literature pass "Code review: what the evidence actually supports" moved to
+[`agent-tooling/lessons.md`](../agent-tooling/lessons.md) on 2026-09-23: it is about review
+itself, not about Claude Code.)*
 
 ## A deployed plugin can sit a version behind forever while every freshness marker says "current"
 
@@ -671,3 +636,53 @@ the content commits did not bump — so the version silently acts as a cache key
 content change; treat a freshness marker as evidence of a *check*, never of a *copy*; and have
 the skill state which version it is running so a stale install is visible in the output rather
 than in a mystery.
+
+## A worktree takes its ignored files with it
+
+A session followed the rule "store Claude-produced notes in the repo's gitignored `.claude/`"
+while working in a git worktree. When that session ended, the whole worktree was removed,
+including its `.claude/`, and no copy remained anywhere on disk [confirmed 2026-09-23 by the
+successor session, `find` over `/`]. Its background dev stack was orphaned (parent PID 1) and
+still held a lock.
+
+The cost, as the successor session reported it [confirmed 2026-09-23]:
+
+- **Recovered:** the spec (an earlier copy; the last ~40 minutes of edits may be missing), a
+  convention note, the review pack, and 20 canvas source files plus the mockup — the last two
+  re-exported from their live published copies.
+- **Lost:** the STATE file; the panel and cross reviews and the design notes; the overnight
+  report, runbook, ledger, decisions and questions; a review folder of 30 files, among them 3
+  PR-body files and at least 8 screenshots (as listed at 16:48Z; files added after that are
+  unknown); 9 issue drafts, whose content survives only inside the review pack; the CI e2e issue
+  draft; and a skill-fix PR draft.
+- **Consequence:** one PR could no longer be pushed with its approved description, and the e2e
+  run that gated it never ran.
+
+What survived on its own did so because it had been published somewhere else — a doc, a
+canvas, a mockup. Nothing that lived only in the worktree survived, however carefully it had
+been written. **A note's durability is decided by where it lives, not by how well it is
+written.**
+
+**The recovery, and what it depended on** [confirmed 2026-09-23, reported by the successor
+session]: that session rebuilt 87 of the 90 lost files from the owning session's transcripts
+(its main transcript plus its subagent and workflow transcripts) — 77 verified complete against
+snapshots, sizes or independent copies, 10 probably complete. One image came back only
+partially (re-encoded by the Read tool) and 2 images were not recoverable. The blocked PR was
+then pushed with its description. It took a full session's work. Recovery was possible only
+because the inputs of file-writing tool calls are kept in the transcript: **the transcript is
+the backup of last resort, but only for content written through tools** — binary artefacts such
+as screenshots mostly cannot be recovered that way. None of this changes the rule: notes do not
+belong in a worktree.
+
+Probable cause [guess]: worktree auto-cleanup treats a worktree whose only differences are
+ignored files as unchanged, so "no uncommitted work" was true to git and false to the user.
+
+**Rules:**
+
+- Long-lived notes (STATE, reviews, drafts, PR bodies, runbooks) go in the **main checkout's**
+  `.claude/`, never a worktree's. A worktree is for code that will be committed.
+- A guard should refuse to remove a worktree that has ignored files under `.claude/` (check
+  `git -C <worktree> status --ignored --porcelain`), or snapshot them into the main checkout
+  first.
+- Background dev servers must die with the session that started them — record the PID at
+  launch and kill it at session end, rather than leaving an orphan holding a lock.

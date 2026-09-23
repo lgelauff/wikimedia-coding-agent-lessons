@@ -250,3 +250,44 @@ backend. A stack that genuinely needs containers still needs compose, pinned ima
 readiness gate — take the principles, not the shortcut. And note what their setup pays for
 elsewhere: the suite makes real third-party API calls, so it is not hermetic, runs only 2
 workers, needs a 180s per-test timeout and a credential to run at all.
+
+## Code review: what the evidence actually supports
+
+Literature pass, 2026-09-23. Numbers with their caveats, because several are weaker than their
+reputation. The `pr-check` playbook's rationale section cites this entry.
+
+- **Size.** Google: 100 lines reasonable, 1000 "usually too large"
+  (google.github.io/eng-practices, developer/small-cls). The familiar 200–400 lines / ≤500
+  LOC-per-hour / 70–90% defect-discovery figures are the 2006 Cisco–SmartBear study: pre-CI,
+  C-family code, published by a tool vendor. Use as a heuristic, never quote as a law.
+- **Latency.** Respond within one business day; Chromium asks reviewers to check 2–3x/day and
+  add a second reviewer after two days. Speed of *each* response matters more than total elapsed.
+- **What humans are bad at.** Bacchelli & Bird (ICSE 2013): ~75% of review comments concern
+  maintainability, only ~20–25% functional defects. Attention drains into what a linter should
+  own — which is the empirical case for the deterministic gate, and for Google's "Nit:"
+  convention on non-blocking polish. Google's own answer is Tricorder: 110+ analyzers feeding
+  results into the review.
+- **What needs judgment** (eng-practices, reviewer/looking-for): does it improve overall code
+  health even if imperfect; does it do what the *issue* asked; complexity and comprehensibility;
+  naming; do comments say *why*; are these the right tests; API/semver blast radius.
+- **Checklists: evidence is thin.** The studies are student populations (e.g. Chong et al.,
+  ICSE-SEET 2021); no strong industrial result shows they raise defect yield. Treat a checklist
+  as a routing device for what humans look at after CI, not as a detector.
+- **Reviewing LLM-authored code.** Veracode 2025: 45% of AI-generated samples introduced an
+  OWASP Top 10 flaw; XSS defended in 14% of relevant cases; JavaScript the worst language at
+  ~43% failure; **security did not improve with newer or larger models**. DORA 2025: AI raises
+  throughput and correlates with higher instability. GitHub states its own review bot "is not
+  guaranteed to spot all problems". Practical focus, in order: (1) delete-the-fix — would the new
+  test fail without the change? Google: "tests do not test themselves"; Node.js requires a test
+  that fails before and passes after. Nothing in CI does this for you. (2) Does every new
+  dependency exist, and is it the intended package — hallucinated names are a live supply-chain
+  vector. (3) Does the change do what the *issue* asked, not what the prompt said.
+- **JS/TS gates worth having.** `typescript-eslint` `recommended-type-checked` (the type-aware
+  rules `no-floating-promises` / `no-misused-promises` catch the real async bugs; they need
+  `parserOptions.project`, so they are slow); `tsc --noEmit` with `strict`; a ratchet on
+  `any`/`ts-expect-error` counts rather than a hard gate; DOM-sink rules (`innerHTML`, `eval`,
+  `new Function`, string `setTimeout`, `dangerouslySetInnerHTML`) in preference to generic
+  security lint, which is high-noise. `npm audit` on production dependencies only — its defaults
+  (devDependencies, unreachable transitives) are the main false-positive source.
+- **The seam nothing lints:** serialization and validation between an SPA and its API. Neither
+  side's tooling reads both ends; it needs a named reviewer viewpoint.
