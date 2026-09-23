@@ -587,3 +587,31 @@ either verify the key exists when writing the handoff, or inline the procedure.
   <https://github.com/anthropics/claude-code/issues/45421>
 - Official PreToolUse Bash command-validator hook example (same exit-code pattern):
   <https://github.com/anthropics/claude-code/blob/main/examples/hooks/bash_command_validator_example.py>
+
+## Measure before you optimise a panel: the diff is not where the findings come from
+
+The obvious cost fix for a review panel is to hand every reviewer a prepared evidence pack and
+stop them exploring the repo. Measured on a real 449-line PR before adopting it [confirmed,
+2026-09-23, wiki-polis #450, 4 reviewers + cross-review + synthesis = 9 agents, 1.05M subagent
+tokens, 20m]: of **31 findings, 25 required reading outside the diff**, including **4 of the 7
+must-fix** — an RTL precedent that existed only in one stylesheet rule, a whole-component read
+showing an `aria-label` hiding its visible label, a tree-wide glyph grep, and a backend fallback
+constant whose value made a newly added test vacuous.
+
+So the pack is a **floor, not a ceiling**: it removes *duplicated* reads across reviewers and
+gives them a shared cacheable prefix, but blindfolding the panel buys tokens and pays in
+defects. Two of those four findings were cheap greps a reviewer might have requested; two
+(a precedent hunt and a full component read) are not things you know to ask for unless you
+already suspect them — which is the entire value of a reviewer.
+
+The generalisable rule: **instrument the thing you are about to optimise.** One flag per
+finding (`evidence=diff|repo`) turned an architectural argument into a number, and it cost one
+line in the reviewer prompt.
+
+## A scope flag that fires on prose costs a whole review pass
+
+Same run: the `SENSITIVE` flag fired on the words "log in", "OAuth" and "session" appearing in
+*translated message strings* and docs, not in code [confirmed]. That flag gates a security
+review — the most expensive conditional step in the procedure. Apply sensitive-content patterns
+to code paths only, exclude i18n catalogues, docs and changelogs, and make the verdict say when
+a flag fired on text rather than code.

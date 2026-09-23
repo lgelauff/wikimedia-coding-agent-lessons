@@ -21,7 +21,11 @@ An agent-neutral procedure for vetting a pull request and ending with one verdic
 
 **1. Deterministic gate — no model in it.** Run everything that has a right answer: the project's `test_command`, linters, type checks, the repo's own guards, a secret scan, and any `sensitive_patterns` sweep over the diff. **A red gate caps the verdict at *needs-changes* and the panel does not convene** — the fix comes first, and a whole panel run is saved rather than made cheaper. Record what ran and what it said; that record is the panel's evidence in step 3.
 
-**2. Evidence pack.** Assemble once, for everyone: the diff, the files it touches, the gate's output, and the scope flags. Reviewers read this instead of exploring the repo separately — duplicated exploration across reviewers is the single largest avoidable cost in this procedure. A reviewer that needs more may request a bounded check (a search, a file, one test) from the runner; it does not go browsing.
+**2. Evidence pack — a floor, not a ceiling.** Assemble once, for everyone: the diff, the files it touches, the gate's output, and the scope flags. It exists so that N reviewers do not each re-derive the same context; it does **not** replace exploration.
+
+Measured on a real 449-line PR [confirmed, 2026-09-23, wiki-polis #450]: of 31 panel findings, **25 required reading outside the diff**, including 4 of the 7 must-fix findings — an RTL precedent found only by reading the stylesheet, a whole-component read that exposed an aria-label hiding its visible label, a tree-wide glyph grep, and a fallback constant in the backend that made a new test vacuous. A pack-only panel would have missed them. **Restricting reviewers to the pack buys tokens and pays in defects.**
+
+So: give every reviewer cheap read access (file read, grep/glob over the tree, `git log`/`git show` on a pinned ref) and an explicit exploration budget in the prompt — e.g. "up to ~10 targeted reads/searches; say what you opened and why". Cost control comes from (a) the shared pack removing *duplicated* reads, (b) the cache hits a shared prefix produces, and (c) scope, not from blindfolding the panel. Record `evidence=diff|repo` per finding so this stays measured rather than assumed.
 
 **3. Expert panel + cross-review — the subjective part only.** Convene reviewers matched to the scope flags (a generalist always; plus accessibility/usability for UI, frontend for JS, database for schema/migrations, ops for deploy). Scope picks **viewpoints**, not file types: the question is whose perspective this change needs.
 
