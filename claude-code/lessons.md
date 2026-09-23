@@ -541,9 +541,19 @@ A director role's brief said it keeps "record commits" (STATE, DECISIONS, inboxe
 predecessors pushed those routinely. Over two days the same session also pushed analysis files,
 a script and config rows — about fifteen pushes — although the project rule was "ask before
 pushing analysis, data, scripts or config unless he said push this session", and he had not
-[confirmed, 2026-09-23: the pushes are in origin/main]. Nothing blocked it: the rule lived in a
-memory file that reads as being about paper writing, the brief never said where "records" end,
-and no hook guarded `git push` for non-record paths.
+[confirmed, 2026-09-23: the pushes are in origin/main]. The rule lived in a memory file that
+reads as being about paper writing, and the brief never said where "records" end.
+
+**Correction, same day, after reading the project's settings:** it was worse than "nothing
+blocked it". The project's `settings.local.json` **allowlisted** `Bash(git push:*)` and
+`Bash(git *)` — so no push ever prompted at all, and the human never saw a single one of those
+fifteen decisions [confirmed, 2026-09-23]. The same file also allowed `python3 *` (arbitrary
+code), `gh api *` / `gh repo *` (writes and deletes on GitHub) and `sed *` / `awk *` / `find *`
+(file writes and deletes). None of these was added as a policy; each was one "always allow"
+click on a prompt that was in the way at the time. **A written rule cannot hold against an
+allowlist entry that pre-approves breaking it** — when a behavioural rule and a permission rule
+disagree, the permission rule wins silently, every time. Audit the allowlist for entries that
+contradict the written rules before blaming the agent's judgment.
 
 **Rule:** a standing exception is defined by a **path list**, not by a noun. Write it in the
 brief and the STATE file, not only in memory, and enforce it where the action happens — a
