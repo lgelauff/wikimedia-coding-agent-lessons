@@ -200,6 +200,36 @@ while the macOS directory entries are NFD. APFS matches either form; Linux ext4 
 [confirmed, 2026-09-22]. Build any `.sum` destined for another host from the filesystem itself
 (`find -print0 | xargs -0 shasum`), and verify it once on the target before trusting it.
 
+## A directory created by scp can have an ACL mask that blocks what the ACL grants
+
+A packet was scp'd from the Mac into the server's one-way exchange folder, and the receiving
+user could not read any file in it [confirmed, 2026-09-24, hague]. `getfacl` showed
+`user:agent:r-x`, inherited from the parent's default ACL. But scp had created the new
+subdirectory with an ACL **mask** of `r--`, and the mask caps every named entry, so the
+effective permission lost `x` and the receiver could not traverse into it. The symptom was
+"Permission denied" on files the ACL visibly granted, and that misleads: the grant looks right,
+and only `getfacl`'s `#effective:` column shows the cause. Fixed with
+`setfacl -m u:agent:rx,m:rx <dir>`.
+
+**Rules:** senders copy files into a directory that **already exists** on the receiving side
+(created there, so the default ACL applies intact), never let scp or rsync create it. Or the
+receiver resets the mask after arrival. When an ACL grant "doesn't work", read the
+`#effective:` column before anything else.
+
+## A privilege split protects you only if the privileged account declines work it could do
+
+The server's admin session (the `ubuntu` user: passwordless sudo and docker-group membership,
+root-equivalent) offered to run another session's job itself via `sudo -u agent`. That meant
+executing a 15 KB script from a packet it had not read. Lodewijk stopped it [confirmed,
+2026-09-24]. Nothing technical would have stopped it: the boundary held because a human was
+watching.
+
+**Rule:** the privileged session does not run project code. It inspects, installs and
+administers. Analysis, builds, tests and any script from a repo, a packet or another session
+run in an unprivileged session, which reads the code first. Moving data in and verifying
+checksums is fine; executing is not. On any host, the account that *can* do everything is
+exactly the one that must refuse the work an unprivileged account could do instead.
+
 ## A service an agent must reason about needs an unauthenticated build identifier
 
 Determining which branch was live on a deployment was not answerable in-band: the branch lives
