@@ -224,3 +224,6 @@ flushing-dataviz/skills/*/demo/output/*
 
 # macOS
 .DS_Store
+
+# scratch output
+tmp/
