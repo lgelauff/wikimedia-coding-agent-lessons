@@ -647,6 +647,29 @@ content change; treat a freshness marker as evidence of a *check*, never of a *c
 the skill state which version it is running so a stale install is visible in the output rather
 than in a mystery.
 
+## A temporary path written into user settings makes a marketplace vanish without an error
+
+Follow-up to the entry above, 2026-09-24 [confirmed from `~/.claude/plugins` and
+`~/.claude/settings.json`]. The Mac's own install was the stale one: its marketplace clone sat
+at the 2026-08-20 commit (0.15.0) while main was at 0.21.0, 32 commits on. The cause was in
+user settings: the marketplace's `extraKnownMarketplaces` entry, a `github` source, had gained a
+`"path"` key pointing into a session scratchpad under `/private/tmp/…/scratchpad/`. That
+directory was long gone. The CLI then dropped the marketplace from `claude plugin marketplace
+list` and refused `marketplace update` ("not found"). No warning appeared anywhere, and the
+already-installed plugin kept loading from cache, so everything *worked* but could never
+update. Removing the one key and running `marketplace update` brought the install to 0.21.0.
+
+**Rules:**
+- **Never write a session scratchpad or `/tmp` path into persistent configuration.** The
+  scratchpad dies with the session and the setting outlives it. This holds for user settings,
+  project settings, hooks and marketplace sources alike.
+- **"The plugin loads" is not "the plugin updates."** When an install is behind, check first
+  that the CLI still lists its marketplace (`claude plugin marketplace list`). A marketplace
+  that `known_marketplaces.json` still records but the CLI does not list has an invalid
+  settings entry.
+- A host that receives its plugins from this machine inherits the staleness, so fix the source
+  machine before debugging the downstream host.
+
 ## A worktree takes its ignored files with it
 
 A session followed the rule "store Claude-produced notes in the repo's gitignored `.claude/`"
