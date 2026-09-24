@@ -54,8 +54,8 @@ def main() -> int:
     # Sorted for deterministic, reviewable output.
     for entry in sorted(OUTBOX.iterdir()):
         name = entry.name
-        if name.startswith("."):
-            continue  # dotfiles are staging residue, not deliverables
+        if name.startswith((".", "transfer-")):
+            continue  # dotfiles are staging residue; transfer-* is transfer.py's to deliver
 
         # lstat, not stat: a symlink must be refused, not followed. Following one would
         # move the target — a file the agent may not be able to read itself.
