@@ -535,6 +535,17 @@ class TestPlainDeliverSkipsTransfers(Base):
         self.assertTrue((folder / "a.csv").exists())
         self.assertFalse((self.home / "Downloads" / f"transfer-{tid}").exists())
 
+    def test_empty_transfer_folder_not_cleaned_up(self):
+        # A sender mkdirs transfer-<id>/ and then copies in. If deliver.py runs in between,
+        # its empty-dir cleanup must not remove the folder, or the sender's cp fails.
+        (self.home / "Downloads").mkdir()
+        staging = self.agent / "outbox" / "transfer-2026-09-24-empty"
+        staging.mkdir(parents=True)
+        r = subprocess.run([sys.executable, str(DELIVER)], env=self.env,
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue(staging.is_dir())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -87,7 +87,7 @@ def main() -> int:
     # Clean up empty staging directories the agent may have made, but only if empty.
     try:
         for d in sorted(OUTBOX.iterdir(), reverse=True):
-            if d.is_dir():
+            if d.is_dir() and not d.name.startswith("transfer-"):
                 try:
                     d.rmdir()
                 except OSError:
