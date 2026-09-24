@@ -669,6 +669,13 @@ update. Removing the one key and running `marketplace update` brought the instal
   settings entry.
 - A host that receives its plugins from this machine inherits the staleness, so fix the source
   machine before debugging the downstream host.
+- **Remote hosts sync each OS user separately, at session start.** After the fix, hague's
+  `ubuntu` user got a fresh 0.21.0 tree, but the `agent` user still had only 0.15.0 [confirmed
+  by two sessions reading their own trees]. A session already running as `agent` did not see the
+  new skill, because its skill list is fixed at start. Opening one new session as `agent` synced
+  it, and e2e-design appeared. To roll out a plugin change to a remote host: open a new session
+  **as each user** that needs it, then confirm by checking that session's skill list, not the
+  other user's.
 
 ## A worktree takes its ignored files with it
 
