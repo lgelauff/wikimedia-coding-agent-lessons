@@ -236,6 +236,23 @@ import.
 - **Pin any helper whose version changes the output** (record its hash in the runbook), and
   never upgrade it partway through a corpus.
 
+## Remote jobs: done means evidence, launched means committed, uploaded means verified
+
+Reported by the drop director, 2026-09-24/25 [confirmed].
+- **"Done" requires pasted evidence.** A Toolforge job was recorded as finished on a verbal
+  report; its results had not actually been retrieved. A job is done only when its end line or
+  output count has been pasted into the record.
+- **Launch only committed code.** A job expected to run 10+ hours was started from uncommitted
+  local code, so no commit identifies what ran. Commit the exact uploaded bytes before or at
+  launch, and record the commit.
+- **Upload from a checkout verified at `origin/main`.** The main checkout was 20 commits behind
+  origin, and a runbook was about to upload from it, which would have shipped a stale lane
+  script. Before any upload, fetch and confirm HEAD equals `origin/main` (or the intended
+  commit), and have the preflight print the uploaded files' sha256.
+- **Identify sessions by full id, not by name.** A session's name carries over a handover; its
+  session id does not. One session spliced two ids together and "proved" they matched. Compare
+  full ids, and record them in the agent log.
+
 ## A privilege split protects you only if the privileged account declines work it could do
 
 The server's admin session (the `ubuntu` user: passwordless sudo and docker-group membership,
