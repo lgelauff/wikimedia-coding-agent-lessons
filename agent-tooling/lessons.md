@@ -216,6 +216,26 @@ and only `getfacl`'s `#effective:` column shows the cause. Fixed with
 receiver resets the mask after arrival. When an ACL grant "doesn't work", read the
 `#effective:` column before anything else.
 
+## A remote job packet's preflight must check every file the launch runs, not a proxy
+
+Toolforge, 2026-09-24 [confirmed]. The runbook's preflight grepped the **scanner** for the new
+mode's flag. It printed 12 and passed, but the launch goes through a **lane script** that had no
+such mode, so a full launch would have rerun the old mode into the old output directory. There,
+its `.done` files would have made unprocessed parts look finished. The same session's audit then
+found that the scanner imports a helper module the upload step never listed. It existed remotely
+only because an earlier run had put it there, so a packet rebuilt from scratch would fail at
+import.
+
+**Rules:**
+- **Derive the upload list from what actually runs:** the entry point the launch line invokes,
+  plus its import closure. Never from memory of "the files I changed".
+- **Preflight each file in that list,** at the version the launch needs (a content marker or a
+  hash). A check on one file says nothing about its neighbours.
+- **A new mode writes to a new output directory.** Resumable jobs treat existing done-markers as
+  truth, so a mistaken launch into an old directory silently corrupts it rather than failing.
+- **Pin any helper whose version changes the output** (record its hash in the runbook), and
+  never upgrade it partway through a corpus.
+
 ## A privilege split protects you only if the privileged account declines work it could do
 
 The server's admin session (the `ubuntu` user: passwordless sudo and docker-group membership,
