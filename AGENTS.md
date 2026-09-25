@@ -1,17 +1,29 @@
 # Working in this repo
 
 This file is loaded automatically at the start of every OpenCode session in this directory.
-It is the durable contract. For *what to work on next*, read
-`.claude/next-session-2026-09-19.md` — that file is replaced each session; this one is not.
+It is the durable contract. For *what to work on next*, read the rolling state file below;
+it is overwritten as work moves, and this file is not.
 
-## First thing: read the current handoff
+## First thing: read the current state and the agent log
 
 ```
-.claude/next-session-2026-09-19.md
+~/agent/notes/wikimedia-coding-agent-lessons/STATE.md   # rolling state (since 2026-09-24)
+~/agent/notes/AGENT-LOG.md                              # who holds what; chain of custody
 ```
 
-It states the current state, the ordered next steps, known defects, open questions, and the
-traps. Treat it as authoritative for the task at hand. The design-era predecessor
+STATE.md states what is done, what is open and waiting on Lodewijk, the active peer sessions,
+and the standing permissions. **If you are taking over as coordinator** (for example, OpenCode
+after the Claude sessions run out of tokens):
+1. Compute STATE.md's sha256.
+2. Add your own row to AGENT-LOG.md, with `pred` set to the previous coordinator, and log an
+   `ack` event with that hash.
+3. Only then act.
+
+Approvals Lodewijk gave to earlier sessions do **not** carry over to you; only standing
+permissions written down do. The rules are in
+`~/agent/notes/wikimedia-coding-agent-lessons/agent-log-design-2026-09-25.md`. Everything in
+`.claude/` below is older history; the main checkout's `.claude/STATE.md` is frozen at
+2026-09-24. The design-era predecessor
 `.claude/harness-handoff-2026-09-12.md` explains *why* the design is what it is; the design
 itself is `.claude/harness-design-2026-09-12.md`, where **Revisions 2–6 supersede the numbered
 sections where they conflict**. The previous state is archived at `.claude/handoff-2026-09-17.md`.
