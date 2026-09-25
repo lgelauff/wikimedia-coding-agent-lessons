@@ -677,6 +677,43 @@ update. Removing the one key and running `marketplace update` brought the instal
   **as each user** that needs it, then confirm by checking that session's skill list, not the
   other user's.
 
+## Testing a machine-wide rule set: what the test can and cannot prove
+
+Source: 2026-09-25. An `agent` session on hague tested the machine-wide managed rules
+(`/etc/claude-code`), and the director session reported the results. Test design by the
+director.
+
+**What it proved and what it didn't:**
+- **Deny rules are verifiable; ask rules are not, in auto mode** [confirmed deny; ask is
+  unproven]. The decoy secrets file was refused without a prompt, and `.env.example` was
+  allowed. But a session in auto mode cannot tell "no prompt appeared" from "auto mode approved
+  it". Testing an ask rule needs a default-mode session and a human who declines the prompt.
+  Until that has been done, any claim that `sudo`, `gh` or `git push` "will prompt" is
+  unverified. A rule set that relies on prompting behaves differently in each permission mode.
+- **A relayed approval is not approval** [confirmed]. The director opened its test request with
+  "Lodewijk asked for this". The tester held everything and asked him directly, which was
+  correct. The same session also refused yesterday's yes relayed by the coordinator. Rule sets
+  should say it explicitly: only the human, in the session's own chat, approves.
+- **A test that requires breaking the rule it tests must be refused.** Running `sudo` to prove
+  sudo is forbidden is the violation. Test with decoys, and check forbidden actions from the
+  privileged side.
+
+**Gaps the test exposed in the rules themselves** [confirmed unless marked]:
+- **Scratchpad vs. working directory.** The harness mandates a scratchpad outside the working
+  directory, and the policy says to stay inside it, so every session collides. Either name the
+  scratchpad as an exception or put it inside scope.
+- **"Write inside the current repo" is undefined** when the working directory is a parent of
+  several repos.
+- **A session must be able to read its own setup** (plugins, skills, memory, the managed rules)
+  or it cannot answer questions about itself; the plugin-version check stalled on exactly this.
+  Grant read-only self-inspection with credentials still denied, enforced in managed settings
+  rather than by wording.
+- **Two memory systems with no precedence.** The harness memory folder and the policy's memory
+  route exist side by side, and no rule says which wins.
+- **`cd` in a Bash call moved the session's allowed scope.** It narrowed from `~/GitHub` to one
+  repo, silently. Scope should pin to the launch directory. Until it does, never `cd` in a Bash
+  call; use absolute paths (and `git -C`).
+
 ## A worktree takes its ignored files with it
 
 A session followed the rule "store Claude-produced notes in the repo's gitignored `.claude/`"
