@@ -19,6 +19,9 @@ after the Claude sessions run out of tokens):
    `ack` event with that hash.
 3. Only then act.
 
+Steps 1–2 plus reading STATE.md are one approved call (`--dry-run` first if unsure):
+`python3 agent-tooling/scripts/coordinator_takeover.py --pred <S…> --where "<machine/user · checkout>"`
+
 An **OpenCode** session has `agent-tooling/adapters/opencode/SESSION.md` loaded automatically
 (via the `instructions` key that `install.py` manages); it covers
 launching, registering, reporting without SendMessage, and working with few permission prompts.
@@ -99,6 +102,7 @@ python3 -m unittest agent-tooling.scripts.tests.test_audit_skills \
                     agent-tooling.scripts.tests.test_skill_trigger_eval \
                     agent-tooling.scripts.tests.test_script_approval \
                     agent-tooling.scripts.tests.test_transfer \
+                    agent-tooling.scripts.tests.test_coordinator_takeover \
                     agent-tooling.policies.tests.test_webfetch_mandated
 ```
 
