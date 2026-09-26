@@ -18,9 +18,10 @@ Ownership contract (the reason this is a script and not a checklist):
     key are preserved byte-for-byte. An owned key absent from machine.json is REMOVED,
     except `enabled_providers`, which is preserved when absent because deleting it would
     widen provider access (fail open).
-  * `instructions` is owned PER ENTRY, not wholesale: install.py owns exactly one entry,
-    the absolute path of this adapter's SESSION.md, so OpenCode loads it into every
-    session. Every other entry the user has is kept, in order. See merge_instructions().
+  * `instructions` is owned PER ENTRY, not wholesale: install.py owns an ordered tuple of
+    entries, the absolute paths of agent-tooling/OPERATING-NOTES.md and this adapter's
+    SESSION.md, so OpenCode loads both into every session. Every other entry the user has
+    is kept, in order. See owned_instruction_files() and merge_instructions().
   * It BACKS UP before writing, using the local epoch-ms convention already present in
     ~/.claude/backups/.
   * It refuses to run without machine.json. A guessed data_root is the failure D23 exists
@@ -68,14 +69,22 @@ OWNED_OPENCODE_KEYS = {"permission", "agent", "enabled_providers", "model", "ins
 # silently delete them. See merge_instructions() for the exact semantics.
 PER_ENTRY_KEYS = {"instructions"}
 
-# The session contract every OpenCode session must load (Lodewijk, 2026-09-26). Absolute,
-# and derived from this file's own location, so the same install.py yields the right path
-# on the Mac and on hague without a machine.json field. NOT ~/.config/opencode/AGENTS.md:
-# on these machines creating that file stops OpenCode loading ~/.claude/CLAUDE.md.
+# The files every OpenCode session must load, as `instructions` entries (Lodewijk,
+# 2026-09-26). Absolute, and derived from this file's own location, so the same install.py
+# yields the right paths on the Mac and on hague without a machine.json field. NOT
+# ~/.config/opencode/AGENTS.md: on these machines creating that file stops OpenCode
+# loading ~/.claude/CLAUDE.md.
+#
+# Each owned file has a repo-relative SUFFIX. That is how an entry for the same file in
+# ANOTHER checkout of this repo is recognised (a moved repo, or an earlier deploy run from
+# a worktree that has since been removed). Such an entry is install.py's own, stale; it is
+# replaced, not kept alongside the current one.
+#
+# The working habits shared with Claude sessions (which get them via the plugin hook).
+OPERATING_NOTES_MD = REPO_ROOT / "agent-tooling" / "OPERATING-NOTES.md"
+OPERATING_NOTES_SUFFIX = "/agent-tooling/OPERATING-NOTES.md"
+# The OpenCode session contract.
 SESSION_MD = REPO_ROOT / "agent-tooling" / "adapters" / "opencode" / "SESSION.md"
-# How an entry for SESSION.md from ANOTHER checkout of this repo is recognised (a moved
-# repo, or an earlier deploy run from a worktree that has since been removed). Such an
-# entry is install.py's own, stale; it is replaced, not kept alongside the current one.
 SESSION_MD_SUFFIX = "/agent-tooling/adapters/opencode/SESSION.md"
 # Keys whose absence from machine.json must NOT delete the live value. Deleting them
 # widens access (fail open): `enabled_providers` is the D20/D22 provider allow-list,
@@ -213,18 +222,42 @@ def read_machine() -> dict:
 
 # ------------------------------------------------------------------ phases
 
-def session_instruction() -> str:
-    """The one `instructions` entry install.py owns: SESSION.md's absolute path.
+def owned_instruction_files() -> tuple[tuple[Path, str], ...]:
+    """The `instructions` entries install.py owns, IN LOAD ORDER: (absolute path, suffix).
 
-    Refuses (exit 1) when the file is not there. OpenCode's handling of an instructions
-    path that matches nothing is unverified; either way, writing one would read as "every
-    session gets the contract" while no session does.
+    Read from the module globals at call time, not frozen at import, so a test can point
+    either path at a temp file.
     """
-    if not SESSION_MD.is_file():
-        say(f"REFUSED: {SESSION_MD} does not exist.")
+    return (
+        (OPERATING_NOTES_MD, OPERATING_NOTES_SUFFIX),
+        (SESSION_MD, SESSION_MD_SUFFIX),
+    )
+
+
+def owned_instructions() -> list[str]:
+    """install.py's own `instructions` entries, in order, as absolute path strings.
+
+    Refuses (exit 1) when ANY of the files is not there, naming every missing one.
+    OpenCode's handling of an instructions path that matches nothing is unverified; either
+    way, writing one would read as "every session gets this file" while no session does.
+    """
+    files = owned_instruction_files()
+    missing = [p for p, _ in files if not p.is_file()]
+    if missing:
+        for p in missing:
+            say(f"REFUSED: {p} does not exist.")
         say("  Refusing to write an `instructions` entry that points at nothing.")
         sys.exit(1)
-    return str(SESSION_MD)
+    return [str(p) for p, _ in files]
+
+
+def _owned_pairs(ours: list[str]) -> list[tuple[str, str]]:
+    """Pair each owned entry with its repo-relative suffix (same order as the files)."""
+    suffixes = [s for _, s in owned_instruction_files()]
+    if len(ours) != len(suffixes):
+        raise SystemExit(f"BUG: {len(ours)} owned instructions entries for "
+                         f"{len(suffixes)} owned files")
+    return list(zip(ours, suffixes))
 
 
 def _instruction_entries(live) -> list[str]:
@@ -240,57 +273,81 @@ def _instruction_entries(live) -> list[str]:
     sys.exit(2)
 
 
-def _is_stale_own_entry(entry: str, ours: str) -> bool:
-    return entry != ours and entry.replace("\\", "/").endswith(SESSION_MD_SUFFIX)
+def _stale_copy_of(entry: str, pairs: list[tuple[str, str]]) -> str | None:
+    """The suffix of the owned file `entry` is a stale copy of, or None.
+
+    Stale = same repo-relative suffix as an owned file, different absolute path. An entry
+    that IS one of install.py's current entries is never stale.
+    """
+    if any(entry == ours for ours, _ in pairs):
+        return None
+    norm = entry.replace("\\", "/")
+    for _, suffix in pairs:
+        if norm.endswith(suffix):
+            return suffix
+    return None
 
 
-def merge_instructions(live, ours: str) -> list[str]:
-    """Merge install.py's one entry into the live `instructions` list.
+def merge_instructions(live, ours: list[str]) -> list[str]:
+    """Merge install.py's owned entries (in order) into the live `instructions` list.
 
     Semantics, chosen as the least surprising for a key the user also writes to:
       * every entry that is not install.py's is KEPT, in its original order;
-      * install.py's entry is added at the END if missing, left in place if present, and
-        collapsed to one if it appears more than once;
-      * an entry naming SESSION.md in ANOTHER checkout of this repo (same
-        `.../agent-tooling/adapters/opencode/SESSION.md` suffix, different path) is
+      * each of install.py's entries is left in place if present and collapsed to one if
+        it appears more than once; the missing ones are added at the END, in owned order
+        (OPERATING-NOTES.md, then SESSION.md). A present entry is NOT moved: a live list
+        that already has SESSION.md gets OPERATING-NOTES.md appended after it;
+      * an entry naming an owned file in ANOTHER checkout of this repo (same repo-relative
+        suffix, e.g. `.../agent-tooling/OPERATING-NOTES.md`, different path) is
         install.py's own from an earlier deploy (a moved repo, a removed worktree) and is
-        REPLACED, so two copies of the contract are never loaded and a dangling one is
-        never left behind. That is the only user-visible removal, and --check names it.
+        REPLACED, so two copies of a file are never loaded and a dangling one is never
+        left behind. That is the only user-visible removal, and --check names it.
     """
+    pairs = _owned_pairs(ours)
     out: list[str] = []
     for e in _instruction_entries(live):
-        if _is_stale_own_entry(e, ours):
+        if _stale_copy_of(e, pairs) is not None:
             continue
-        if e == ours and ours in out:
+        if e in ours and e in out:
             continue
         out.append(e)
-    if ours not in out:
-        out.append(ours)
+    for o in ours:
+        if o not in out:
+            out.append(o)
     return out
 
 
-def instructions_drift(live, ours: str) -> list[str]:
-    """--check for the per-entry key: install.py's entry missing, or a stale own entry.
+def instructions_drift(live, ours: list[str]) -> list[str]:
+    """--check for the per-entry key: each owned entry missing, or a stale own entry.
 
-    Other entries are the user's and are NOT drift: a deploy keeps them.
+    One line per missing owned entry and one per stale entry, each naming the entry, so a
+    report says WHICH file a session would not load. Other entries are the user's and are
+    NOT drift: a deploy keeps them.
     """
     if live is not None and not isinstance(live, (str, list)):
         return [f"instructions (not a list: {type(live).__name__})"]
     entries = [live] if isinstance(live, str) else list(live or [])
+    pairs = _owned_pairs(ours)
     diffs: list[str] = []
     if isinstance(live, str):
         diffs.append("instructions (a string, not a list — a deploy would make it a list)")
-    if ours not in entries:
-        diffs.append(f"instructions (missing entry {ours})")
+    for o in ours:
+        if o not in entries:
+            diffs.append(f"instructions (missing entry {o})")
     for e in entries:
-        if isinstance(e, str) and _is_stale_own_entry(e, ours):
-            diffs.append(f"instructions (stale SESSION.md entry {e} — a deploy would replace it)")
+        if not isinstance(e, str):
+            continue
+        suffix = _stale_copy_of(e, pairs)
+        if suffix is not None:
+            name = suffix.rsplit("/", 1)[-1]
+            diffs.append(f"instructions (stale {name} entry {e} — a deploy would replace it)")
     return diffs
 
 
 def build_config(machine: dict) -> dict:
-    # First, before anything else is built: a missing SESSION.md refuses the whole run.
-    session_entry = session_instruction()
+    # First, before anything else is built: a missing OPERATING-NOTES.md or SESSION.md
+    # refuses the whole run.
+    own_instructions = owned_instructions()
     shared = load_json(SHARED_CFG)
     values = {
         "python": machine.get("python", "/usr/bin/python3"),
@@ -350,9 +407,10 @@ def build_config(machine: dict) -> dict:
     if machine.get("default_model"):
         cfg["model"] = machine["default_model"]
 
-    # The session contract, loaded into every OpenCode session. Only install.py's own
-    # entry here; compute_merged() merges it into whatever the user already lists.
-    cfg["instructions"] = [session_entry]
+    # The operating notes and the session contract, loaded into every OpenCode session.
+    # Only install.py's own entries here, in order; compute_merged() merges them into
+    # whatever the user already lists.
+    cfg["instructions"] = own_instructions
     return cfg
 
 
@@ -377,10 +435,10 @@ def compute_merged(machine: dict, existing: dict | None = None) -> tuple[dict, d
         owned["model"] = cfg["model"]
     merged = merge_owned(existing or {}, owned)
     # Per-entry keys: merge_owned just replaced the list wholesale; put the user's
-    # entries back. `owned` keeps only install.py's own entry — that is what it owns.
+    # entries back. `owned` keeps only install.py's own entries — that is what it owns.
     if "instructions" in owned:
         merged["instructions"] = merge_instructions(
-            (existing or {}).get("instructions"), owned["instructions"][0])
+            (existing or {}).get("instructions"), owned["instructions"])
     # install.py OWNS these keys. If machine.json no longer specifies one, a deploy
     # must REMOVE the live value rather than preserve it — otherwise dropping a
     # provider control (or a model) from machine.json silently no-ops, and --check
@@ -613,9 +671,9 @@ def phase_check(machine: dict) -> int:
     # would remove it, and a check that only looks at generated keys cannot see it.
     for k in sorted(OWNED_OPENCODE_KEYS):
         if k in PER_ENTRY_KEYS and k in owned:
-            # Owned per entry: only install.py's entry (and stale copies of it) can be
+            # Owned per entry: only install.py's entries (and stale copies of them) can be
             # drift. The user's other entries are kept by a deploy, so they are not.
-            diffs += instructions_drift(live.get(k), owned[k][0])
+            diffs += instructions_drift(live.get(k), owned[k])
         elif k in owned:
             diffs += name_diffs(owned[k], live.get(k), k)
         elif k in live:
