@@ -266,6 +266,19 @@ so the verification passes and the junk stays behind.
 If junk has already landed, remove it on the target with a `find … -name '._*' -type f -delete`
 limited to the copied folders.
 
+## A mutation run can be fooled by Python's bytecode cache
+
+Three agents independently hit this on 2026-09-26 [confirmed from their reports]. A mutant that
+**survived** turned out to have never run: the previous mutant, of equal size and written in the
+same second, left a cached `.pyc`. Python judges a `.pyc` valid by the source's **size and
+whole-second mtime**, so it reused that stale bytecode and the tests ran against the wrong code. A
+survivor reads as "the tests have a gap", and a false catch as "this guard works", so the error
+can go either way.
+
+**Rule:** run every mutant with the cache off or isolated: `python3 -B`, or
+`PYTHONDONTWRITEBYTECODE=1` plus `PYTHONPYCACHEPREFIX=<fresh temp dir>` per mutant. Count a mutant as
+caught only when a *named test* fails, never on an import or syntax error.
+
 ## A privilege split protects you only if the privileged account declines work it could do
 
 The server's admin session (the `ubuntu` user: passwordless sudo and docker-group membership,
