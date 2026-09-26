@@ -253,6 +253,19 @@ Reported by the drop director, 2026-09-24/25 [confirmed].
   session id does not. One session spliced two ids together and "proved" they matched. Compare
   full ids, and record them in the agent log.
 
+## macOS `tar` smuggles AppleDouble `._*` files into a Linux copy
+
+Copying a folder from the Mac to the server with `tar -cf - … | ssh host 'tar -xf -'`
+[confirmed, 2026-09-26] produced a `._<name>` twin for most files, and GNU tar warned about
+unknown `LIBARCHIVE.xattr.com.apple.*` headers (quarantine, provenance, Finder info). macOS
+`bsdtar` stores resource forks and extended attributes as AppleDouble entries, and Linux
+extracts them as ordinary junk files. A checksum list built on the Mac does not include them,
+so the verification passes and the junk stays behind.
+
+**Rule:** on the Mac, run `COPYFILE_DISABLE=1 tar --no-mac-metadata --no-xattrs -cf - …`.
+If junk has already landed, remove it on the target with a `find … -name '._*' -type f -delete`
+limited to the copied folders.
+
 ## A privilege split protects you only if the privileged account declines work it could do
 
 The server's admin session (the `ubuntu` user: passwordless sudo and docker-group membership,
