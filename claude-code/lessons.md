@@ -677,6 +677,24 @@ update. Removing the one key and running `marketplace update` brought the instal
   **as each user** that needs it, then confirm by checking that session's skill list, not the
   other user's.
 
+## A git worktree carries no owner: remove only the ones you created
+
+Reported by Director DP, 2026-09-26 [confirmed by that session]. Asked to fold the dp worktrees
+into the main checkout, it first secured each one's content (branches pushed or committed,
+untracked and ignored files copied, checked with `cmp`), then removed four. At least one belonged
+to a session it could not identify, and four new worktrees appeared from live sessions while it
+worked. Nothing was lost: every branch survives and the worktrees can be recreated. But git
+itself cannot tell "another session's" from "abandoned".
+
+**Rules:**
+- **Only remove worktrees your own session created.** Anything else goes to the user as a list.
+- **Ask the owner record before assuming.** For worktrees the Claude desktop app made, the app
+  knows which session holds each one (Settings › Desktop app › Storage, or its storage-usage
+  tool: in use, idle, kept). Its own clean-up acts only on sessions inactive for 30+ days.
+- **Worktrees made outside the app** get an owner marker at creation (the session name and
+  date, in a gitignored file inside the worktree). They are also logged as custody in the agent
+  log, so that a clean-up tool can refuse a worktree whose marker names another session.
+
 ## A brief that names a worktree must be launched in it, and checked at step one
 
 Reported by a dp session, 2026-09-26 [confirmed by that session]. The brief named worktree
