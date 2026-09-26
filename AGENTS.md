@@ -53,9 +53,13 @@ threat model and name paths. Read them locally.
   use the Internet Archive API: `archive.org/wayback/available` for coverage, then
   `web.archive.org/web/<ts>id_/<url>`. A direct fetch of a non-mandated target risks
   blacklisting the user's address. See the `source-connectors` skill.
-- **No participant or research-subject data through third-party model hosts.** Participant data
-  via `claude-code` is allowed (Stanford institutional agreement); via `openrouter`/`mistral` it
-  is denied. Raw PII reaches no provider.
+- **No PII of research subjects reaches any third-party model host.** Raw participant data
+  goes only through `claude-code` (Stanford institutional agreement); via `openrouter`/`mistral`
+  it is denied. **Cleaned participant data**, meaning data that would be OK to publish from a
+  privacy point of view (it may be messy or partial), may also go through `openrouter`/`mistral`
+  and may live on hague (Lodewijk, 2026-09-26). Whether a dataset is clean enough is Lodewijk's
+  call; an agent that sees signs of PII pushes back (names the file, column and reason, never
+  the values) and asks before using it.
 - **Truthfulness is a feature.** Prefer "I don't know" / "unverified" to a confident guess.
   Never state a number you have not computed.
 - **Voice work is a bounded transform.** Organise and transcribe; never co-author; never

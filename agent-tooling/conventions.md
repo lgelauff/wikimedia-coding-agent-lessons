@@ -64,6 +64,18 @@ called deep-research that did not exist, while `source-connectors` and
 `latex-change-review` existed and were named nowhere. `scripts/check_registration.py`
 checks both directions plus relative links. Run it from `pre-push`.
 
+## 8. Python versions
+
+Decided 2026-09-26. Machines had drifted to six interpreters (Apple 3.9, python.org 3.10,
+Homebrew 3.11/3.13/3.14, uv 3.12), so code targeted whichever one its author happened to use.
+- **Project and analysis code: Python 3.13**, via `uv`, pinned per repo (`.python-version` = 3.13,
+  `requires-python = ">=3.13"`, dependencies locked). 3.13 matches the Toolforge job image and
+  uv's build on hague. Older code is converted when it's next touched.
+- **Harness scripts** (guards, hooks, `deliver.py`, `transfer.py`, `script_approval.py`, the admin
+  scripts in `~/agent/bin`): **stdlib only, runnable on Apple's `/usr/bin/python3` (3.9)**, the
+  system-protected interpreter that agents cannot modify and that the permission rules trust by
+  path. Test them under both 3.9 and a current Python.
+
 ## Open items
 
 *(The foundation-phase items — marketplace manifest, install model, migrating `pr-check`
