@@ -1,7 +1,9 @@
 # Running an OpenCode session inside the harness (Mac)
 
-For an OpenCode session on the laptop that does project work, or that takes over as coordinator,
-for example when the Claude sessions are out of tokens. Read this in full before acting.
+This file is loaded into every OpenCode session via the `instructions` setting that
+`install.py` manages, so it is already part of your instructions. It is written for an OpenCode
+session on the laptop that does project work, or that takes over as coordinator, for example
+when the Claude sessions are out of tokens; on hague, §5 applies. Follow it before acting.
 Everything here applies alongside `~/.claude/CLAUDE.md` (OpenCode loads it, provided
 `~/.config/opencode/AGENTS.md` does not exist) and the repo's own `AGENTS.md`.
 

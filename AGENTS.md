@@ -92,6 +92,7 @@ python3 agent-tooling/scripts/mandated_services.py  # webfetch registry vs conne
 python3 -m unittest agent-tooling.scripts.tests.test_audit_skills \
                     agent-tooling.scripts.tests.test_check_skill_vars \
                     agent-tooling.scripts.tests.test_install \
+                    agent-tooling.scripts.tests.test_install_instructions \
                     agent-tooling.scripts.tests.test_mandated_services \
                     agent-tooling.scripts.tests.test_backup_harness \
                     agent-tooling.scripts.tests.test_skill_trigger_eval \
