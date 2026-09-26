@@ -19,7 +19,8 @@ after the Claude sessions run out of tokens):
    `ack` event with that hash.
 3. Only then act.
 
-An **OpenCode** session first reads `agent-tooling/adapters/opencode/SESSION.md`, which covers
+An **OpenCode** session has `agent-tooling/adapters/opencode/SESSION.md` loaded automatically
+(via the `instructions` key that `install.py` manages); it covers
 launching, registering, reporting without SendMessage, and working with few permission prompts.
 Approvals Lodewijk gave to earlier sessions do **not** carry over to you; only standing
 permissions written down do. The rules are in

@@ -1,4 +1,4 @@
-# Running an OpenCode session inside the harness (Mac)
+# Running an OpenCode session inside the harness
 
 This file is loaded into every OpenCode session via the `instructions` setting that
 `install.py` manages, so it is already part of your instructions. It is written for an OpenCode
