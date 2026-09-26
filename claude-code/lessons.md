@@ -677,6 +677,22 @@ update. Removing the one key and running `marketplace update` brought the instal
   **as each user** that needs it, then confirm by checking that session's skill list, not the
   other user's.
 
+## A brief that names a worktree must be launched in it, and checked at step one
+
+Reported by a dp session, 2026-09-26 [confirmed by that session]. The brief named worktree
+`issue-2241`, but the desktop app launched the session in a different, freshly made worktree.
+Nothing compared the two until the app's worktree guard refused an edit halfway through, after
+the tests had already run.
+
+- **Launch the session in the worktree the brief names.** The brief's first instruction: compare
+  the working directory with the named worktree and stop at once on a mismatch.
+- **The app's guard covers the Edit tool, not Bash** [concluded by the same session]. Its earlier
+  `cp`, `node` and `npm run build` had already written into the other worktree without being
+  stopped. "The guard didn't fire" is not evidence of staying in your own tree: check write
+  targets yourself, shell commands included.
+- **Tool wrappers write outside the tree too.** `npm --prefix <wt> exec -- node …` downloaded a
+  node package into the global npm cache. Run the binary directly with absolute paths.
+
 ## Testing a machine-wide rule set: what the test can and cannot prove
 
 Source: 2026-09-25. An `agent` session on hague tested the machine-wide managed rules
