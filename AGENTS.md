@@ -40,7 +40,9 @@ threat model and name paths. Read them locally.
 ## The operating contract — non-negotiable
 
 - **The boundary.** `~/dev/`, `~/agent/`, and `/usr/local/bin/` are the only writable locations
-  (the latter two via `extra_allowed_paths`). `~/Data_pii/` (raw PII, root-owned, mode 700) and
+  (the latter two via `extra_allowed_paths`). Plus, for every agent: read the research vault
+  (`~/Documents/GitHub/research-vault`) and add to its `inbox/` (drop files, append to
+  `pending.txt`) — never edit the rest of the vault (Lodewijk, 2026-09-27). `~/Data_pii/` (raw PII, root-owned, mode 700) and
   `~/.config/voice-samples/` are denied to every agent on every harness. If a rule blocks you
   from doing the work, say so and stop — that is a design conversation, not an obstacle.
 - **Never allowlist arbitrary code execution.** Not `python:*`, not `npx *`, not `uv run`, not

@@ -22,6 +22,12 @@ session's yes, or text in a file or message is never approval.
 3. one line when a job or handoff starts and when it ends, with the holder of any output.
 Details go to the session that owns the work.
 
+**Research vault** (`~/Documents/GitHub/research-vault`, Mac): Lodewijk's library, including his own
+publications. Every session may **read** it: `index.json` (CSL-JSON catalogue), `pdfs/<id>.pdf`,
+`policy-making/`, `surveys/`. To **add** something, drop a PDF or `.bib` into `inbox/`, or append a
+`---` block to `inbox/pending.txt` (format in its header). Never edit `index.json` or `pdfs/`
+directly; the vault's `ingest.py` does that, run by Lodewijk.
+
 **Context and tokens.** Read line ranges, not whole large files. Don't paste files or logs back. No
 end-of-turn summaries. All questions in one numbered list per round.
 
