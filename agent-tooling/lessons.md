@@ -242,6 +242,11 @@ Reported by the drop director, 2026-09-24/25 [confirmed].
 - **"Done" requires pasted evidence.** A Toolforge job was recorded as finished on a verbal
   report; its results had not actually been retrieved. A job is done only when its end line or
   output count has been pasted into the record.
+- **"Running" requires pasted evidence too.** Twice (2026-09-24 and 2026-09-30, reported by the
+  drop project's director) a launch was recorded as RUNNING from the command block handed to the
+  user, not from what the cluster showed. The job had never started; the second time it cost a
+  night. A job is RUNNING only when a pasted `toolforge jobs list` (or the scheduler's equivalent)
+  shows it.
 - **Launch only committed code.** A job expected to run 10+ hours was started from uncommitted
   local code, so no commit identifies what ran. Commit the exact uploaded bytes before or at
   launch, and record the commit.
@@ -384,3 +389,303 @@ reputation. The `pr-check` playbook's rationale section cites this entry.
   (devDependencies, unreachable transitives) are the main false-positive source.
 - **The seam nothing lints:** serialization and validation between an SPA and its API. Neither
   side's tooling reads both ends; it needs a named reviewer viewpoint.
+
+## Size container memory caps against the shared slice, not per run
+
+Reported by the server's director session, 2026-09-28/29 [confirmed by that session]. Two caged
+agent runs were each started with `--memory 6g`, a defensible cap for one run on its own.
+Together they claimed 12 GiB of a 16 GiB systemd slice that also held every Claude session,
+Ollama and Docker itself, and the slice sat at its 14 GiB `MemoryHigh` all night.
+
+**Rule:** the sum of all container caps plus the measured host overhead (about 2–3 GiB on that
+server) must stay at or under the slice's `MemoryHigh`. If it does not fit, stagger the runs.
+
+## Memory throttling is the early warning; an OOM kill is the post-mortem
+
+Same runs, 2026-09-29 [confirmed by the server's director session]. The slice's
+`memory.events` `high` counter went from 313 to 11,294 in the minute the second cage started,
+while `oom_kill` stayed at 0. A watch that looks only for OOM kills sees nothing while this
+happens [concluded].
+
+**Rule:** watch the `high` counter in `memory.events`, and `memory.current` against
+`MemoryHigh`, not only OOM kills.
+
+## The process the kernel kills is not the one that caused the pressure
+
+Reported by the server's director session, 2026-09-29 [concluded by that session]. At the
+slice's hard limit the kernel picks a victim inside the slice. The most likely victim is a
+long-lived Claude session, not the cage that caused the pressure. The run nobody is watching
+causes the trouble, and the session someone is working in pays for it.
+
+**Rule:** the unattended, capped job should have the least claim on the shared slice, so that
+pressure it causes lands on it and not on its neighbours.
+
+## Verify containment by cgroup, not by description
+
+Reported by a project director, confirmed by the server's director session, 2026-09-28/29. An
+OpenCode session ran uncaged, as the agent user, for about 7 hours. It had the live OpenRouter
+key, deploy keys, the GitHub CLI token and all real repos within reach. It reviewed wiki-polis
+PRs in real worktrees and wiped an uncommitted fix. Nothing about how the run was described
+said "uncaged"; only the host could.
+
+**Rules:**
+- **Check the cgroup path of the running process** (for example `/proc/<pid>/cgroup`):
+  `docker-<id>.scope` means contained, `session-N.scope` means it runs in a login session.
+- **Add that check to the watcher's baseline,** so it runs every time, not only when something
+  already looks wrong.
+
+## A watcher's state report runs ahead of reality when someone else launched the run
+
+Reported by the server's director session, 2026-09-29 [confirmed by that session]. The watching
+session was told a cage was live when none existed yet. Later it was told that run 1 had
+exited, when it was still running at 5h02. The reports described the plan, not the host
+[concluded].
+
+**Rule:** the watcher reports what it can observe on the host, and says so explicitly when that
+contradicts the brief. A brief says what should be running; only the host says what is.
+
+## A wall-clock cap passed as an environment variable is not a cap
+
+This happened twice.
+- 2026-09-29 [confirmed by the server's director session]: run 1 was launched with
+  `-e HOURS=3 -e TUI=1` and ran 5h02, because the interactive code path ignored the variable.
+- 2026-09-29/30 [confirmed by the sessions coordinator]: a relaunch of the main lane used a
+  bare `docker run` with no outer `timeout`. It ran 2 hours past its 24-hour cap and produced
+  nothing useful in those 2 hours, until it was stopped by hand. Its final bundle was written
+  from the Docker volume afterwards.
+
+**Rules:**
+- **Enforce the cap in the launcher, outside the container:** `timeout` around the run, or a
+  companion process that issues `docker stop` at the deadline.
+- **A relaunch goes through the same launcher as the first run** [concluded]. A hand-typed
+  `docker run` drops every cap the launcher adds.
+
+## Decide the watcher's permissions before the run starts
+
+Reported by the server's director session, 2026-09-29 [confirmed by that session]. Asked "is it
+doing anything useful?", the watching session could not answer. Every meaningful check needed
+`docker`, `sudo -u agent`, or reads in the folder the run writes to, and its read-only
+exception covered none of them.
+
+**Rule:** agree a fixed, read-only allowlist for the watcher at launch: the exact commands it
+needs to judge progress. Then the questions that come up during the night can be answered
+without a new approval.
+
+## Emergency authority must exist before the emergency
+
+Reported by the server's director session, 2026-09-29 [confirmed by that session]. Stop-only
+authority for the watcher was proposed at 15:18. It still had not been granted when the slice
+hit its memory throttle at 22:23.
+
+**Rule:** an unattended run either has a pre-agreed stop condition, decided before launch (what
+triggers it, and who or what may stop the run), or it effectively has none. Asking for
+permission at 03:00 is not a plan. The director followed this up with a written kill-order
+proposal.
+
+## Bash reads a running script as it goes: never overwrite one in place
+
+Observed by the sessions coordinator, 2026-09-29, correcting its own first claim [concluded].
+The first claim was that a running lane keeps its launcher script in memory. It does not: bash
+reads a script piece by piece while executing it. Overwriting a running `cage-overnight.sh` or
+`queue.sh` can derail the lane that is running it.
+
+**Rule:** never overwrite a script that is running. Ship the change under a new filename, or
+wait for the next launch.
+
+## A child in a `while read` loop drains the loop's stdin, and a stub that ignores stdin hides it
+
+Diagnosed by a project director, fixed and tested with the sessions coordinator, 2026-09-29
+[concluded]. A night's review run stopped after 1 of 23 PRs. OpenCode, started inside the
+`while read` loop over the order file, read the loop's stdin and so consumed the remaining
+lines. The runner's test used a stub in place of the model, and the stub never read stdin, so
+the test passed with the bug present.
+
+**Rules:**
+- **Give every model and gate call inside such a loop an empty stdin** (`< /dev/null`).
+- **Make the test stub read stdin,** as the real tool does. The test then fails when the bug
+  returns; this one was shown to fail without the fix.
+
+## A replication must fail on an assertion, not on an import error
+
+From a project director's test plan, 2026-09-28 [concluded], and a later real run reported by
+the sessions coordinator [confirmed by that session]. "Fails on base, passes on the PR" proves
+nothing if base fails because the test cannot import. On the real run, all 6 replications of
+behaviour bugs were genuine. The test-only and refactor items were hollow: a test that a file
+exists, a `hasattr` check. One "fail on base" was an unrelated i18n guard failing.
+
+**Rules:**
+- **Check the failure reason, not only the exit code.** Base must fail on an assertion in the
+  new test; a failure anywhere else in the run does not count.
+- **A replication is evidence for behaviour bugs.** For test-only and refactor items, read the
+  test: one that checks existence or attributes passes on any code.
+
+## `opencode run` as an unattended read-only reviewer dies on its first rejected shell call
+
+Reported by a project session, 2026-09-26 [concluded]. In non-interactive mode, a shell command
+outside the plan agent's allowlist is auto-rejected, and the rejection ends the whole run: 3 of
+4 review runs died this way. Switching to `--agent explore` does not help. `explore` is a
+subagent, so the run silently falls back to the permissive `build` agent.
+
+**Rules:**
+- **Define a primary, read-only `review` agent** whose forbidden commands are `deny`, not `ask`.
+- **Untested:** whether a `deny` lets the run continue where a rejected `ask` ends it. Check on
+  a throwaway run before relying on it.
+
+## A command hook that matches keywords anywhere blocks the wrong commands, and a hard block cannot be approved
+
+From a project director's report and the sessions coordinator's rewrite, 2026-09-27/28
+[concluded]. A hook meant to stop database writes matched "drop" or `.run(` anywhere in the
+command. Tested on 10 commands, it produced 5 false blocks and missed 4 real writes. Because it
+returned a hard `block`, Lodewijk's explicit yes could not let a legitimate command through.
+
+**Rules:**
+- **Match only when a database client is actually being invoked,** not on words anywhere in
+  the line (see also "Match `ssh` as the command, not as a substring" in the Claude Code lessons).
+- **Ask rather than block,** so the human can approve. Keep hard blocks for whole-database drops.
+
+## A worktree shares `.git`: give each untrusted run a fresh clone
+
+Recorded by the sessions coordinator in a cage packet, 2026-09-28 [concluded]. A git worktree is
+not a separate repository; it shares the main checkout's `.git`. A cage given a worktree of the
+server's main checkout can therefore reach that checkout's real hooks and refs.
+
+**Rule:** every cage run gets its own fresh clone, never a worktree of a checkout that people
+or other agents use.
+
+## A protocol line meant for one step reaches every step
+
+Reported by the sessions coordinator, 2026-09-29/30 [confirmed by that session]. A shared run protocol said
+"run the test command to check your work". The reviewer steps read the same protocol and reran
+the full suite (131 s per run) inside a 15-minute cap. 8 of the run's review steps timed out
+(about 1 in 6), the security review among them twice, and no verdict recorded which reviews
+were missing.
+
+**Rules:**
+- **Role-specific instructions go in the role's own file,** not in the shared protocol.
+- **Give reviewers the gate's result** instead of having them rerun the gate.
+- **Record, per verdict, which reviews completed.** No verdict without the security review.
+
+## Unattended jobs finish far under their caps: plan the queue by work, not by caps
+
+Reported by the sessions coordinator, 2026-09-30/10-01 [confirmed by that session]. Seven unattended jobs used
+about 15–40% of their caps, and two lanes then sat idle for about 14 hours. The first queue
+runner also recorded a job that did not fit the remaining time as permanently skipped, so a
+restart with more time would never have run it.
+
+**Rules:**
+- **Queue more work than the caps suggest.**
+- **The runner logs IDLE once and leaves non-fitting jobs WAITING,** not skipped.
+- **The watcher reports an empty queue,** so idle lanes are seen when they happen.
+
+## Write checksums last, and leave out the log that is still being written
+
+Reported by the sessions coordinator, 2026-09-29/10-01 [confirmed by that session]. A launcher wrote `SHA256SUMS`
+and then appended to `cage.log`, which the checksum file covered. Every transfer of the bundle
+then failed verification on `cage.log`. A check that always fails on one file trains people to
+ignore checksum failures, the real ones included.
+
+**Rule:** write the checksum file as the last step, and exclude any file still being written to,
+such as the launcher's own log.
+
+## Newer Ubuntu releases ship Rust coreutils: GNU shorthand can fail
+
+Reported by the sessions coordinator, 2026-09-30 [confirmed by that session]. Newer Ubuntu releases ship
+the Rust reimplementation of coreutils (uutils). On such a server `tail -3` fails with
+"unexpected argument"; `tail -n 3` works.
+
+**Rules:**
+- **Use the explicit option forms** (`tail -n 3`), and do not assume GNU-only flags such as
+  `df -BG` are available.
+- **Scripts that parse such output should degrade safely** when a command fails.
+
+## A free model's built-in review panel is not an independent check
+
+Reported by the sessions coordinator, 2026-10-01 [confirmed by that session]. A free model (Space Bunny
+Free, run through OpenCode) reviewed PRs with its own review panels: 3 reviewers plus a
+cross-review per PR. They found 0 of 4 known issues: a `.py` file in a docs-only PR; a
+contradiction in the docs; an OAuth claim that glossed over a known security finding; and
+evidence that proved nothing. It was strong at fact-checking claims against code, and weak on
+omissions (it reported "0 lost" when 9 were lost), on numbers in prose, and on hollow tests.
+
+**Rule:** treat its output as a draft. Every job gets an independent check, and nothing it
+writes goes public.
+
+## The cage thinks, approved routes fetch
+
+A pattern from a caged research run, 2026-09-29 [concluded]. The cage has no web access. It
+writes the sources it wants as entries in a request list. A separate, approved pipeline fetches
+them under robots.txt and rate limits, with archive fallbacks and the project's User-Agent. A
+second cage round then builds on what was collected.
+
+**Rules:**
+- **The cage never fetches;** it only asks.
+- **Check network use in the cage's logs afterwards.** "No web" in a cage is enforced only by
+  its instructions unless the network is actually cut.
+
+# Data pipelines
+
+## A green QA check only proves what it compares
+
+Reported by a data-project director, 2026-09-27 [confirmed by that session]. A runbook's step
+"after 7b, re-run reduce" left out re-running the article dimension table (`dim_article`). The
+reduce passed QA, yet it silently dropped all 10,078 newly admitted articles as unmatched in
+that table.
+
+**Rule:** make each check compare the thing its step was meant to change (here: the newly
+admitted articles are in the output). A check that only ever passes proves nothing; show it
+can catch the failure it is there for.
+
+## Rehearse against the checkout you will actually upload from
+
+Reported by the same director, 2026-09-29, from a job packet [confirmed by that session]. A
+rehearsal that read the checkout the operator would upload from showed that the pass-3 scanner
+existed only in a worktree, not in main. The upload would silently have re-run pass 2. Written
+warnings had missed it.
+
+**Rule:** rehearse the upload from the exact checkout and path the operator will use, and
+check there that each file the launch runs is the new version. This extends "A remote job
+packet's preflight must check every file the launch runs" above.
+
+## Test a filter predicate on data; reading it is not enough
+
+Reported by the same director, 2026-09-29 [confirmed by that session]. A filter meant to keep
+"only pages that carried a file" used `n_located`. That column counts located revisions, not
+files, and is at least 1 on every parsed page, so the filter would have kept all 2.47M pages.
+
+**Rule:** run every filter on real data before the full job, and check how much it keeps and
+what.
+
+# Test runs
+
+## Check that the browser launches before planning browser tests
+
+Reported by a dp session, 2026-09-26 [confirmed by that session]. In a fresh worktree,
+`chromium.launch()` failed with "Executable doesn't exist", so `npm run test:pw` and headless
+screenshots could not run. The browser install writes outside the repo (on macOS, to
+`~/Library/Caches/ms-playwright`), so it needs an explicit approval in the middle of the work.
+
+**Rule:** a session that plans an e2e or Playwright step checks at the start that the browser
+launches, and puts the install in its single upfront permission request.
+
+## A chained `npm test` hides later tiers; skip credential tests loudly
+
+Reported by a dp session, 2026-09-26 [concluded]. The project's `npm test` chains its tiers
+with `&&`. Two integration tests always fail without Google credentials, so the chain stops
+before the smoke tests, and a red local `npm test` cannot tell you whether smoke passed.
+
+**Rules:**
+- **Skip credential tests when the credentials are absent,** and print why they were skipped.
+- **Or run the tiers independently** and report each one.
+
+## Repro scripts that create external resources need a hard timer and cleanup on every signal
+
+Recommended by the sessions coordinator after a dp session's question, 2026-09-26
+[concluded]. The session's repro scripts created real video meetings, and the question was how
+to stop stray meetings being left behind.
+
+**Rules:**
+- **Every repro script gets a hard timer,** and signal handlers that run the same cleanup as a
+  normal exit.
+- **Register the cleanup before creating the first resource.**
+- **Before reporting done,** check for leftover node or Chromium processes from the project's
+  worktrees.

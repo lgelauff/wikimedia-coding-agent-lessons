@@ -845,3 +845,106 @@ human's SSH agent and keys were usable, non-interactively, by any process in the
   that every remote command resolves to its stub (`type ssh`) before running anything, and must
   refuse any host it has no mapping for. A stub that silently falls through to the real binary
   is worse than no stub, because the rehearsal reports success either way.
+
+## A resolution written only in chat gets re-found as a gap
+
+Reported by a paper session, 2026-09-27 [confirmed by that session]. An audit of a paper's analysis ran in a
+fresh context and reported a model's training set as "not found". Another session had resolved
+that question on 2026-09-25, but only in chat. A fresh context reads files, not old chats, so
+the resolution did not exist for it.
+
+**Rule:** write every resolution into a document the next reader loads (the state file, the
+decisions log, the handoff), not only into chat.
+
+## Renaming a session breaks every peer's saved address
+
+Reported by the server's director session, 2026-09-26 [confirmed by that session].
+Cross-session messaging addresses peers by display name. The coordinator session was renamed
+three times, and the director's messages to it failed twice.
+
+**Rule:** if you rename a session, send one line with the new name to every peer that holds its
+address (see also "Identify sessions by full id, not by name" in the agent-tooling lessons).
+
+## Deny rules written as directory globs block their own fix, and they block the shell too
+
+Reported by the server's director session, 2026-09-26 [confirmed by that session]. A deny meant
+for OpenCode's credential files was written as a directory glob,
+`Read(//home/*/.config/opencode/**)`. It then blocked reading the config the director needed in
+order to add OpenCode's guardrails. The same deny rules also refused the director's Bash calls,
+not only Read-tool calls; that was the first evidence that these rules reach the shell.
+
+**Rules:**
+- **Write credential denies as file patterns** that name the credential files, not as globs over
+  the directory around them.
+- **Expect a deny to reach Bash as well.** Before adding one, check that it does not lock out
+  the shell maintenance of the same tool.
+
+## Two safety-check traps: `rm` with a variable, and reading personal data
+
+Reported by a writing session, 2026-09-28 [confirmed by that session].
+- **The safety check blocks `rm` with a shell variable as its argument.** Use literal absolute
+  paths.
+- **The auto-mode classifier blocked reading a file containing personal data** until Lodewijk
+  gave explicit permission; after that the read worked. When a task will need such a file, ask
+  for that permission at the start [concluded], not when the block hits.
+
+## Commands handed to a person must carry their own location
+
+Reported by the sessions coordinator, 2026-10-01 [confirmed by that session]. An agent handed Lodewijk
+`git fetch … && git switch … && git push -u origin …`. He ran it in whatever folder his
+Terminal was in, which was another repo. It fetched an unrelated history ("warning: no common
+commits"), switched that checkout, and pushed the branch to the wrong GitHub repo. Earlier, on
+2026-09-26 to 09-28 [concluded], server commands were run on the
+laptop several times (`tmux: command not found`; a snapshot bundle made on the laptop). Lines
+typed after a long-running pipe would also have started a 17.7 GB rsync onto the laptop. And
+zsh's `!` inside double quotes broke a git pathspec.
+
+**Rules:**
+- **`git -C <absolute path>` on every git command,** and the first line checks
+  `git -C <path> remote get-url origin`.
+- **Fetch with `--no-tags`, and no `&&` chain between fetch, switch and push.** "No common
+  commits" means stop.
+- **Say which host each command runs on.** Give server commands as single `ssh <server> "…"`
+  one-liners run from the laptop.
+- **Avoid `!` inside double quotes** in commands meant for zsh.
+
+## Parallel subagents that read outside the session's folder each raise their own prompts
+
+Reported by the sessions coordinator, 2026-10-01 [confirmed by that session]. Ten review agents, each
+reading inputs outside the session's folder, produced a stream of permission prompts and had
+to be stopped.
+
+**Rule:** one setup step, under one approval, copies the inputs into a workspace inside the
+session's folder and unpacks them there. The reviewers then use only Read, Grep and Glob on
+that workspace. On a memory-constrained machine, run only a few at a time.
+
+## A public Jam link can still be "not found" through the Jam MCP
+
+Reported by the sessions coordinator, 2026-10-01 [confirmed by that session]. A Jam (jam.dev) recording
+that opened publicly in a browser returned "not found" through the Jam MCP. The MCP, the CLI
+and personal access tokens are all scoped to the one workspace their sign-in was issued for.
+
+**Rules:**
+- **Try the connector first.** On `JamNotFound`, fall back to the public share page's DevTools
+  panel: that one link, no crawling.
+- **For incoming reports, use Recording Links,** which put the Jams in your own workspace.
+  Console and network capture through them needs a custom domain.
+
+## Use a model's harness ID, not its display name, and don't ask the model for its ID
+
+Observed by the sessions coordinator, 2026-09-28 [concluded]. "Space Bunny Free" is a display
+name. The working ID was `opencode/space-bunny-free` (OpenCode Zen, no key needed), not
+`openrouter/stealth/space-bunny-alpha`, which needs a key. A wrong ID fails the first step of
+a run.
+
+**Rule:** get the ID from the harness (`opencode models <provider>`). A model asked for its own
+ID may make one up.
+
+## A drop file nobody watches is not a channel
+
+Observed by the sessions coordinator, 2026-09-28 [concluded]. A report left for the coordinator
+in a run's outbox folder sat unread for two days. The fix was to add that folder to the
+director's watch list.
+
+**Rule:** every folder or file where agents leave messages has a named reader that checks it.
+If no one watches it, it is storage, not a channel.

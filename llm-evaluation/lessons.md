@@ -242,3 +242,35 @@ eleven wasted benchmarks.**
 > **A measurement that cannot fail is not measuring.** A baseline at 100%, a
 > probe perfect in every condition, a control nobody ever flags — each looked
 > like success and each was a bug.
+
+---
+
+## A tokens-per-second figure needs a token count; pin thinking off in wrappers
+
+Reported by a local-LLM research session, 2026-09-27 [confirmed by that session]. On a shared
+server, qwen3.5:4b produced 4,046 tokens with thinking on against 237 with it off, about 17
+times as many. That turned a "20 s" answer into about 7 minutes. A speed figure without the
+token count hides exactly this.
+
+**Rules:**
+- **Quote speed together with the token count,** and with whether thinking was on.
+- **Wrappers around thinking models pin `think:false`.**
+
+## A model told to "copy literally" still edits the text: cut, anchor and insert by script
+
+Reported by a writing-review session, 2026-09-28 [confirmed by that session], with an
+evaluation of the review flow by the sessions coordinator, 2026-09-28/29 [concluded]. A
+confidential-inference model (Privatemode, gpt-oss-120b) changed punctuation, letters,
+paragraph boundaries and number formats in 3 of 4 passes, even when told to "copy literally".
+What worked: a script makes a deterministic cut (begin and end markers); the model returns only
+JSON `{anchor, comment}`; a script inserts the comments with loose anchor matching; rewrites go
+per paragraph with guards. "Same paragraph count" is not a sufficient guard, because boundaries
+can shift while the count stays the same. The evaluation found three more causes of weak
+feedback: no module asked for textual feedback; comments whose anchors were not exact quotes
+were silently dropped; and the brief between agents never named the kinds of feedback wanted.
+
+**Rules:**
+- **Never round-trip the full text through the model.** Text in, comments out; the script does
+  the copying.
+- **Name the wanted kinds of feedback in the brief.**
+- **Score every prompt change on a synthetic paragraph with planted problems** before real use.
