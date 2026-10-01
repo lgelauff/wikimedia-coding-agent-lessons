@@ -33,7 +33,7 @@
   ],
 
   "version": 1,
-  "updated": "2026-09-19",
+  "updated": "2026-10-01",
   "scope": "Data connectors + Wikimedia data/compute APIs + docs/tool hosts. Citation-only conference sites are deliberately excluded.",
   "enforced_by": "agent-tooling/policies/webfetch_mandated.py",
   "derived_from": {
@@ -342,6 +342,17 @@
       "sources": ["agent-tooling/scripts/tests/test_source_discovery.py"],
       "access_policy_ref": "Prefer the `export.arxiv.org` API connector for metadata; the HTML page is a fallback",
       "verified": "2026-09"
+    },
+    {
+      "id": "jam-share-page",
+      "service": "Jam share page (a publicly viewable jam.dev/c/<uuid> link someone shared)",
+      "kind": "tool",
+      "hosts": ["jam.dev"],
+      "host_suffixes": [],
+      "protocol": "HTTPS/HTML",
+      "sources": ["agent-tooling/skills/jam-review/SKILL.md", "agent-tooling/playbooks/jam-review.md"],
+      "access_policy_ref": "Only the one shared link, no crawling; the Jam MCP connector (mcp.jam.dev) is the first route, this page the fallback for Jams outside the connected workspace (Lodewijk, 2026-10-01)",
+      "verified": "2026-10-01"
     }
   ]
 }
