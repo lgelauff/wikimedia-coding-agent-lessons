@@ -92,6 +92,29 @@ Known instance: English Wikipedia `Requests_for_comment/%` pages show a 3–6× 
 - **No cross-database joins** on the replicas — querying two wikis (or wiki + Wikidata) is a two-step app-side join, not one SQL statement.
 - Replicas reflect **current state only** — no historical/point-in-time link or category membership. For history you must reconstruct from revision wikitext (or dumps).
 
+## Commons links tables live on their own cluster (x4) since 2026-09-08; the s4 copies are silently stale
+
+Observed 2026-10-01 [confirmed on the replica by a montage session]: a Commons category import returned
+4,989 files where Commons shows 15,678. On the usual `commonswiki` replica (s4), `categorylinks` JOIN
+`linktarget` gave 5,005 rows while `category.cat_files` said 15,678, with replication lag 0. Nothing
+errored; the query just used tables that stopped being written.
+
+Why [confirmed: Wikitech, News/2026 Commons links tables database split; T398709]: Commons' links tables
+(`linktarget`, `categorylinks`, `pagelinks`, `templatelinks`, `imagelinks`, `externallinks`,
+`globalimagelinks`, `iwlinks`, `existencelinks`, `langlinks`, `collation`) moved to the x4 cluster.
+Writes moved there on 2026-09-08. The old copies on s4 stay on the replicas, frozen, until they "will
+eventually be dropped". `page` and `redirect` are copied on both clusters.
+
+**Rules:**
+- **Read Commons links tables from the links host:** `links.commonswiki.analytics.db.svc.wikimedia.cloud`
+  (or `.web.`), pattern `${EXTENSION}.${PROJECT}.{analytics,web}.db.svc.wikimedia.cloud`. Check the
+  database name with `SHOW DATABASES;`.
+- **No JOINs across the two clusters.** Category or link membership (with `page`, which exists on both)
+  comes from the links host; `image`, `file`, `filerevision`, `revision` come from s4. Join them in code.
+- **A count that silently stops growing is the symptom.** Compare against `category.cat_files` or the
+  live API (`list=categorymembers`) after any infrastructure announcement; a stale table raises no error.
+- Other wikis may get the same split later; check the "extension databases" table in Help:Wiki Replicas.
+
 ## Dumps — availability & retention
 
 - Dumps are **files**, mounted on Toolforge/PAWS at `/public/dumps` — read/streamed, not a queryable DB.
