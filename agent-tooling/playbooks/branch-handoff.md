@@ -8,6 +8,23 @@ The route: the agent commits on a branch in its own clone → it sends Lodewijk 
 on his Mac he (or a Mac-side Claude session, as a second check) fetches the branch straight from the
 server clone, reviews it, then pushes and opens the PR himself. Issues and comments are drafts he posts.
 
+## The tool: `agent-tooling/scripts/handoff.py` (use it; the manual steps below are the fallback)
+
+- **Server agent:** `python3 handoff.py prepare --repo OWNER/NAME --path <server clone> --branch <branch>
+  --base <base ref> --test-cmd "<cmd>" --test-result "<summary line>" [--pr-base <branch>
+  --pr-title "<title>" --pr-body-file <draft.md>]`. It writes a manifest to
+  `/srv/exchange/from-agent/handoffs/`. The manifest only NAMES things (repo, branch, shas, commit list,
+  test line, PR draft).
+- **Lodewijk, in his own Terminal on the Mac:** `python3 handoff.py fetch <alias>:<manifest path>`.
+  The Mac clone, the expected origin and the server clone come only from `~/agent/handoff-registry.json`,
+  so a manifest can never send the fetch or the push elsewhere. It checks origin, fetches with
+  `--no-tags`, stops on "no common commits", requires the commit list to match exactly, shows the diff
+  summary and test line, asks y/N, pushes, and prints the prefilled PR link. It refuses to push from
+  inside an agent session; an agent may run it with `--no-push` to check a hand-off.
+- **Drafts:** `python3 handoff.py link issue|compare …` prints a prefilled GitHub link for a person to
+  open and post.
+- The hand-off message then shrinks to: what the branch does, the test result, and the one `fetch` line.
+
 ## What the agent does
 
 1. **Branch and commit.** One branch per change, named after the issue (`fix/<short-name>-<issue>`).
