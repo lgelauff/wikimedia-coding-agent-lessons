@@ -20,7 +20,9 @@ Repeated shell logic goes in `scripts/`, not inline in a SKILL.md:
 2. **Determinism + testability** — a script has one behavior and a test in `scripts/tests/`.
 3. **Reviewability** — scripts diff cleanly.
 
-Scripts: read-only unless mutation is the whole point (then say so loudly); no secrets (read from env); dependency-light; non-zero exit + clear message on failure.
+Scripts: read-only unless mutation is the whole point (then say so loudly); no secrets in code or args; dependency-light; non-zero exit + clear message on failure.
+
+**Where keys come from.** One store per machine: `~/.config/agent-secrets/.env` (mode 600, outside every repo; override with `$AGENT_SECRETS_FILE`). Scripts resolve keys with `scripts/agent_secrets.py` (`get_secret(NAME)`: the environment first, then the store), never by parsing a repo's `.env`; `scripts/llm_provider.py` already does this for its providers. A repo-level `.env` holding a copy of a key is a second place to rotate and leak, so don't add new ones. Check presence without values: `python3 scripts/agent_secrets.py --check NAME`.
 
 ## 3. Permission hygiene
 
@@ -30,7 +32,7 @@ See [`settings/allowlist.md`](settings/allowlist.md). The one rule that always h
 
 - Scripts: a test in `scripts/tests/` (smoke test of exit code + output shape is fine).
 - Skills with verifiable output: `skill-creator` evals. Subjective output (review verdicts): a documented dry-run on a real case beats fake assertions.
-- Hooks: read secrets from env; keep them generic (no single-repo paths).
+- Hooks: read secrets via `agent_secrets.py` (env, then the central store); keep them generic (no single-repo paths).
 - Pair it with a lesson: if the solution exists because of a non-obvious gotcha, capture the gotcha in `lessons.md` and link the two.
 
 ## 5. Add-a-skill checklist
