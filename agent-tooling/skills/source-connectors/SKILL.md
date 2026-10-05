@@ -85,10 +85,13 @@ Everything below applies to all three.
   points to (e.g. an FRBR/XML manifestation) over the front-end, which can 504. Structured
   XML/JSON over HTML; `pdftotext` for PDFs (skip binary-only scans → OCR). Follow an
   `extref`/attachment when the record is a thin announcement.
-- **Fall back to the Internet Archive when a live fetch is blocked.**
-  `archive.org/wayback/available?url=<enc>` for coverage; `web.archive.org/web/<ts>id_/<url>`
-  for the raw snapshot; `curl` + your UA if the fetch tool refuses `web.archive.org`. A
-  fallback, not a way around a clear "no".
+- **The Internet Archive is always a permitted route** (Lodewijk, 2026-10-05), including for
+  hosts whose robots.txt blocks AI crawlers or your client: fetching an archived capture is how
+  we honour a live host's block, not a way around it. `archive.org/wayback/available?url=<enc>`
+  for coverage; `web.archive.org/web/<ts>id_/<url>` for the raw snapshot; project UA, polite
+  pacing (~1 req/s, back off on 429/`Retry-After`), cache every capture; `curl` + your UA if the
+  fetch tool refuses `web.archive.org`. It does not get you past a login, a paywall or licence
+  terms: those still apply to the content.
 - **A `5xx`/`503` is transient, not a verdict.** Try the connector first; on `503`/`5xx` (maintenance or load) retry with backoff, and if it persists switch to the row's **Fallback** — don't downgrade a connector's dated status for a one-off blip (reserve a status change for a *persistent* failure).
 
 **Maintain the registry — it goes stale.**
@@ -108,8 +111,8 @@ Everything below applies to all three.
 - **Named-AI-bot blocks ≠ a block on you.** A host may `Disallow: /` for `GPTBot`,
   `ClaudeBot`, `CCBot`, `Google-Extended`… under a permissive `User-agent: *` catch-all.
   Read the file: if your client isn't named, the catch-all governs — but honour the evident
-  intent, and prefer a sanctioned channel or the Internet Archive when a host clearly does
-  not want AI ingestion.
+  intent: when a host clearly does not want AI ingestion, use a sanctioned channel or fetch
+  the Internet Archive's captures (always permitted, see above) instead of the live site.
 - **No public *read* API — retrieve via the sibling service.** Some portals expose only a
   *submission* API; the readable data lives in a companion register (see open.overheid.nl → KOOP).
 - **Native API disabled, public sibling open.** A host can `401` its own `/wp-json/…` while a
@@ -144,7 +147,7 @@ endpoint/robots were exercised; `(docs)` = read from documentation/robots only. 
 |---|---|---|---|---|---|---|---|
 | **KOOP Officiële Bekendmakingen** | SRU 2.0 · `repository.overheid.nl/sru` | none | crawler `Disallow: /` — API **documented & preferred**; ~1 req/s, page 1000 | free (art. 11); `/noindex/` = privacy | `explain` → indexes; FRBR `…/frbr/…/xml/…` = artifact; front-end `zoek.officielebekendmakingen.nl` can 504 | Internet Archive (permanent deeplinks) | 2026-08 (live) |
 | **CVDR** (decentrale regelgeving) | SRU / FRBR · `lokaleregelgeving.overheid.nl` | none | server page open; polite | free (art. 11) | FRBR-XML may 404 → server-rendered page; SRU indexes differ from KOOP | KOOP bekendmakingen; IA | 2026-08 (live) |
-| **wetten.overheid.nl** (BWB, consolidated law) | HTML/XML · `wetten.overheid.nl` | none | catch-all `Allow: /`; **named AI bots** `Disallow: /`; `/*/informatie/xml` off; polite | free (art. 11) | honour the AI-block intent | BWB bulk download; Internet Archive | 2026-08 (live robots) |
+| **wetten.overheid.nl** (BWB, consolidated law) | HTML/XML · `wetten.overheid.nl` | none | catch-all `Allow: /`; **named AI bots** `Disallow: /`; `/*/informatie/xml` off; polite | free (art. 11) | honour the AI-block intent: not live; BWB bulk download or Internet Archive captures | BWB bulk download; Internet Archive | 2026-08 (live robots) |
 | **open.overheid.nl / OPP** (PLOOI successor) | *aanlever only* | (client creds) | — | Woo / free | **no public read API** | KOOP (the read path) | 2026-08 (docs) |
 | **data.overheid.nl** | CKAN v3 · `data.overheid.nl/data/api/3/action/` | none | `Disallow: /data/` (covers the API path); polite | CC0 | dataset / metadata discovery | the dataset's own host | 2026-08 (live) |
 | **CBS StatLine** | OData · v3 `opendata.cbs.nl/ODataApi`; v4 host *(unverified)* | none | v3 paths disallowed; v4 TBD; polite | free + attrib "Bron: CBS" | prefer v4; `$metadata` for fields | `cbsodata` client libs (R/Py) | 2026-08 (docs) |
