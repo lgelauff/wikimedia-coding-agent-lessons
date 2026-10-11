@@ -9,6 +9,10 @@ win wherever they are stricter.
   numbered batch**: the exact command, why, and what it touches.
 - One exact command per prompt, with absolute paths, answerable yes/no.
 - `git -C <path>`, never `cd <path> && …`. No `cd` in commands at all.
+- Shape decides prompts (96% of approved prompts were compound commands, review 2026-10-11): one
+  simple read-only command per Bash call; no for-loops, heredocs, `python -c`, `$(...)` or pipes into
+  scripts for reading. Use Read/Grep/Glob instead.
+- Analysis: write the script to the scratchpad and run it by path.
 - Repeated shell logic goes into a script: one invocation to approve.
 - A denied or blocked command is a decision. Don't retry it reworded or by another route; say what
   is blocked and stop.
