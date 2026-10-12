@@ -15,7 +15,9 @@ win wherever they are stricter.
 - Analysis: write the script to the scratchpad and run it by path.
 - Repeated shell logic goes into a script: one invocation to approve.
 - A denied or blocked command is a decision. Don't retry it reworded or by another route; say what
-  is blocked and stop.
+  is blocked and stop. Not a decision: a fetch tool refusing a host (e.g. WebFetch on
+  `web.archive.org`). That is the tool's limit, not the user's; take the `source-connectors` route
+  (`curl` with the project UA) (Lodewijk, 2026-10-12).
 
 **Plan first (every permission mode).** For any task beyond a one-liner, write a plan of at most ~10
 lines in the chat (or the project notes) before acting: goal, steps, risks. Put **outward or

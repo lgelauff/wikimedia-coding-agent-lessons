@@ -10,7 +10,7 @@
     "last resort, and a plugin load failure degrades to a prompt rather than to open.",
     "",
     "Derivation: the `kind: connector` entries are validated against the connector",
-    "library tables in agent-tooling/skills/source-connectors/SKILL.md by",
+    "library tables in agent-tooling/skills/source-connectors/references/library.md by",
     "scripts/mandated_services.py. Add a connector row there and the drift check fails",
     "until this file is updated; remove one and it fails the other way. The remaining",
     "entries are Wikimedia data APIs, compute (LiftWing), and docs/tool hosts, each",
@@ -37,7 +37,7 @@
   "scope": "Data connectors + Wikimedia data/compute APIs + docs/tool hosts. Citation-only conference sites are deliberately excluded.",
   "enforced_by": "agent-tooling/policies/webfetch_mandated.py",
   "derived_from": {
-    "connector_library": "agent-tooling/skills/source-connectors/SKILL.md",
+    "connector_library": "agent-tooling/skills/source-connectors/references/library.md",
     "checker": "agent-tooling/scripts/mandated_services.py"
   },
 
@@ -49,7 +49,7 @@
       "hosts": ["repository.overheid.nl"],
       "host_suffixes": [],
       "protocol": "SRU 2.0",
-      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
       "access_policy_ref": "source-connectors §4 · Dutch government / open data",
       "verified": "2026-08"
     },
@@ -60,7 +60,7 @@
       "hosts": ["lokaleregelgeving.overheid.nl"],
       "host_suffixes": [],
       "protocol": "SRU / FRBR",
-      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
       "access_policy_ref": "source-connectors §4 · Dutch government / open data",
       "verified": "2026-08"
     },
@@ -71,7 +71,7 @@
       "hosts": ["wetten.overheid.nl"],
       "host_suffixes": [],
       "protocol": "HTML/XML",
-      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
       "access_policy_ref": "source-connectors §4 · Dutch government / open data",
       "verified": "2026-08"
     },
@@ -82,7 +82,7 @@
       "hosts": ["open.overheid.nl"],
       "host_suffixes": [],
       "protocol": "HTTPS (submission only; no public read API)",
-      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
       "access_policy_ref": "source-connectors §4 · Dutch government / open data",
       "verified": "2026-08"
     },
@@ -93,7 +93,7 @@
       "hosts": ["data.overheid.nl"],
       "host_suffixes": [],
       "protocol": "CKAN v3",
-      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
       "access_policy_ref": "source-connectors §4 · Dutch government / open data",
       "verified": "2026-08"
     },
@@ -104,7 +104,7 @@
       "hosts": ["opendata.cbs.nl"],
       "host_suffixes": [],
       "protocol": "OData",
-      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
       "access_policy_ref": "source-connectors §4 · Dutch government / open data",
       "verified": "2026-08"
     },
@@ -115,7 +115,7 @@
       "hosts": ["data.rechtspraak.nl"],
       "host_suffixes": [],
       "protocol": "REST/XML",
-      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
       "access_policy_ref": "source-connectors §4 · Dutch government / open data",
       "verified": "2026-08"
     },
@@ -126,7 +126,7 @@
       "hosts": ["api.openalex.org"],
       "host_suffixes": [],
       "protocol": "REST",
-      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
       "access_policy_ref": "source-connectors §4 · Scholarly & archive",
       "verified": "2026-08"
     },
@@ -137,7 +137,7 @@
       "hosts": ["api.crossref.org"],
       "host_suffixes": [],
       "protocol": "REST",
-      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
       "access_policy_ref": "source-connectors §4 · Scholarly & archive",
       "verified": "2026-08"
     },
@@ -148,7 +148,7 @@
       "hosts": ["export.arxiv.org"],
       "host_suffixes": [],
       "protocol": "Atom XML",
-      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
       "access_policy_ref": "source-connectors §4 · Scholarly & archive",
       "verified": "2026-08"
     },
@@ -159,7 +159,7 @@
       "hosts": ["api.semanticscholar.org"],
       "host_suffixes": [],
       "protocol": "REST",
-      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
       "access_policy_ref": "source-connectors §4 · Scholarly & archive",
       "verified": "2026-08"
     },
@@ -170,7 +170,7 @@
       "hosts": ["archive.org", "web.archive.org"],
       "host_suffixes": [],
       "protocol": "REST",
-      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
       "access_policy_ref": "source-connectors §4 · Scholarly & archive (the sanctioned fallback for a blocked live fetch)",
       "verified": "2026-08"
     },
@@ -181,7 +181,7 @@
       "hosts": ["deliberation.stanford.edu"],
       "host_suffixes": [],
       "protocol": "HTTPS/HTML (Crawl-delay: 30)",
-      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
       "access_policy_ref": "source-connectors §4 · Deliberation & civic research",
       "verified": "2026-09"
     },
@@ -193,7 +193,7 @@
       "host_suffixes": [],
       "protocol": "HTTPS/HTML + Conduit API",
       "sources": [
-        "agent-tooling/skills/source-connectors/SKILL.md",
+        "agent-tooling/skills/source-connectors/references/library.md",
         "cowork-skills/wikimedia-data-collection/skills/phabricator-conduit/SKILL.md"
       ],
       "access_policy_ref": "source-connectors §4 · Wikimedia community infrastructure (read-only, never act on anyone's behalf)",
@@ -207,7 +207,7 @@
       "auxiliary_hosts": ["live.staticflickr.com"],
       "host_suffixes": [],
       "protocol": "REST + image CDN",
-      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
       "access_policy_ref": "source-connectors §4 · Media & web",
       "verified": "2026-08"
     },
@@ -218,7 +218,7 @@
       "hosts": ["public-api.wordpress.com"],
       "host_suffixes": [],
       "protocol": "REST",
-      "sources": ["agent-tooling/skills/source-connectors/SKILL.md"],
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
       "access_policy_ref": "source-connectors §4 · Media & web",
       "verified": "2026-08"
     },

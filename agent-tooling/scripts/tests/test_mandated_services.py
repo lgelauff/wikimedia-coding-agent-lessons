@@ -60,7 +60,7 @@ class TestParser(unittest.TestCase):
 
     def test_recipe_column_not_over_collected(self):
         """`zoek.officielebekendmakingen.nl` sits in KOOP's recipe column, not its endpoint."""
-        hosts = M.parse_connector_hosts(REPO_ROOT / "agent-tooling/skills/source-connectors/SKILL.md")
+        hosts = M.parse_connector_hosts(REPO_ROOT / "agent-tooling/skills/source-connectors/references/library.md")
         self.assertIn("repository.overheid.nl", hosts)
         self.assertNotIn("zoek.officielebekendmakingen.nl", hosts)
 
@@ -110,7 +110,7 @@ class TestDrift(unittest.TestCase):
 class TestValidate(unittest.TestCase):
     def _repo(self, td: str) -> Path:
         root = Path(td)
-        (root / "agent-tooling/skills/source-connectors").mkdir(parents=True)
+        (root / M.CONNECTOR_LIBRARY).parent.mkdir(parents=True)
         (root / M.CONNECTOR_LIBRARY).write_text("x", encoding="utf-8")
         return root
 

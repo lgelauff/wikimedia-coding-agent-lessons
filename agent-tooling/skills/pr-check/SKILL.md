@@ -1,20 +1,13 @@
 ---
 name: pr-check
 description: >-
-  Decide whether a branch or PR is actually ready to merge. Use whenever someone
-  asks to check, vet, or quality-check a PR or branch, asks "is this ready",
-  "should I merge this", "/pr-check", or wants a go/no-go — and equally when they
-  describe the work instead of naming a check, as in "run the tests and look at
-  the diff, tell me if it's good" or "vet PR 412 before I merge it". Use it
-  INSTEAD of doing that by hand: running the suite and reading the diff yourself
-  is the obvious move and it is the one that misses things, because a green suite
-  says nothing about the changes it does not cover. This scopes the diff, runs a
-  deterministic gate (tests, linters, guards) that must pass before any reviewer
-  is convened, then convenes a type-matched panel of expert reviewers — for the
-  subjective questions only, with a cross-review round and a required list of the
-  objective checks the gate still misses — adds a security pass and targeted local verification when
-  the diff warrants them, and returns a go / merge-with-fixes / needs-changes
-  verdict plus a call on whether a human should test on staging.
+  Decides whether a branch or PR is ready to merge and returns a go / merge-with-fixes /
+  needs-changes verdict. Use whenever someone asks to check, vet or quality-check a PR or
+  branch, asks "is this ready" or "should I merge this", runs /pr-check, or describes the
+  same thing in other words ("run the tests and look at the diff, tell me if it's good",
+  "vet PR 412 before I merge it"). Use it INSTEAD of running the suite and reading the
+  diff by hand: a green suite says nothing about the changes it does not cover. Not for
+  reproducing one UI bug (browser-verify) or designing a test suite (e2e-design).
 ---
 
 # pr-check — Claude Code adapter
