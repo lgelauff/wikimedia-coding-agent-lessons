@@ -6,7 +6,58 @@ extension notices, waits until you pause, and asks whether to turn it into a lin
 
 Load-unpacked Chrome extension (Manifest V3). No store listing, no build step, no dependencies.
 
-## Setup — asked once
+## How to install it (no technical knowledge needed)
+
+It works in **Google Chrome** on a computer (also Edge, Brave and other Chrome-based browsers).
+It does not work on phones or tablets. It takes about five minutes.
+
+**1. Download it**
+
+1. Click this link: **[download the zip file](https://github.com/lgelauff/wikimedia-coding-agent-lessons/archive/refs/heads/main.zip)**.
+   A file called `wikimedia-coding-agent-lessons-main.zip` lands in your Downloads.
+2. Double-click that file to unzip it. You now have a folder with the same name.
+3. Open that folder, then `agent-tooling`, then `skills`. Inside is a folder called
+   **`wikimarkup-for-gmail`** — that is the extension.
+4. Drag `wikimarkup-for-gmail` to a place where it can stay, for example your Documents folder.
+   Keep it there: Chrome runs the extension from that folder, so deleting it removes the extension.
+   You can throw away the rest of the download.
+
+**2. Add it to Chrome**
+
+1. In Chrome, click the address bar, type `chrome://extensions` and press Enter.
+2. In the top-right corner, switch on **Developer mode**.
+3. In the top-left corner, click **Load unpacked**.
+4. Find the `wikimarkup-for-gmail` folder from step 1, click it once, and click **Select**.
+5. "WikiMarkup for Gmail" now appears in the list. Chrome may show a notice about extensions in
+   developer mode; that is normal for extensions that do not come from the Chrome Web Store.
+
+**3. Fill in your settings**
+
+A settings page opens by itself. (Later you can find it again by clicking the puzzle-piece icon
+next to the address bar, then **WikiMarkup for Gmail**.)
+
+1. **Home wiki** — the wiki your links should point to, e.g. `en.wikipedia.org` or `nl.wikipedia.org`.
+2. **Signature** — copy it from your wiki preferences, e.g.
+   `[[User:YourName|YourName]] ([[User talk:YourName|talk]])`.
+3. **Timestamp** — pick your time zone, date style and language.
+4. Click **Save**, then reload any open Gmail tab.
+
+**4. Try it**
+
+Write an email in Gmail and type `see [[Amsterdam]]`. Stop typing for a few seconds: a small box
+appears next to the email asking whether to convert it. Click **Convert**. Nothing in your email
+changes unless you click.
+
+**Updating** — download the zip again, replace your `wikimarkup-for-gmail` folder with the new one,
+go to `chrome://extensions` and click the round arrow on the WikiMarkup for Gmail card.
+
+**Removing** — go to `chrome://extensions` and click **Remove** on the WikiMarkup for Gmail card.
+
+**Privacy** — it only looks at what you type in an email you are writing, and only in Gmail. It
+never reads your other mail and sends nothing anywhere — except when you use the optional
+*paste as wikitext* shortcut, which sends what you copied to your own home wiki to convert it.
+
+## Settings in detail
 
 On first install the options page opens by itself and asks:
 
@@ -97,16 +148,6 @@ html=<p>…</p>&body_only=true
 This is the only time anything leaves the browser: the copied HTML goes to your home wiki, and nowhere
 else. If that wiki cannot convert it, you get an error — there is no fallback to another wiki.
 
-## Install
-
-```
-1. unzip, or use this folder
-2. open chrome://extensions  →  turn on Developer mode
-3. Load unpacked  →  select the gmail-wikimarkup folder (the one containing manifest.json)
-4. the settings page opens: pick your home wiki, paste your signature, Save
-```
-
-Then open a draft in Gmail and type `[[Amsterdam]]` and pause.
 
 ## Tests
 
