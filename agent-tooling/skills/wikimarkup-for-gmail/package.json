@@ -1,0 +1,12 @@
+{
+  "name": "wikimarkup-for-gmail",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Chrome extension (MV3): [[wikilinks]] and ~~~~ in Gmail become links to your home wiki and your wiki signature.",
+  "scripts": {
+    "test": "node --test test/wikitext.test.mjs",
+    "test:browser": "node test/mechanism.spec.mjs"
+  },
+  "license": "MIT"
+}

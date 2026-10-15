@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>WikiMarkup — Gmail-shaped compose harness</title>
+  <style>
+    body { font: 14px/1.5 system-ui, sans-serif; margin: 24px; }
+    .body { border: 1px solid #a2a9b1; border-radius: 8px; padding: 12px; min-height: 120px;
+            max-width: 640px; outline: none; }
+    .gmail_quote { color: #666; border-left: 2px solid #ccc; padding-left: 8px; }
+    #results { margin-top: 16px; font: 12px/1.5 ui-monospace, monospace; white-space: pre-wrap; }
+    .fail { color: #b32424; } .pass { color: #14866d; }
+  </style>
+</head>
+<body>
+  <h1>Gmail-shaped compose harness</h1>
+  <p>A <code>div[role=textbox][contenteditable][aria-label="Message Body"]</code> with <em>the same</em>
+     <code>attachWikiMarkup()</code> and consent popup the extension installs. Type here by hand, or open with
+     <code>?run</code> to run the automated suite (<code>test/mechanism.js</code>).</p>
+  <input id="subject" placeholder="Subject (somewhere to move focus to)" size="40">
+  <div id="drafts"></div>
+  <div id="results"></div>
+
+  <script type="module">
+    import { attachWikiMarkup } from '../src/lib/triggers.js';
+    import { DEFAULT_SETTINGS } from '../src/lib/wikitext.js';
+
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      homeWiki: 'nl.wikipedia.org',
+      signature: '[[User:Lodewijk|Lodewijk]] ([[User talk:Lodewijk|talk]])',
+      idleSeconds: 3,
+    };
+    const flashes = [];
+    const clock = { now: new Date('2026-10-15T09:30:00Z') };
+    const api = attachWikiMarkup({
+      target: document,
+      getSettings: () => settings,
+      onFlash: (m) => flashes.push(m),
+      now: () => clock.now,
+    });
+
+    let inputEvents = 0;
+    function newDraft(html = '') {
+      document.getElementById('drafts').replaceChildren();
+      const el = document.createElement('div');
+      el.className = 'body';
+      el.setAttribute('contenteditable', 'true');
+      el.setAttribute('role', 'textbox');
+      el.setAttribute('aria-label', 'Message Body');
+      el.innerHTML = html;
+      el.addEventListener('input', () => { inputEvents += 1; });
+      document.getElementById('drafts').appendChild(el);
+      el.focus();
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      r.collapse(false);
+      getSelection().removeAllRanges();
+      getSelection().addRange(r);
+      return el;
+    }
+
+    window.__harness = { settings, flashes, api, clock, newDraft, inputEvents: () => inputEvents };
+    newDraft();
+
+    if (new URLSearchParams(location.search).has('run')) {
+      const { runSuite } = await import('./mechanism.js');
+      const results = await runSuite(window.__harness);
+      const out = document.getElementById('results');
+      for (const r of results) {
+        const line = document.createElement('div');
+        line.className = r.pass ? 'pass' : 'fail';
+        line.textContent = `${r.pass ? 'PASS' : 'FAIL'}  ${r.name}${r.pass ? '' : `\n      ${r.detail}`}`;
+        out.appendChild(line);
+      }
+      window.__results = results;
+    }
+  </script>
+</body>
+</html>

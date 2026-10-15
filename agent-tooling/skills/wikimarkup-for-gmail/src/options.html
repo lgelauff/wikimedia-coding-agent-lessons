@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>WikiMarkup for Gmail — settings</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font: 14px/1.5 system-ui, -apple-system, Segoe UI, sans-serif; margin: 0; padding: 28px;
+           max-width: 720px; }
+    h1 { font-size: 19px; margin: 0 0 4px; }
+    p.lede { margin: 0 0 20px; opacity: .75; }
+    fieldset { border: 1px solid #c8ccd1; border-radius: 8px; padding: 14px 16px; margin: 0 0 18px; }
+    legend { font-weight: 600; padding: 0 6px; }
+    label { display: block; margin: 10px 0 4px; font-weight: 600; }
+    select { font: inherit; padding: 6px; border: 1px solid #a2a9b1; border-radius: 6px; max-width: 100%; }
+    #dateFormats label { font-weight: 400; margin: 4px 0; }
+    input[type=text], textarea { width: 100%; box-sizing: border-box; padding: 8px;
+      font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+      border: 1px solid #a2a9b1; border-radius: 6px; }
+    textarea { min-height: 62px; }
+    .row { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
+    .hint { font-weight: 400; opacity: .72; }
+    button { font: inherit; padding: 8px 14px; border-radius: 6px; border: 1px solid #3366cc;
+             background: #3366cc; color: #fff; cursor: pointer; }
+    button.secondary { background: transparent; color: #3366cc; }
+    table.preview { border-collapse: collapse; margin-top: 8px; font: 13px ui-monospace, monospace; }
+    table.preview td { border-top: 1px solid #eaecf0; padding: 5px 10px 5px 0; vertical-align: top; }
+    table.preview td:first-child { color: #72777d; white-space: nowrap; }
+    #status { min-height: 20px; font-size: 13px; }
+    .ok { color: #14866d; } .bad { color: #b32424; }
+  </style>
+</head>
+<body>
+  <h1>WikiMarkup for Gmail</h1>
+  <p class="lede">Your wiki, your signature and your timestamp style, then Gmail understands wikitext the way a wiki does.</p>
+
+  <fieldset>
+    <legend>1 · Your home wiki</legend>
+    <label for="homeWiki">Wiki host <span class="hint">— bare links like <code>[[Amsterdam]]</code> point here</span></label>
+    <input id="homeWiki" type="text" list="wikis" placeholder="nl.wikipedia.org">
+    <datalist id="wikis">
+      <option value="en.wikipedia.org"></option>
+      <option value="nl.wikipedia.org"></option>
+      <option value="de.wikipedia.org"></option>
+      <option value="fr.wikipedia.org"></option>
+      <option value="es.wikipedia.org"></option>
+      <option value="it.wikipedia.org"></option>
+      <option value="pl.wikipedia.org"></option>
+      <option value="pt.wikipedia.org"></option>
+      <option value="ru.wikipedia.org"></option>
+      <option value="uk.wikipedia.org"></option>
+      <option value="meta.wikimedia.org"></option>
+      <option value="commons.wikimedia.org"></option>
+      <option value="www.wikidata.org"></option>
+    </datalist>
+    <div class="row" style="margin-top:10px">
+      <button id="check" class="secondary" type="button">Check this wiki</button>
+      <span id="wikiStatus" class="hint"></span>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>2 · Your signature</legend>
+    <label for="signature">Signature wikitext <span class="hint">— <code>~~~</code> = your username (the first link in it), <code>~~~~</code> = this text + timestamp,
+      <code>~~~~~</code> = timestamp only. Put <code>~~~~~</code> inside it to place the timestamp yourself.</span></label>
+    <textarea id="signature" spellcheck="false"></textarea>
+  </fieldset>
+
+  <fieldset>
+    <legend>3 · Timestamp</legend>
+    <p class="hint" style="margin:0 0 4px">The time in <code>~~~~</code> and <code>~~~~~</code>, set up like MediaWiki's
+      own preferences. Worked out in your browser — nothing is looked up online.</p>
+    <label for="timeZone">Time zone</label>
+    <select id="timeZone"></select>
+    <label>Date format</label>
+    <div id="dateFormats"></div>
+    <label for="language">Month names in <span class="hint">— a language code such as <code>en</code>, <code>nl</code>, <code>de</code></span></label>
+    <input id="language" type="text" list="languages" style="width:8em">
+    <datalist id="languages">
+      <option value="en"></option><option value="nl"></option><option value="de"></option>
+      <option value="fr"></option><option value="es"></option><option value="it"></option>
+      <option value="pl"></option><option value="pt"></option><option value="ru"></option>
+      <option value="uk"></option><option value="sv"></option><option value="ja"></option>
+    </datalist>
+  </fieldset>
+
+  <fieldset>
+    <legend>Behaviour</legend>
+    <div class="row">
+      <label style="font-weight:400"><input type="radio" name="mode" value="link"> <code>[[Page]]</code> becomes a link</label>
+      <label style="font-weight:400"><input type="radio" name="mode" value="wikitext"> keep <code>[[Page]]</code> as wikitext</label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label style="font-weight:400">ask after <input type="number" id="idleSeconds" min="1" max="30" step="1" style="width:4em">
+        seconds without typing</label>
+      <label style="font-weight:400"><input type="checkbox" id="showPreview"> show short confirmation messages</label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Permission</legend>
+    <p class="hint" style="margin:0 0 8px">Only markup you <em>type</em> in a Gmail draft counts — never quoted or forwarded
+      mail, never what was already there. When you pause (or leave the message body), a popup next to the compose box
+      lists what it would convert: <em>Convert</em>, <em>Convert all in this draft</em>, or <em>Not in this draft</em>.</p>
+    <div class="row">
+      <label style="font-weight:400"><input type="radio" name="permissionMode" value="ask"> ask with a popup <span class="hint">(default)</span></label>
+      <label style="font-weight:400"><input type="radio" name="permissionMode" value="always"> never ask, convert at each pause</label>
+    </div>
+    <p class="hint" style="margin:8px 0 0">Hotkeys inside a draft (Alt = Option on a Mac): <code>Alt+Shift+W</code> ask now ·
+      <code>Alt+Shift+S</code> signature · <code>Alt+Shift+T</code> timestamp · <code>Alt+Shift+P</code> paste as wikitext.
+      Paste as wikitext sends the copied HTML to your home wiki for conversion; nothing else leaves the browser.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Preview</legend>
+    <table class="preview">
+      <tr><td>you type</td><td id="pv-sig3"></td></tr>
+      <tr><td><code>~~~</code></td><td id="pv-t3"></td></tr>
+      <tr><td><code>~~~~</code></td><td id="pv-t4"></td></tr>
+      <tr><td><code>~~~~~</code></td><td id="pv-t5"></td></tr>
+      <tr><td><code>[[Wikidata|WD]]</code></td><td id="pv-link"></td></tr>
+      <tr><td><code>[[c:Category:Amsterdam]]</code></td><td id="pv-c"></td></tr>
+    </table>
+  </fieldset>
+
+  <div class="row">
+    <button id="save" type="button">Save</button>
+    <span id="status"></span>
+  </div>
+
+  <script type="module" src="./options.js"></script>
+</body>
+</html>

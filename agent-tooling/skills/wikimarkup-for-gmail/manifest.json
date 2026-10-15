@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "WikiMarkup for Gmail",
+  "version": "0.2.0",
+  "description": "Write [[wikilinks]] and ~~~~ in Gmail: they become clickable links to your home wiki and your own wiki signature.",
+  "permissions": ["storage", "clipboardRead"],
+  "host_permissions": [
+    "https://mail.google.com/*",
+    "https://*.wikipedia.org/*",
+    "https://*.wikimedia.org/*",
+    "https://*.mediawiki.org/*",
+    "https://wikisource.org/*",
+    "https://*.wikisource.org/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "options_page": "src/options.html",
+  "action": {
+    "default_title": "WikiMarkup for Gmail — settings"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["src/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/lib/wikitext.js", "src/lib/compose.js", "src/lib/triggers.js", "src/lib/consent.js"],
+      "matches": ["https://mail.google.com/*"]
+    }
+  ]
+}

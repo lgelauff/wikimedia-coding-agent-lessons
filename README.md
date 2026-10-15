@@ -16,6 +16,7 @@ Each topic captures gotchas, doc links, and patterns that aren't obvious from of
 - [`claude-code/lessons.md`](claude-code/lessons.md) — prose lessons for the agent itself: hook/guard & CLI-script patterns, allowlist hygiene, Bash quirks, artifact-based verification, persona reviews
 - [`agent-tooling/`](agent-tooling/ARCHITECTURE.md) — **the runnable solutions**: reusable hooks, scripts, policies, playbooks, and skills, structured as an agent-agnostic core + thin per-agent adapters (Claude Code today). The *what you run* that pairs with the lessons above
 - [`flushing-dataviz/`](flushing-dataviz/skills/flushing-dataviz/SKILL.md) — consistent, accessible styling for research charts and tables (matplotlib + LaTeX booktabs): a colorblind-safe and grayscale-print-safe palette, ICWSM/AAAI figure sizing, and paper/slides/poster styles. The runnable counterpart to `matplotlib/lessons.md`
+- [`agent-tooling/skills/wikimarkup-for-gmail/`](agent-tooling/skills/wikimarkup-for-gmail/README.md) — a Chrome extension (not a Claude skill): type `[[links]]`, `''italic''`, `'''bold'''` or `~~~~` in a Gmail draft out of wiki habit, and after a pause a popup offers to convert just what you typed — never quoted mail. Links keep their brackets; signatures and timestamps follow MediaWiki-style time zone / date format / language preferences. Load unpacked; no dependencies
 
 ## Two ways to read this repo
 
