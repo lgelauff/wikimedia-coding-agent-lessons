@@ -33,7 +33,7 @@
   ],
 
   "version": 1,
-  "updated": "2026-10-01",
+  "updated": "2026-10-15",
   "scope": "Data connectors + Wikimedia data/compute APIs + docs/tool hosts. Citation-only conference sites are deliberately excluded.",
   "enforced_by": "agent-tooling/policies/webfetch_mandated.py",
   "derived_from": {
@@ -118,6 +118,17 @@
       "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
       "access_policy_ref": "source-connectors §4 · Dutch government / open data",
       "verified": "2026-08"
+    },
+    {
+      "id": "eu-cellar",
+      "service": "EU Publications Office (Cellar): EU legislation and OJ behind EUR-Lex",
+      "kind": "connector",
+      "hosts": ["publications.europa.eu"],
+      "host_suffixes": [],
+      "protocol": "SPARQL + REST (content negotiation)",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · EU law",
+      "verified": "2026-10"
     },
     {
       "id": "openalex",

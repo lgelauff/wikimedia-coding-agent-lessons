@@ -4,6 +4,7 @@ Referenced from `../SKILL.md` §4. Each row is a dated claim, not a guarantee: r
 
 ## Contents
 - Dutch government / open data
+- EU law
 - Scholarly & archive
 - Deliberation & civic research
 - Wikimedia community infrastructure
@@ -26,6 +27,12 @@ endpoint/robots were exercised; `(docs)` = read from documentation/robots only. 
 | **data.overheid.nl** | CKAN v3 · `data.overheid.nl/data/api/3/action/` | none | `Disallow: /data/` (covers the API path); polite | CC0 | dataset / metadata discovery | the dataset's own host | 2026-08 (live) |
 | **CBS StatLine** | OData · v3 `opendata.cbs.nl/ODataApi`; v4 host *(unverified)* | none | v3 paths disallowed; v4 TBD; polite | free + attrib "Bron: CBS" | prefer v4; `$metadata` for fields | `cbsodata` client libs (R/Py) | 2026-08 (docs) |
 | **Rechtspraak Open Data** | REST/XML · `data.rechtspraak.nl/uitspraken/{zoeken,content}` | none | no robots served (allow); ≤10 req/s, no full dump | court output, pseudonymised | 2-step: `/uitspraken/zoeken` (ECLI index) → `/uitspraken/content?id=ECLI:…` | Internet Archive snapshot | 2026-08 (live: `/zoeken` 200; bare `/uitspraken/` 404s) |
+
+### EU law
+
+| Connector | Protocol · endpoint | Auth | Access policy (robots · rate) | Reuse | Retrieval recipe | Fallback | Verified |
+|---|---|---|---|---|---|---|---|
+| **EU Publications Office (Cellar)**: EU legislation, OJ and case law behind EUR-Lex | SPARQL · `publications.europa.eu/webapi/rdf/sparql`; REST · `publications.europa.eu/resource/celex/{CELEX}` (also `/resource/eli/…`) | none | documented public API *(robots of this host not yet checked: Internet Archive offline 2026-10-15)*; ~1 req/s, back off on 429/5xx. **EUR-Lex web pages are not a route**: Wayback captures of the EUR-Lex robots file (2026-10-12..14) are HTTP 202 text/html, a bot-challenge page, so EUR-Lex HTML is closed to scripts | EU documents: reuse with attribution (Commission Decision 2011/833/EU) *(unverified here)* | find the work by CELEX (e.g. `32024R0903` = Regulation (EU) 2024/903) via SPARQL, then fetch a language expression by content negotiation on the `/resource/celex/…` URI (`Accept: application/xhtml+xml` or `application/pdf`, `Accept-Language: eng`) *(unverified)* | Internet Archive captures of EUR-Lex `legal-content/EN/…?uri=CELEX:…` or OJ pages | 2026-10 (docs) |
 
 ### Scholarly & archive
 
