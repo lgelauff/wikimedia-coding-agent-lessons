@@ -13,14 +13,12 @@ It does not work on phones or tablets. It takes about five minutes.
 
 **1. Download it**
 
-1. Click this link: **[download the zip file](https://github.com/lgelauff/wikimedia-coding-agent-lessons/archive/refs/heads/main.zip)**.
-   A file called `wikimedia-coding-agent-lessons-main.zip` lands in your Downloads.
-2. Double-click that file to unzip it. You now have a folder with the same name.
-3. Open that folder, then `agent-tooling`, then `skills`. Inside is a folder called
-   **`wikimarkup-for-gmail`** — that is the extension.
-4. Drag `wikimarkup-for-gmail` to a place where it can stay, for example your Documents folder.
+1. Click this link: **[download WikiMarkup for Gmail](https://github.com/lgelauff/wikimedia-coding-agent-lessons/releases/latest/download/wikimarkup-for-gmail.zip)**.
+   A small file called `wikimarkup-for-gmail.zip` lands in your Downloads.
+2. Double-click that file to unzip it. You now have a folder called **`wikimarkup-for-gmail`** —
+   that is the extension.
+3. Drag that folder to a place where it can stay, for example your Documents folder.
    Keep it there: Chrome runs the extension from that folder, so deleting it removes the extension.
-   You can throw away the rest of the download.
 
 **2. Add it to Chrome**
 
