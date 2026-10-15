@@ -158,10 +158,9 @@ else. If that wiki cannot convert it, you get an error — there is no fallback 
   `node test/mechanism.spec.mjs` with Playwright installed.
 * `node test/extension-load.spec.mjs` — Chrome loads the unpacked extension (needs Playwright).
 
-**Not verified: real Gmail.** No automated test has typed into an actual Gmail compose window. Residual
-risks are Gmail's own choices: whether it reuses the compose element across drafts, whether its editor
-keeps typing inside a just-inserted link, whether its quoted-text class is still `gmail_quote`. The
-coupling points are `COMPOSE_SELECTOR` and `EXCLUDE_SELECTOR` in `src/lib/compose.js`.
+**Real Gmail: tested by hand** (2026-10-15), and it works. No automated test types into an actual Gmail
+compose window, so a Gmail change can still break it. If it does, the coupling points are
+`COMPOSE_SELECTOR` and `EXCLUDE_SELECTOR` in `src/lib/compose.js`.
 
 ## Files
 
