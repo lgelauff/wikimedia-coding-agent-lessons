@@ -227,3 +227,6 @@ flushing-dataviz/skills/*/demo/output/*
 
 # scratch output
 tmp/
+
+# The Python-template `lib/` rule above would drop JavaScript source folders.
+!agent-tooling/skills/wikimarkup-for-gmail/src/lib/
