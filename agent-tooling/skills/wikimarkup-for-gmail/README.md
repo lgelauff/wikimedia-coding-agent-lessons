@@ -6,6 +6,13 @@ extension notices, waits until you pause, and asks whether to turn it into a lin
 
 Load-unpacked Chrome extension (Manifest V3). No store listing, no build step, no dependencies.
 
+⚠️ **Use at your own risk.**
+- This is an unofficial, personal tool, not a Wikimedia Foundation product, and not in the Chrome Web Store.
+- It has not been extensively tested: it was tried by hand in Gmail on one computer, plus automated tests on a mock-up of Gmail's compose window.
+- Gmail changes its page often, and an update can break the extension without warning.
+- Always read your email before sending it. If you click Send within a few seconds of typing, the popup may not have appeared yet and the markup goes out as typed.
+- Provided as-is under the MIT licence, with no warranty or support.
+
 ## How to install it (no technical knowledge needed)
 
 It works in **Google Chrome** on a computer (also Edge, Brave and other Chrome-based browsers).
