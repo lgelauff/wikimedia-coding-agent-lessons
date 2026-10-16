@@ -43,6 +43,12 @@ decide the policy attached to it, or tip a borderline case.
 | 3 | **Permission** | Do docs, terms, robot policy and TDM reservations allow automated use? | the docs describe the programmatic use (this wins over a robots.txt disallow, see below) and terms do not forbid it; or, with no docs, robots.txt allows it | terms forbid automated/AI use; a TDM reservation; a token is required that we were not issued; no docs and robots disallows or is unreadable |
 | 4 | **No cheaper equivalent** | Does an approved route already give the same thing? | it adds coverage or quality we lack (count it) | an approved route already covers it (Unpaywall vs OpenAlex locations) |
 | 5 | **Load and manners** | Can our expected volume stay well inside the documented limits? | documented limit known; our volume is a small fraction; responses cacheable | no stated limit and heavy volume; bursty jobs; no caching possible |
+
+**Always document the rate limits, high or low** (Lodewijk, 2026-10-16): write the exact
+published numbers, per tier (anonymous / identified / keyed), with the source and date, into the
+connector row, or "none published" if there are none. A generous published limit for anonymous
+callers is itself evidence that automated traffic is expected (DataCite: 500 requests per 5
+minutes unidentified); a very low one sets the policy.
 | 6 | **Access and identity** | What key, account, registration or identifying header is requested, and who provides it? | none; or registration encouraged/required, which Lodewijk does (his task) and the key goes into the agent-secrets store | agents would need to create accounts, accept terms, share personal credentials, or send his e-mail without his yes |
 | 7 | **Data class** | Personal data? Licence? May results be republished, or sent to a third-party model host? | open licence, no personal data | personal data (policy: counts and links only); restrictive or per-record licences; analysis-only data |
 | 8 | **Legal context** | Jurisdiction, TDM rules, database rights, public-sector reuse law | clear reuse basis (open licence, public-sector reuse act) | TDM reserved; database right asserted; unclear terms: CONDITIONAL at most |
