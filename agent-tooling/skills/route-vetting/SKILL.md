@@ -6,7 +6,7 @@ description: >-
   whitelist or "make allowed" a source, when a session keeps failing on a host that is not
   yet approved, or when Lodewijk asks for candidate routes and why they are justified. It
   reads the provider's own documentation, terms and robot policy, assigns a verdict
-  (supported / conditional / not supported / unverified), and drafts the connector row and
+  (supported / conditional / not supported / ask / unverified), and drafts the connector row and
   registry entry for his approval. Use it INSTEAD of adding a host because it "looks like an
   API": the traps are a robots file that is really a bot-challenge page, a documented API
   that only works with a token we do not have, and a host that is approved yet still fails
@@ -59,6 +59,12 @@ files disallow). Stay strictly inside what the docs describe: their endpoints, p
 rate limits and auth. This does not override terms that forbid automated or AI use, a TDM
 reservation, or a required token we were not issued.
 
+**Grey cases go to Lodewijk (2026-10-16).** Reject a route only when it is **explicitly
+disapproved in public**: terms that forbid automated or AI use, a robots.txt disallow with no
+documented API, named AI-crawler bans, a TDM reservation. Anything not explicitly disapproved and
+not clearly supported (no docs, silent terms, unreadable robots, an unclear mirror) is not a
+silent no: bring it to Lodewijk as **ASK** with the evidence you have, and he decides.
+
 **Aggregators and archives (Lodewijk, 2026-10-16).** A service whose purpose is to collect and
 redistribute other sources (the Internet Archive, IA Scholar/fatcat, CORE, OpenAlex-style indexes)
 is presumed OK as a door: criteria 2 and 3 are judged on the aggregator's own docs, terms and
@@ -93,13 +99,17 @@ content stays personal data). For everything else, "it depends": run the full ta
 7. **Note personal data.** If responses carry names, e-mail addresses or free text by people,
    the policy must say "counts and links only, never republish", as for mailing-list archives.
 8. **Assign a verdict.**
-   - **SUPPORTED**: docs invite programmatic use; robots and terms do not forbid it.
+   - **SUPPORTED**: docs describe the programmatic use; terms do not forbid it.
    - **CONDITIONAL**: needs a key, a guestbook or click-through, per-dataset terms, or a narrower
      path. Keys are registered by Lodewijk, never by an agent.
-   - **NOT SUPPORTED**: docs, terms or robots forbid it. A disallow-all plus named AI crawlers
-     means no automated access, including a script a human runs for us (Munich CONSUL, 2026-10-12).
-     A documented API that requires a token we have not been issued is also no access.
-   - **UNVERIFIED**: the docs could not be read. Say why.
+   - **NOT SUPPORTED**: only when explicitly disapproved in public: terms forbid automated or AI
+     use; a robots disallow with no documented API; named AI-crawler bans (Munich CONSUL,
+     2026-10-12, including a script a human runs for us); a TDM reservation; a documented API
+     that requires a token we have not been issued.
+   - **ASK**: not explicitly disapproved and not clearly supported (no docs, silent terms, an
+     unclear mirror). Bring it to Lodewijk with the evidence; he decides.
+   - **UNVERIFIED**: the docs or robots could not be read yet (outage, challenge page). Say why
+     and retry; if it stays unreadable, it becomes ASK.
 9. **Draft, do not land.** For SUPPORTED or CONDITIONAL, draft the library row (endpoint host in
    the endpoint cell, so the drift guard sees it) and the registry entry, then run
    `python3 agent-tooling/scripts/mandated_services.py`. It must report the new host as drift
