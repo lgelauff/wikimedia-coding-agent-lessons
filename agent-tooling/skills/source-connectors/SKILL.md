@@ -89,6 +89,11 @@ Everything below applies to all three.
   pacing (~1 req/s, back off on 429/`Retry-After`), cache every capture; `curl` + your UA if the
   fetch tool refuses `web.archive.org`. It does not get you past a login, a paywall or licence
   terms: those still apply to the content.
+- **Documentation is always readable** (Lodewijk, 2026-10-16): API docs, terms/licence pages,
+  `robots.txt` and robot/bot-policy pages may be fetched directly on any host, with the project
+  UA and ~1 req/s; doc paths the host's robots file disallows go through the Internet Archive.
+  This covers reading about a source, not calling its API or downloading its data: for a host
+  that is not yet approved, use `route-vetting`.
 - **A `5xx`/`503` is transient, not a verdict.** Try the connector first; on `503`/`5xx` (maintenance or load) retry with backoff, and if it persists switch to the row's **Fallback** — don't downgrade a connector's dated status for a one-off blip (reserve a status change for a *persistent* failure).
 
 **Maintain the registry — it goes stale.**
