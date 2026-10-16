@@ -51,6 +51,10 @@ decide the policy attached to it, or tip a borderline case.
 | 11 | **Downside if wrong** | What happens if agents misuse it? | worst case is a throttled request | IP blacklisting of the user's address, account bans, legal letters: needs a stricter policy or a no |
 | 12 | **Evidence quality** | How do we know each fact above? | read live in the provider's docs today, cited with date | from memory or a third-party blog: [guess] until confirmed |
 
+**Scope of the three rules below.** They are for *judging candidates* when Lodewijk has asked
+for new routes to be investigated. They decide what verdict to propose; they do not by
+themselves permit fetching data from any host. Only a registry entry that Lodewijk approved does.
+
 **Documented use wins over robots.txt (Lodewijk, 2026-10-16).** If the provider's own docs
 describe programmatic access to an endpoint, assume that use is OK, even when robots.txt
 disallows the same path: robots.txt governs crawlers, while the docs are the provider's explicit
