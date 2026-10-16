@@ -120,6 +120,17 @@
       "verified": "2026-08"
     },
     {
+      "id": "wikimedia-public-data",
+      "service": "Wikimedia public data & archives (dumps, analytics datasets, mailing lists, Diff)",
+      "kind": "connector",
+      "hosts": ["dumps.wikimedia.org", "analytics.wikimedia.org", "lists.wikimedia.org", "diff.wikimedia.org"],
+      "host_suffixes": [],
+      "protocol": "HTTPS (bulk files and archive pages)",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Wikimedia community infrastructure",
+      "verified": "2026-10"
+    },
+    {
       "id": "eu-cellar",
       "service": "EU Publications Office (Cellar): EU legislation and OJ behind EUR-Lex",
       "kind": "connector",
