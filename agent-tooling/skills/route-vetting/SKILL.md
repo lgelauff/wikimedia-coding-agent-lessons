@@ -51,6 +51,13 @@ decide the policy attached to it, or tip a borderline case.
 | 11 | **Downside if wrong** | What happens if agents misuse it? | worst case is a throttled request | IP blacklisting of the user's address, account bans, legal letters: needs a stricter policy or a no |
 | 12 | **Evidence quality** | How do we know each fact above? | read live in the provider's docs today, cited with date | from memory or a third-party blog: [guess] until confirmed |
 
+**Aggregators and archives (Lodewijk, 2026-10-16).** A service whose purpose is to collect and
+redistribute other sources (the Internet Archive, IA Scholar/fatcat, CORE, OpenAlex-style indexes)
+is presumed OK as a door: criteria 2 and 3 are judged on the aggregator's own docs, terms and
+robots, not re-checked for every original source behind it. The other criteria still apply,
+especially load (5: their limits are shared by everyone) and data class (7: personal data in the
+content stays personal data). For everything else, "it depends": run the full table.
+
 ## Steps
 
 1. **Name the need.** Which session, project or failed item needs this host, and how many items
