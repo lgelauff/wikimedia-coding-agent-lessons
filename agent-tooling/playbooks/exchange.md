@@ -10,8 +10,11 @@ one per block, with the machine each runs on. They never guess paths.
 ## Mac → agent (inbound), run in Lodewijk's own Terminal on the Mac
 
 ```bash
-scp -r <local folder> hague:/srv/exchange/to-agent/<name-YYYY-MM-DD>/
+scp -r <local folder named name-YYYY-MM-DD> hague:/srv/exchange/to-agent/
 ```
+- Name the local folder `<name-YYYY-MM-DD>` and give scp the parent as the target, with no new
+  folder name and no trailing slash: macOS scp (SFTP mode) fails with "path canonicalization failed"
+  when the target folder doesn't exist yet (seen 2026-10-12).
 ```bash
 ssh hague 'setfacl -R -m u:agent:rX,m:rX /srv/exchange/to-agent/<name-YYYY-MM-DD>'
 ```
