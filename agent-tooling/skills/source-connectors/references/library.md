@@ -5,6 +5,7 @@ Referenced from `../SKILL.md` §4. Each row is a dated claim, not a guarantee: r
 ## Contents
 - Dutch government / open data
 - EU law
+- Official statistics
 - Scholarly & archive
 - Deliberation & civic research
 - Wikimedia community infrastructure
@@ -34,6 +35,13 @@ endpoint/robots were exercised; `(docs)` = read from documentation/robots only. 
 |---|---|---|---|---|---|---|---|
 | **EU Publications Office (Cellar)**: EU legislation, OJ and case law behind EUR-Lex | SPARQL · `publications.europa.eu/webapi/rdf/sparql`; REST · `publications.europa.eu/resource/celex/{CELEX}` (also `/resource/eli/…`) | none | documented public API *(robots of this host not yet checked: Internet Archive offline 2026-10-15)*; ~1 req/s, back off on 429/5xx. **EUR-Lex web pages are not a route**: Wayback captures of the EUR-Lex robots file (2026-10-12..14) are HTTP 202 text/html, a bot-challenge page, so EUR-Lex HTML is closed to scripts | EU documents: reuse with attribution (Commission Decision 2011/833/EU) *(unverified here)* | find the work by CELEX (e.g. `32024R0903` = Regulation (EU) 2024/903) via SPARQL, then fetch a language expression by content negotiation on the `/resource/celex/…` URI (`Accept: application/xhtml+xml` or `application/pdf`, `Accept-Language: eng`) *(unverified)* | Internet Archive captures of EUR-Lex `legal-content/EN/…?uri=CELEX:…` or OJ pages | 2026-10 (docs) |
 
+### Official statistics
+
+| Connector | Protocol · endpoint | Auth | Access policy (robots · rate) | Reuse | Retrieval recipe | Fallback | Verified |
+|---|---|---|---|---|---|---|---|
+| **Eurostat API** | REST/SDMX · `ec.europa.eu/eurostat/api/dissemination/` | none | only the `/eurostat/api/` paths of this shared Commission host; robots blocks the legacy `/eurostat/SDMX/diss-web/rest/` path and search pages: don't use them; 1 req/s | reuse "authorised provided the source is acknowledged" | `statistics/1.0/data/{dataset}?…` (JSON-stat) *(exact path: check the docs when first used)* | Wayback; OECD | 2026-10 (docs) |
+| **OECD Data API** | SDMX · `sdmx.oecd.org` | none (registration encouraged, not required) | API offered as-is, rate-limited without published numbers: 1 req/s; **`oecd.ai` stays excluded** (robots block recorded) | acknowledge the OECD | SDMX data queries per dataflow | Eurostat; Wayback | 2026-10 (terms + docs) |
+
 ### Scholarly & archive
 
 | Connector | Protocol · endpoint | Auth | Access policy | Reuse | Notes | Fallback | Verified |
@@ -43,6 +51,14 @@ endpoint/robots were exercised; `(docs)` = read from documentation/robots only. 
 | **arXiv** | Atom XML · `export.arxiv.org/api/query` | none | robots `Disallow: /` — the API is the sanctioned door; manual asks for a **3 s delay** | mostly CC BY 4.0 (per paper) | `search_query`/`id_list`; version suffix immutable — keep in citations | Semantic Scholar; OpenAlex | 2026-08 (live) |
 | **Semantic Scholar** | REST · `api.semanticscholar.org/graph/v1` | free key raises the limit | anon pool tight — a **single request can 429**; 1 req/s unauth vs 100 keyed | research metadata (API terms) | IDs `arXiv:<id>`/`DOI:<doi>`; `fields=`; batch endpoint | Crossref; arXiv (full text) | 2026-08 (live: 429 seen) |
 | **Internet Archive / Wayback** | REST · `archive.org/wayback/available`, `web.archive.org/web/<ts>id_/<url>` | none (IA keys raise throttle) | robots allows all except `/control`, `/report` | per-item | `id_` = raw snapshot; use `curl` if the fetcher blocks web.archive.org | the live source itself | 2026-08 (live) |
+| **Europe PMC** | REST · `www.ebi.ac.uk/europepmc/webservices/rest/` | none | docs offer REST + "automated, bulk download"; ebi robots `Crawl-Delay: 10` for crawlers, stay ≤1 req/s; only the `/europepmc/` paths of this shared EBI host | full text only for the open-access subset | `search?query=DOI:…&format=json`; `{PMCID}/fullTextXML` for OA | NCBI E-utilities; Wayback | 2026-10 (docs; terms page 403) |
+| **NCBI E-utilities** | REST · `eutils.ncbi.nlm.nih.gov/entrez/eutils/` | none; send `tool` + `email` | docs: ≤3 req/s, large jobs weekends or 21:00–05:00 US Eastern; robots `Disallow: /` overridden by the documented API | per record (PMC OA subset reusable) | `esearch` → `efetch`/`esummary`; ids PMID/PMCID | Europe PMC | 2026-10 (docs) |
+| **doi.org content negotiation** | HTTPS · `doi.org/{DOI}` with an `Accept` header | none | **metadata only**: never follow the redirect to publisher pages; robots permissive | metadata | `Accept:` CSL-JSON (`application/vnd.citationstyles.csl` `+json`) or BibTeX (`application/x-bibtex`); for Crossref DOIs prefer the Crossref API, use this for DataCite and other registries | Crossref; DataCite | 2026-10 (docs, Crossref CN page) |
+| **IA Scholar / fatcat** (aggregator) | REST · `api.fatcat.wiki/v0/`; search UI `scholar.archive.org` | none for reads | aggregator rule; IA manners (1 req/s, back off); `scholar.archive.org` robots disallows `/search`: use the API, not search pages | metadata free to reuse; files per source | release lookup by DOI → `files` → archived PDF URLs; check the host is up first (refused 2026-10-16) | Wayback | 2026-10 (docs 2024 capture) |
+| **DataCite** | REST · `api.datacite.org` | none for the public API | "accessed without authentication"; 1 req/s; public endpoints only, not member endpoints | metadata CC0 *(unverified)* | `/dois/{DOI}`, `/dois?query=` | doi.org CN; Crossref | 2026-10 (docs) |
+| **Zenodo** | REST · `zenodo.org/api/` | none (guest) | docs: guest 60/min, 2000/h, search 30/min; robots `Disallow: /api` overridden by the documented API (files under `/api/records/*/files` are allowed anyway) | per record licence | `/api/records/{id}`; download each file once and verify its checksum | Wayback; DataCite | 2026-10 (docs) |
+| **Harvard Dataverse** | REST · `dataverse.harvard.edu/api/` | none for public data (many APIs need a token: do not use those) | public datasets only; **a guestbook or terms click-through = stop and ask Lodewijk**; robots unreadable (WAF challenge), docs invite automation | per-dataset licence | `/api/datasets/:persistentId/?persistentId=doi:…` → file ids → `/api/access/datafile/{id}` | Wayback; Zenodo/OSF copy | 2026-10 (docs; rate-limit page unread) |
+| **Hugging Face Hub** | REST · `huggingface.co/api/` + file resolve URLs | none for public reads; tokens only from the agent-secrets store | HF-wide rate limits; robots `Allow: /`; **writes and uploads never without Lodewijk's yes per upload** | per repo licence | `/api/datasets/{id}`, `/{repo}/resolve/{rev}/{file}` | the source repo | 2026-10 (docs) |
 
 ### Deliberation & civic research
 

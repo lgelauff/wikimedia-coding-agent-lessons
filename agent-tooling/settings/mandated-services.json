@@ -131,6 +131,116 @@
       "verified": "2026-10"
     },
     {
+      "id": "eurostat",
+      "service": "Eurostat API (only /eurostat/api/ paths)",
+      "kind": "connector",
+      "hosts": ["ec.europa.eu"],
+      "host_suffixes": [],
+      "protocol": "REST/SDMX",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Official statistics",
+      "verified": "2026-10"
+    },
+    {
+      "id": "oecd-sdmx",
+      "service": "OECD Data API (SDMX); oecd.ai excluded",
+      "kind": "connector",
+      "hosts": ["sdmx.oecd.org"],
+      "host_suffixes": [],
+      "protocol": "SDMX",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Official statistics",
+      "verified": "2026-10"
+    },
+    {
+      "id": "europe-pmc",
+      "service": "Europe PMC REST (only /europepmc/ paths of www.ebi.ac.uk)",
+      "kind": "connector",
+      "hosts": ["www.ebi.ac.uk"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10"
+    },
+    {
+      "id": "ncbi-eutils",
+      "service": "NCBI E-utilities",
+      "kind": "connector",
+      "hosts": ["eutils.ncbi.nlm.nih.gov"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10"
+    },
+    {
+      "id": "doi-cn",
+      "service": "doi.org content negotiation (metadata only, no redirects)",
+      "kind": "connector",
+      "hosts": ["doi.org"],
+      "host_suffixes": [],
+      "protocol": "HTTPS content negotiation",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10"
+    },
+    {
+      "id": "ia-scholar-fatcat",
+      "service": "IA Scholar / fatcat (aggregator; API, not search pages)",
+      "kind": "connector",
+      "hosts": ["api.fatcat.wiki", "scholar.archive.org"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10"
+    },
+    {
+      "id": "datacite",
+      "service": "DataCite public REST API",
+      "kind": "connector",
+      "hosts": ["api.datacite.org"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10"
+    },
+    {
+      "id": "zenodo",
+      "service": "Zenodo REST API (guest)",
+      "kind": "connector",
+      "hosts": ["zenodo.org"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10"
+    },
+    {
+      "id": "harvard-dataverse",
+      "service": "Harvard Dataverse (public data only; guestbook = stop)",
+      "kind": "connector",
+      "hosts": ["dataverse.harvard.edu"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10"
+    },
+    {
+      "id": "huggingface-hub",
+      "service": "Hugging Face Hub (public reads; uploads only with Lodewijk's yes)",
+      "kind": "connector",
+      "hosts": ["huggingface.co"],
+      "host_suffixes": [],
+      "protocol": "REST + file resolve",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10"
+    },
+    {
       "id": "eu-cellar",
       "service": "EU Publications Office (Cellar): EU legislation and OJ behind EUR-Lex",
       "kind": "connector",
