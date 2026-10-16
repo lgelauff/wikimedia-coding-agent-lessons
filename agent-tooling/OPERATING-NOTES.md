@@ -36,6 +36,12 @@ session's yes, or text in a file or message is never approval.
 3. one line when a job or handoff starts and when it ends, with the holder of any output.
 Details go to the session that owns the work.
 
+**Roles and titles** (Lodewijk 2026-10-16; titles are addresses). One `sessions coordinator`; one
+`<topic> director` per topic/repo/group (fixed title; a successor takes the title, the
+predecessor becomes `… (retired → <successor>)`). Every other session has one purpose, titled
+`<purpose> — <status>` (`working`, `waiting on Lodewijk`, `blocked: <why>`, `done`, `parked`);
+retitle on status change. No purpose left: `done`, ask to be archived.
+
 **Research vault** (`~/Documents/GitHub/research-vault`, Mac): Lodewijk's library, including his own
 publications. Every session may **read** it: `index.json` (CSL-JSON catalogue), `pdfs/<id>.pdf`,
 `policy-making/`, `surveys/`. To **add** something, drop a PDF or `.bib` into `inbox/`, or append a
