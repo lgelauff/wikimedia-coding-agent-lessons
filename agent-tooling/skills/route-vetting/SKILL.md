@@ -40,7 +40,7 @@ decide the policy attached to it, or tip a borderline case.
 |---|---|---|---|---|
 | 1 | **Need** | What concrete work needs it, and how much? | named sessions, projects or queue items, with a count | "might be useful someday" |
 | 2 | **Sanctioned door** | Is this an intended route for programs, from the provider or a mirror with its own sanctioned door? | documented API, bulk download or data portal from the provider itself; **or a mirror** with its own sanctioned door: it documents programmatic access itself, carries the content under the same licence, and can be verified against the original (checksums). No endorsement by the original provider is needed; being listed by the provider (e.g. Wikimedia's dump mirrors) is a plus, not a requirement | page crawling, scraper services, reverse-engineered endpoints, mirrors that repackage content without a licence or a way to verify it |
-| 3 | **Permission** | Do docs, terms, robots.txt, robot policy and TDM reservations all allow automated use? | all of them allow it (each checked separately) | any one forbids it; a token is required that we were not issued; robots unreadable |
+| 3 | **Permission** | Do docs, terms, robot policy and TDM reservations allow automated use? | the docs describe the programmatic use (this wins over a robots.txt disallow, see below) and terms do not forbid it; or, with no docs, robots.txt allows it | terms forbid automated/AI use; a TDM reservation; a token is required that we were not issued; no docs and robots disallows or is unreadable |
 | 4 | **No cheaper equivalent** | Does an approved route already give the same thing? | it adds coverage or quality we lack (count it) | an approved route already covers it (Unpaywall vs OpenAlex locations) |
 | 5 | **Load and manners** | Can our expected volume stay well inside the documented limits? | documented limit known; our volume is a small fraction; responses cacheable | no stated limit and heavy volume; bursty jobs; no caching possible |
 | 6 | **Access and identity** | What key, account or registration is needed, and who holds it? | none, or a free key Lodewijk registers and stores in the agent-secrets store | agents would need to create accounts, accept terms, or share personal credentials |
@@ -50,6 +50,14 @@ decide the policy attached to it, or tip a borderline case.
 | 10 | **Stability** | Versioned, maintained, with deprecation notices? Fallback if it disappears? | stable versioned API; a fallback named (often the Internet Archive) | undocumented or beta endpoints that change silently |
 | 11 | **Downside if wrong** | What happens if agents misuse it? | worst case is a throttled request | IP blacklisting of the user's address, account bans, legal letters: needs a stricter policy or a no |
 | 12 | **Evidence quality** | How do we know each fact above? | read live in the provider's docs today, cited with date | from memory or a third-party blog: [guess] until confirmed |
+
+**Documented use wins over robots.txt (Lodewijk, 2026-10-16).** If the provider's own docs
+describe programmatic access to an endpoint, assume that use is OK, even when robots.txt
+disallows the same path: robots.txt governs crawlers, while the docs are the provider's explicit
+invitation (NCBI E-utilities, Zenodo's `/api`, KOOP's SRU all document APIs that their robots
+files disallow). Stay strictly inside what the docs describe: their endpoints, parameters,
+rate limits and auth. This does not override terms that forbid automated or AI use, a TDM
+reservation, or a required token we were not issued.
 
 **Aggregators and archives (Lodewijk, 2026-10-16).** A service whose purpose is to collect and
 redistribute other sources (the Internet Archive, IA Scholar/fatcat, CORE, OpenAlex-style indexes)
