@@ -6,7 +6,7 @@ description: >-
   whitelist or "make allowed" a source, when a session keeps failing on a host that is not
   yet approved, or when Lodewijk asks for candidate routes and why they are justified. It
   reads the provider's own documentation, terms and robot policy, assigns a verdict
-  (supported / conditional / not supported / ask / unverified), and drafts the connector row and
+  (supported / conditional / redirect / disallowed / ask / unverified), and drafts the connector row and
   registry entry for his approval. Use it INSTEAD of adding a host because it "looks like an
   API": the traps are a robots file that is really a bot-challenge page, a documented API
   that only works with a token we do not have, and a host that is approved yet still fails
@@ -122,7 +122,10 @@ content stays personal data). For everything else, "it depends": run the full ta
    - **SUPPORTED**: docs describe the programmatic use; terms do not forbid it.
    - **CONDITIONAL**: needs a key, a guestbook or click-through, per-dataset terms, or a narrower
      path. Keys are registered by Lodewijk, never by an agent.
-   - **NOT SUPPORTED**: only when explicitly disapproved in public: terms forbid automated or AI
+   - **REDIRECT**: not this door, but a better approved door exists for the same content (EUR-Lex
+     pages → Publications Office Cellar; `oecd.ai` → `sdmx.oecd.org`; Scholar search → OpenAlex).
+     Name the door. Agents use the named door, never the redirected one.
+   - **NOT SUPPORTED** (= **disallowed**: don't even try): only when explicitly disapproved in public: terms forbid automated or AI
      use; a robots disallow with no documented API; named AI-crawler bans (Munich CONSUL,
      2026-10-12, including a script a human runs for us); a TDM reservation; a documented API
      that requires a token we have not been issued.

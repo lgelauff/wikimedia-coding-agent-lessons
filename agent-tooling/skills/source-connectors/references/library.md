@@ -90,24 +90,27 @@ endpoint/robots were exercised; `(docs)` = read from documentation/robots only. 
 ## Kept out of the library
 
 Routes decided against or deferred, with the date and the reason, so they can be revisited.
+Decision categories (Lodewijk, 2026-10-16): **disallowed** = don't even try (an explicit public no);
+**redirect** = not this door, but we know a better, approved one (named); **investigating** /
+**deferred** / **dataset-specific** (List B: checked per dataset page, not for the main list) / **dropped**.
 Hosts named here are **not** approved (the registry guard stops reading at this heading).
 Re-check with the `route-vetting` skill before changing a verdict.
 
 | Route | Decision (date) | Why |
 |---|---|---|
-| Google Scholar (`scholar.google.com`) | against (2026-10-16) | robots (live 2026-10-16) for all agents: "Disallow: /scholar", "Disallow: /search", "Disallow: /citations?"; no API. Human use only; OpenAlex `locations` give the "all versions" effect |
-| Scraping services (SerpAPI, Apify "Scholar APIs" and similar) | against (2026-10-16, Lodewijk agrees) | anything explicitly called, or clearly operating as, a scraping service is not what we intend: they fetch paths the source's robots disallows, the same access through a third party |
-| Academia.edu | against (2026-10-16) | robots (live 2026-10-16): `User-agent: *` "Disallow: /"; GPTBot, Google-Extended, Applebot-Extended disallowed. Terms (Wayback 2026-10-14) forbid access "through the use of any engine, software, tool, agent" incl. "spiders, robots, crawlers, data mining tools" other than browsers, "bots or other automated methods", and training AI on it ("model scraping"). No public API (web search 2026-10-16; its internal `/v0` endpoints are robots-disallowed). Human browsing only; find the same papers via OpenAlex |
-| ResearchGate | ASK, not against (2026-10-16) | robots (live 2026-10-16) is permissive: `User-agent: *` "Allow: /" with a few paths blocked, no AI crawlers named; but no public API found and the terms page returns 403 with no Wayback capture, so the terms are unread. Corrected from an earlier from-memory "against" |
-| Publisher TDM APIs (Elsevier, Springer, Wiley) | against for now (2026-10-16) | need institutional keys and agreements; paywalled papers go through Lodewijk's Stanford access as PDF drops |
-| SSRN | against (2026-10-16) | no public API; use OpenAlex metadata or Wayback |
-| Unpaywall (`api.unpaywall.org`) | deferred (2026-10-16) | OpenAlex already carries its open-access locations; requires an `email=` parameter. Revisit if OpenAlex misses OA copies |
-| CORE (`api.core.ac.uk`) | deferred (2026-10-16) | needs a licence/key (Lodewijk's task); vault triage expects little gain. Revisit after a month of the vault trickle |
-| Madrid open data (`datos.madrid.es`) | dropped (2026-10-16) | too specific (Lodewijk); robots also disallows `/api/`, downloads and query strings (Crawl-delay 10). One-off downloads by Lodewijk |
-| Helsinki Region Infoshare (`hri.fi`) | dropped (2026-10-16) | too specific (Lodewijk) |
-| Pabulib (`pabulib.org`) | manual only (2026-10-16) | robots disallows `/download` and `/api`; no API docs or licence. Lodewijk downloads; optionally ask the maintainers |
-| `oecd.ai` | against (2026-10-16) | robots block recorded in the vault; the OECD data API (`sdmx.oecd.org`) is the approved door |
-| EUR-Lex web pages (`eur-lex.europa.eu`) | against (2026-10-15) | bot-challenge page instead of robots; the Publications Office Cellar API is the approved door |
-| Munich participation site (`unser.muenchen.de`, CONSUL) | against (2026-10-12) | robots disallow-all plus named AI-crawler bans; documented API needs a city-issued token |
+| Google Scholar (`scholar.google.com`) | disallowed for search; redirect to OpenAlex (2026-10-16) | robots (live 2026-10-16) for all agents: "Disallow: /scholar", "Disallow: /search", "Disallow: /citations?"; no API. Human use only; OpenAlex `locations` give the "all versions" effect |
+| Scraping services (SerpAPI, Apify "Scholar APIs" and similar) | disallowed (2026-10-16, Lodewijk agrees) | anything explicitly called, or clearly operating as, a scraping service is not what we intend: they fetch paths the source's robots disallows, the same access through a third party |
+| Academia.edu | disallowed (2026-10-16) | robots (live 2026-10-16): `User-agent: *` "Disallow: /"; GPTBot, Google-Extended, Applebot-Extended disallowed. Terms (Wayback 2026-10-14) forbid access "through the use of any engine, software, tool, agent" incl. "spiders, robots, crawlers, data mining tools" other than browsers, "bots or other automated methods", and training AI on it ("model scraping"). No public API (web search 2026-10-16; its internal `/v0` endpoints are robots-disallowed). Human browsing only; find the same papers via OpenAlex |
+| ResearchGate | investigating (2026-10-16) | robots (live 2026-10-16) is permissive: `User-agent: *` "Allow: /" with a few paths blocked, no AI crawlers named; but no public API found and the terms page returns 403 with no Wayback capture, so the terms are unread. Corrected from an earlier from-memory "against" |
+| Publisher TDM APIs (Elsevier, Springer, Wiley, …) | investigating (2026-10-16) | need institutional keys and agreements; paywalled papers go through Lodewijk's Stanford access as PDF drops |
+| SSRN | investigating (2026-10-16) | no public API found so far (from memory, unchecked); meanwhile OpenAlex metadata or Wayback |
+| Unpaywall (`api.unpaywall.org`) | investigating (2026-10-16) | OpenAlex already carries its open-access locations; requires an `email=` parameter. Revisit if OpenAlex misses OA copies |
+| CORE (`api.core.ac.uk`) | licence in progress (2026-10-16) | API needs a licence (free for many researchers): Lodewijk applies; terms being read |
+| Madrid open data (`datos.madrid.es`) | dataset-specific (2026-10-16) | not for the main list; the specific dataset pages we use (e.g. 300114 Decide supports) get their own check. robots disallows `/api/`, downloads and query strings (Crawl-delay 10) |
+| Helsinki Region Infoshare (`hri.fi`) | dataset-specific (2026-10-16) | not for the main list; the OmaStadi PB dataset pages get their own check |
+| Pabulib (`pabulib.org`) | dataset-specific (2026-10-16) | robots disallows `/download` and `/api`; no API docs or licence. Lodewijk downloads; optionally ask the maintainers |
+| `oecd.ai` | redirect to the OECD data API `sdmx.oecd.org` (2026-10-16) | robots block recorded in the vault; the OECD data API (`sdmx.oecd.org`) is the approved door |
+| EUR-Lex web pages (`eur-lex.europa.eu`) | redirect to Publications Office Cellar (2026-10-15); EUR-Lex's own API investigating (2026-10-16) | bot-challenge page instead of robots; the Publications Office Cellar API is the approved door |
+| Munich participation site (`unser.muenchen.de`, CONSUL) | disallowed (2026-10-12) | robots disallow-all plus named AI-crawler bans; documented API needs a city-issued token |
 | Legifrance (PISTE API), Polish ISAP | undecided (2026-10-16) | APIs exist but keys/terms unchecked; only 2 + 3 failed vault items. Vet with `route-vetting` when needed |
 | Eurostat, Harvard Dataverse, OSF | under investigation (2026-10-16) | Eurostat: only a copyright notice found so far; Dataverse: robots and rate limits unread; OSF: docs unreadable, robots `Disallow: /` |
