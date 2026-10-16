@@ -1,0 +1,107 @@
+{
+  "$comment": "What our outbound requests reveal about us, per service: User-Agent, identifying headers or parameters, and credential TYPES. Never store a secret, token or e-mail address here: this repo is public. Name the identity instead (e.g. 'lodewijk-email'). Service ids match settings/mandated-services.json where one exists. Rule (Lodewijk, 2026-10-16): his e-mail goes out only with his yes; registration and keys are his task. Keep this file current whenever a script starts or stops sending something.",
+  "version": 1,
+  "updated": "2026-10-16",
+  "identities": {
+    "default-ua": "WikimediaAnalysis/1.0 (personal research project; https://github.com/lgelauff/wikimedia-analysis)",
+    "lodewijk-email": "Lodewijk's Stanford e-mail address (value deliberately not stored here)",
+    "project-url": "https://github.com/lgelauff/wikimedia-analysis"
+  },
+  "default": {
+    "applies_to": "every request to an approved route that has no entry below",
+    "user_agent": "default-ua",
+    "identifying_params": [],
+    "credentials": "none",
+    "approved": "Lodewijk, CLAUDE.md global rules ('Default User-Agent')"
+  },
+  "entries": [
+    {
+      "service": "openalex",
+      "hosts": ["api.openalex.org"],
+      "sent_by": ["agent-tooling/scripts/source_discovery.py"],
+      "user_agent": "WikimediaAnalysis/1.0 (research; mailto:<lodewijk-email>; <project-url>)",
+      "identifying_params": [{"name": "mailto", "value": "lodewijk-email"}],
+      "credentials": "free API key optional (none used today)",
+      "approved": "NOT YET CONFIRMED: e-mail is the script's hard-coded default (commit 51cc5e8); needs Lodewijk's yes under the 2026-10-16 rule",
+      "notes": "the e-mail literal is in the public repo's history"
+    },
+    {
+      "service": "crossref",
+      "hosts": ["api.crossref.org"],
+      "sent_by": ["agent-tooling/scripts/source_discovery.py"],
+      "user_agent": "WikimediaAnalysis/1.0 (research; mailto:<lodewijk-email>; <project-url>)",
+      "identifying_params": [{"name": "mailto", "value": "lodewijk-email"}],
+      "credentials": "none",
+      "approved": "NOT YET CONFIRMED: same hard-coded default as openalex",
+      "notes": "Crossref's polite pool keys on mailto"
+    },
+    {
+      "service": "liftwing",
+      "hosts": ["api.wikimedia.org"],
+      "sent_by": ["agent-tooling/scripts/liftwing_suite.py"],
+      "user_agent": "WikimediaAnalysis/1.0 (benchmark suite; <project-url>)",
+      "identifying_params": [],
+      "credentials": "Wikimedia API access token (Bearer), from the agent-secrets store",
+      "approved": "existing LiftWing setup"
+    },
+    {
+      "service": "wikimedia-enterprise",
+      "hosts": ["api.enterprise.wikimedia.com", "auth.enterprise.wikimedia.com"],
+      "sent_by": ["agent-tooling/skills/wikimedia-enterprise"],
+      "user_agent": "default-ua",
+      "identifying_params": [],
+      "credentials": "Enterprise account login -> bearer token (Lodewijk's account)",
+      "approved": "existing Enterprise setup"
+    },
+    {
+      "service": "llm-providers (not a data route)",
+      "hosts": ["openrouter.ai", "api.mistral.ai"],
+      "sent_by": ["agent-tooling/scripts/llm_provider.py", "agent-tooling/scripts/llm_review.py"],
+      "user_agent": "default-ua (llm_provider.py; overridable via AGENT_LLM_USER_AGENT)",
+      "identifying_params": [],
+      "credentials": "OPENROUTER_API_KEY / MISTRAL_API_KEY (Bearer), from the agent-secrets store",
+      "approved": "existing LLM routing setup"
+    },
+    {
+      "service": "ncbi-eutils",
+      "hosts": ["eutils.ncbi.nlm.nih.gov"],
+      "sent_by": [],
+      "user_agent": "default-ua",
+      "identifying_params": [{"name": "tool", "value": "WikimediaAnalysis"}, {"name": "email", "value": "PENDING: lodewijk-email only with his yes"}],
+      "credentials": "API key optional: Lodewijk registers (pending)",
+      "approved": "tool param: route approval 2026-10-16; email: pending"
+    },
+    {
+      "service": "oecd-sdmx",
+      "hosts": ["sdmx.oecd.org"],
+      "sent_by": [],
+      "user_agent": "default-ua",
+      "identifying_params": [],
+      "credentials": "registration encouraged: Lodewijk registers (pending); anonymous until then",
+      "approved": "route approval 2026-10-16"
+    },
+    {
+      "service": "huggingface-hub",
+      "hosts": ["huggingface.co"],
+      "sent_by": ["deposit/upload scripts in project repos (drop)"],
+      "user_agent": "default-ua or library default (to verify per script)",
+      "identifying_params": [],
+      "credentials": "HF token from the agent-secrets store, only for Lodewijk-approved uploads; public reads anonymous",
+      "approved": "uploads per Lodewijk's yes"
+    },
+    {
+      "service": "github",
+      "hosts": ["github.com", "api.github.com"],
+      "sent_by": ["gh CLI"],
+      "user_agent": "gh CLI default",
+      "identifying_params": [],
+      "credentials": "gh login as lgelauff (Mac: gh auth; hague agent: fine-grained PAT, 19 selected repos)",
+      "approved": "existing setup; read-only gh standing permission (E332)"
+    }
+  ],
+  "to_verify": [
+    "project repos (drop, polis-study, pb, social-choice-datasets, research-vault) may send their own headers; inventory them per repo",
+    "research-vault ingest/source-collection: what UA and params it sends",
+    "huggingface_hub library default User-Agent in deposit scripts"
+  ]
+}

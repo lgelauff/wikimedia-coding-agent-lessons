@@ -134,7 +134,10 @@ content stays personal data). For everything else, "it depends": run the full ta
    the endpoint cell, so the drift guard sees it) and the registry entry, then run
    `python3 agent-tooling/scripts/mandated_services.py`. It must report the new host as drift
    before the registry entry and `OK` after. Show both to Lodewijk; commit only after his yes.
-10. **Record** the verdict and evidence in AGENT-LOG: doc URLs, fetch dates (or Wayback capture
+10. **Record what the route will reveal about us** in `agent-tooling/settings/outbound-identity.json`:
+    User-Agent, identifying headers or parameters, and credential type (never values; the repo is
+    public). An identifying field with Lodewijk's e-mail stays "pending" until his yes.
+11. **Record** the verdict and evidence in AGENT-LOG: doc URLs, fetch dates (or Wayback capture
     timestamps), the robots text and status, the quote, and the verdict.
 
 ## Sources for these practices
