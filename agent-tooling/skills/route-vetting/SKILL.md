@@ -31,6 +31,14 @@ robots file disallows go through the Internet Archive instead.
 **Never call the API itself or download data while vetting.** That is exactly what approval
 would permit; doing it first defeats the review.
 
+## Proposing a candidate (any agent)
+
+Spotted a host that looks approvable (an explicit invitation to automated use, high published
+rate limits, an open licence, a bulk dump)? Do not use it yet. Append it to the coordinator's
+candidate list, `~/agent/notes/wikimedia-coding-agent-lessons/ROUTE-CANDIDATES.md` (Mac), using the
+block format there; on another machine, send the block to the sessions coordinator. The
+coordinator vets candidates with this skill and recommends to Lodewijk.
+
 ## Criteria to weigh
 
 Each criterion gets a line in the proposal. A route needs the first four to pass; the rest
