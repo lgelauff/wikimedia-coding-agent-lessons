@@ -150,6 +150,14 @@ Google's documented robots.txt status-code handling; IETF draft-farzdusa-webbot-
 terms and robots are separate questions); IPTC Generative AI Opt-Out Best Practices (2025) and the
 TDMRep specification (machine-readable TDM reservations).
 
+## Every decision comes with evidence and reasoning (default, Lodewijk 2026-10-16)
+
+Unless he says otherwise, every proposed decision on a route, **positive or negative**, is shown
+to Lodewijk with (1) the evidence: the provider's own words, quoted (under 15 words), with URL
+and fetch date or Wayback timestamp; and (2) the reasoning: which criterion and which rule turn
+that evidence into the verdict, and what is still unread. A verdict without both is not ready
+to show. The same holds for entries in "Kept out of the library".
+
 ## Output for Lodewijk (one table)
 
 | Route | Resource | Need (count) | Verdict | Auth | Documented limit | Licence | Proposed policy | Source + date |
