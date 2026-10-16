@@ -3,9 +3,17 @@
   "version": 2,
   "updated": "2026-10-16",
   "identities": {
-    "project": {"value": "WikimediaAnalysis/1.0", "description": "product token"},
-    "project-url": {"value": "https://github.com/lgelauff/wikimedia-analysis"},
-    "lodewijk-email": {"env_key": "CONTACT_MAILTO", "description": "Lodewijk's Stanford e-mail address; set CONTACT_MAILTO in the central secrets file"}
+    "project": {
+      "value": "WikimediaAnalysis/1.0",
+      "description": "product token"
+    },
+    "project-url": {
+      "value": "https://github.com/lgelauff/wikimedia-analysis"
+    },
+    "lodewijk-email": {
+      "env_key": "CONTACT_MAILTO",
+      "description": "Lodewijk's Stanford e-mail address; set CONTACT_MAILTO in the central secrets file"
+    }
   },
   "default": {
     "applies_to": "every request to an approved route that has no entry below",
@@ -16,57 +24,92 @@
   },
   "entries": {
     "openalex": {
-      "hosts": ["api.openalex.org"],
-      "sent_by": ["agent-tooling/scripts/source_discovery.py"],
+      "hosts": [
+        "api.openalex.org"
+      ],
+      "sent_by": [
+        "agent-tooling/scripts/source_discovery.py"
+      ],
       "user_agent": "{project} (research; [mailto:{lodewijk-email}; ]{project-url})",
-      "params": {"mailto": "{lodewijk-email}"},
+      "params": {
+        "mailto": "{lodewijk-email}"
+      },
       "credentials": "free API key optional (none used today)",
       "approved": "Lodewijk, 2026-10-16: intentional (polite pool); keep sending, but never in the public repo",
       "notes": "the address was hard-coded until 2026-10-16 and remains in git history before that commit (no rewrite)"
     },
     "crossref": {
-      "hosts": ["api.crossref.org"],
-      "sent_by": ["agent-tooling/scripts/source_discovery.py"],
+      "hosts": [
+        "api.crossref.org"
+      ],
+      "sent_by": [
+        "agent-tooling/scripts/source_discovery.py"
+      ],
       "user_agent": "{project} (research; [mailto:{lodewijk-email}; ]{project-url})",
-      "params": {"mailto": "{lodewijk-email}"},
+      "params": {
+        "mailto": "{lodewijk-email}"
+      },
       "credentials": "none",
       "approved": "Lodewijk, 2026-10-16: intentional (polite pool); keep sending, but never in the public repo"
     },
     "liftwing": {
-      "hosts": ["api.wikimedia.org"],
-      "sent_by": ["agent-tooling/scripts/liftwing_suite.py"],
+      "hosts": [
+        "api.wikimedia.org"
+      ],
+      "sent_by": [
+        "agent-tooling/scripts/liftwing_suite.py"
+      ],
       "user_agent": "{project} (benchmark suite; {project-url})",
       "params": {},
       "credentials": "Wikimedia API access token (Bearer), from the agent-secrets store",
       "approved": "existing LiftWing setup"
     },
     "wikimedia-enterprise": {
-      "hosts": ["api.enterprise.wikimedia.com", "auth.enterprise.wikimedia.com"],
-      "sent_by": ["agent-tooling/skills/wikimedia-enterprise"],
+      "hosts": [
+        "api.enterprise.wikimedia.com",
+        "auth.enterprise.wikimedia.com"
+      ],
+      "sent_by": [
+        "agent-tooling/skills/wikimedia-enterprise"
+      ],
       "user_agent": "{project} (personal research project; {project-url})",
       "params": {},
       "credentials": "Enterprise account login -> bearer token (Lodewijk's account)",
       "approved": "existing Enterprise setup"
     },
     "llm-providers": {
-      "hosts": ["openrouter.ai", "api.mistral.ai"],
-      "sent_by": ["agent-tooling/scripts/llm_provider.py", "agent-tooling/scripts/llm_review.py"],
+      "hosts": [
+        "openrouter.ai",
+        "api.mistral.ai"
+      ],
+      "sent_by": [
+        "agent-tooling/scripts/llm_provider.py",
+        "agent-tooling/scripts/llm_review.py"
+      ],
       "user_agent": "{project} (personal research project; {project-url})",
       "params": {},
       "credentials": "OPENROUTER_API_KEY / MISTRAL_API_KEY (Bearer), from the agent-secrets store",
       "approved": "existing LLM routing setup (not a data route)"
     },
     "ncbi-eutils": {
-      "hosts": ["eutils.ncbi.nlm.nih.gov"],
+      "hosts": [
+        "eutils.ncbi.nlm.nih.gov"
+      ],
       "sent_by": [],
       "user_agent": "{project} (personal research project; {project-url})",
-      "params": {"tool": "WikimediaAnalysis"},
-      "pending": {"email": "lodewijk-email: only after Lodewijk's yes"},
+      "params": {
+        "tool": "WikimediaAnalysis"
+      },
+      "pending": {
+        "email": "lodewijk-email: only after Lodewijk's yes"
+      },
       "credentials": "API key optional: Lodewijk registers (pending)",
       "approved": "tool param: route approval 2026-10-16; email: pending"
     },
     "oecd-sdmx": {
-      "hosts": ["sdmx.oecd.org"],
+      "hosts": [
+        "sdmx.oecd.org"
+      ],
       "sent_by": [],
       "user_agent": "{project} (personal research project; {project-url})",
       "params": {},
@@ -74,20 +117,49 @@
       "approved": "route approval 2026-10-16"
     },
     "huggingface-hub": {
-      "hosts": ["huggingface.co"],
-      "sent_by": ["deposit/upload scripts in project repos (drop)"],
+      "hosts": [
+        "huggingface.co"
+      ],
+      "sent_by": [
+        "deposit/upload scripts in project repos (drop)"
+      ],
       "user_agent": "huggingface_hub library default (to verify per script)",
       "params": {},
       "credentials": "HF token from the agent-secrets store, only for Lodewijk-approved uploads; public reads anonymous",
       "approved": "uploads per Lodewijk's yes"
     },
     "github": {
-      "hosts": ["github.com", "api.github.com"],
-      "sent_by": ["gh CLI"],
+      "hosts": [
+        "github.com",
+        "api.github.com"
+      ],
+      "sent_by": [
+        "gh CLI"
+      ],
       "user_agent": "gh CLI default",
       "params": {},
       "credentials": "gh login as lgelauff (Mac: gh auth; hague agent: fine-grained PAT, 19 selected repos)",
       "approved": "existing setup; read-only gh standing permission (E332)"
+    },
+    "google-scholar-profiles": {
+      "hosts": [
+        "scholar.google.com"
+      ],
+      "sent_by": [],
+      "user_agent": "{project} (personal research project; {project-url})",
+      "params": {},
+      "credentials": "none",
+      "approved": "route approval 2026-10-16"
+    },
+    "osf-api": {
+      "hosts": [
+        "api.osf.io"
+      ],
+      "sent_by": [],
+      "user_agent": "{project} (personal research project; {project-url})",
+      "params": {},
+      "credentials": "none; OSF personal access token only if ever needed (Lodewijk registers)",
+      "approved": "route approval 2026-10-16"
     }
   },
   "to_verify": [

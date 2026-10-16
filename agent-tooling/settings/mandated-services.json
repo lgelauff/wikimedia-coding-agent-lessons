@@ -208,6 +208,28 @@
       "verified": "2026-10"
     },
     {
+      "id": "google-scholar-profiles",
+      "service": "Google Scholar author profiles + venue metrics ONLY (robots-allowed paths; /scholar and /search are disallowed)",
+      "kind": "connector",
+      "hosts": ["scholar.google.com"],
+      "host_suffixes": [],
+      "protocol": "HTTPS pages (robots-allowed paths only)",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10"
+    },
+    {
+      "id": "osf-api",
+      "service": "OSF API v2 (GET, public projects; 100 req/h anonymous)",
+      "kind": "connector",
+      "hosts": ["api.osf.io"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10"
+    },
+    {
       "id": "huggingface-hub",
       "service": "Hugging Face Hub (public reads; uploads only with Lodewijk's yes)",
       "kind": "connector",
