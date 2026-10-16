@@ -131,17 +131,6 @@
       "verified": "2026-10"
     },
     {
-      "id": "eurostat",
-      "service": "Eurostat API (only /eurostat/api/ paths)",
-      "kind": "connector",
-      "hosts": ["ec.europa.eu"],
-      "host_suffixes": [],
-      "protocol": "REST/SDMX",
-      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
-      "access_policy_ref": "source-connectors §4 · Official statistics",
-      "verified": "2026-10"
-    },
-    {
       "id": "oecd-sdmx",
       "service": "OECD Data API (SDMX); oecd.ai excluded",
       "kind": "connector",
@@ -212,17 +201,6 @@
       "service": "Zenodo REST API (guest)",
       "kind": "connector",
       "hosts": ["zenodo.org"],
-      "host_suffixes": [],
-      "protocol": "REST",
-      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
-      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
-      "verified": "2026-10"
-    },
-    {
-      "id": "harvard-dataverse",
-      "service": "Harvard Dataverse (public data only; guestbook = stop)",
-      "kind": "connector",
-      "hosts": ["dataverse.harvard.edu"],
       "host_suffixes": [],
       "protocol": "REST",
       "sources": ["agent-tooling/skills/source-connectors/references/library.md"],

@@ -43,13 +43,23 @@ decide the policy attached to it, or tip a borderline case.
 | 3 | **Permission** | Do docs, terms, robot policy and TDM reservations allow automated use? | the docs describe the programmatic use (this wins over a robots.txt disallow, see below) and terms do not forbid it; or, with no docs, robots.txt allows it | terms forbid automated/AI use; a TDM reservation; a token is required that we were not issued; no docs and robots disallows or is unreadable |
 | 4 | **No cheaper equivalent** | Does an approved route already give the same thing? | it adds coverage or quality we lack (count it) | an approved route already covers it (Unpaywall vs OpenAlex locations) |
 | 5 | **Load and manners** | Can our expected volume stay well inside the documented limits? | documented limit known; our volume is a small fraction; responses cacheable | no stated limit and heavy volume; bursty jobs; no caching possible |
-| 6 | **Access and identity** | What key, account or registration is needed, and who holds it? | none, or a free key Lodewijk registers and stores in the agent-secrets store | agents would need to create accounts, accept terms, or share personal credentials |
+| 6 | **Access and identity** | What key, account, registration or identifying header is requested, and who provides it? | none; or registration encouraged/required, which Lodewijk does (his task) and the key goes into the agent-secrets store | agents would need to create accounts, accept terms, share personal credentials, or send his e-mail without his yes |
 | 7 | **Data class** | Personal data? Licence? May results be republished, or sent to a third-party model host? | open licence, no personal data | personal data (policy: counts and links only); restrictive or per-record licences; analysis-only data |
 | 8 | **Legal context** | Jurisdiction, TDM rules, database rights, public-sector reuse law | clear reuse basis (open licence, public-sector reuse act) | TDM reserved; database right asserted; unclear terms: CONDITIONAL at most |
 | 9 | **Scope** | What is the narrowest host and path set that meets the need? | exact hosts, named paths | broad suffixes (`*.example.org`) without a reason for each subdomain |
 | 10 | **Stability** | Versioned, maintained, with deprecation notices? Fallback if it disappears? | stable versioned API; a fallback named (often the Internet Archive) | undocumented or beta endpoints that change silently |
 | 11 | **Downside if wrong** | What happens if agents misuse it? | worst case is a throttled request | IP blacklisting of the user's address, account bans, legal letters: needs a stricter policy or a no |
 | 12 | **Evidence quality** | How do we know each fact above? | read live in the provider's docs today, cited with date | from memory or a third-party blog: [guess] until confirmed |
+
+**Registration, accounts and identifying headers (Lodewijk, 2026-10-16).** If a provider
+*encourages* registration (an API key, a client, an account), we register: that is
+**Lodewijk's task**, never an agent's. Record it as "registration encouraged: Lodewijk registers
+(pending)" in the connector row and on his to-do list; use the route anonymously only where the
+docs allow that in the meantime. The same applies when a provider asks for an identifying header
+or parameter (an e-mail in `User-Agent`, `mailto=`, `email=`, `tool=`): his e-mail address goes
+out only with his yes, so flag it rather than filling it in. A route with none of these
+requirements can go straight onto the list of routes to create; its exact shape (hosts, paths,
+limits, policy) is still decided per route.
 
 **Scope of the three rules below.** They are for *judging candidates* when Lodewijk has asked
 for new routes to be investigated. They decide what verdict to propose; they do not by
