@@ -95,9 +95,10 @@ Re-check with the `route-vetting` skill before changing a verdict.
 
 | Route | Decision (date) | Why |
 |---|---|---|
-| Google Scholar (`scholar.google.com`) | against (2026-10-16) | no API; robots disallows `/scholar`; terms forbid automated queries; CAPTCHAs. Human use only; OpenAlex `locations` give the "all versions" effect |
-| Scholar scraping services (SerpAPI and similar) | against (2026-10-16) | they scrape Scholar for us: the same prohibited access through a third party |
-| ResearchGate, Academia.edu | against (2026-10-16) | no public API; terms and robots against scraping |
+| Google Scholar (`scholar.google.com`) | against (2026-10-16) | robots (live 2026-10-16) for all agents: "Disallow: /scholar", "Disallow: /search", "Disallow: /citations?"; no API. Human use only; OpenAlex `locations` give the "all versions" effect |
+| Scholar scraping services (SerpAPI and similar) | against (2026-10-16) | they fetch the paths Scholar's robots disallows: the same access through a third party |
+| Academia.edu | against (2026-10-16) | robots (live 2026-10-16): `User-agent: *` "Disallow: /"; GPTBot, Google-Extended, Applebot-Extended disallowed; no public API found; terms page 403 |
+| ResearchGate | ASK, not against (2026-10-16) | robots (live 2026-10-16) is permissive: `User-agent: *` "Allow: /" with a few paths blocked, no AI crawlers named; but no public API found and the terms page returns 403 with no Wayback capture, so the terms are unread. Corrected from an earlier from-memory "against" |
 | Publisher TDM APIs (Elsevier, Springer, Wiley) | against for now (2026-10-16) | need institutional keys and agreements; paywalled papers go through Lodewijk's Stanford access as PDF drops |
 | SSRN | against (2026-10-16) | no public API; use OpenAlex metadata or Wayback |
 | Unpaywall (`api.unpaywall.org`) | deferred (2026-10-16) | OpenAlex already carries its open-access locations; requires an `email=` parameter. Revisit if OpenAlex misses OA copies |
