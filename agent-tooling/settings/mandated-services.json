@@ -221,6 +221,17 @@
       "paths": {"allow": ["/citations?user=*", "/citations?view_op=top_venues*", "/citations?view_op=metrics_intro*", "/citations?view_op=list_classic_articles*", "/robots.txt"], "deny": ["*cstart=*"]}
     },
     {
+      "id": "github-pages",
+      "service": "GitHub Pages sites (*.github.io): research use, each site's robots, <=25 pages/site/day",
+      "kind": "connector",
+      "hosts": [],
+      "host_suffixes": [".github.io"],
+      "protocol": "HTTPS pages",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10"
+    },
+    {
       "id": "osf-api",
       "service": "OSF API v2 (GET, public projects; 100 req/h anonymous)",
       "kind": "connector",

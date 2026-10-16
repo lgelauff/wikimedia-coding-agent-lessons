@@ -160,6 +160,16 @@
       "params": {},
       "credentials": "none; OSF personal access token only if ever needed (Lodewijk registers)",
       "approved": "route approval 2026-10-16"
+    },
+    "github-pages": {
+      "hosts": [
+        "*.github.io"
+      ],
+      "sent_by": [],
+      "user_agent": "{project} (personal research project; {project-url})",
+      "params": {},
+      "credentials": "none",
+      "approved": "Lodewijk 2026-10-16: research use, each site's robots, <=25 pages/site/day, open-access condition"
     }
   },
   "to_verify": [
