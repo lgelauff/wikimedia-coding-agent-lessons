@@ -31,6 +31,26 @@ robots file disallows go through the Internet Archive instead.
 **Never call the API itself or download data while vetting.** That is exactly what approval
 would permit; doing it first defeats the review.
 
+## Criteria to weigh
+
+Each criterion gets a line in the proposal. A route needs the first four to pass; the rest
+decide the policy attached to it, or tip a borderline case.
+
+| # | Criterion | Question to answer | Passes when | Fails or limits when |
+|---|---|---|---|---|
+| 1 | **Need** | What concrete work needs it, and how much? | named sessions, projects or queue items, with a count | "might be useful someday" |
+| 2 | **Sanctioned door** | Is this the provider's own intended route for programs? | documented API, bulk download or data portal from the provider itself | page crawling, unofficial mirrors, scraper services, reverse-engineered endpoints |
+| 3 | **Permission** | Do docs, terms, robots.txt, robot policy and TDM reservations all allow automated use? | all of them allow it (each checked separately) | any one forbids it; a token is required that we were not issued; robots unreadable |
+| 4 | **No cheaper equivalent** | Does an approved route already give the same thing? | it adds coverage or quality we lack (count it) | an approved route already covers it (Unpaywall vs OpenAlex locations) |
+| 5 | **Load and manners** | Can our expected volume stay well inside the documented limits? | documented limit known; our volume is a small fraction; responses cacheable | no stated limit and heavy volume; bursty jobs; no caching possible |
+| 6 | **Access and identity** | What key, account or registration is needed, and who holds it? | none, or a free key Lodewijk registers and stores in the agent-secrets store | agents would need to create accounts, accept terms, or share personal credentials |
+| 7 | **Data class** | Personal data? Licence? May results be republished, or sent to a third-party model host? | open licence, no personal data | personal data (policy: counts and links only); restrictive or per-record licences; analysis-only data |
+| 8 | **Legal context** | Jurisdiction, TDM rules, database rights, public-sector reuse law | clear reuse basis (open licence, public-sector reuse act) | TDM reserved; database right asserted; unclear terms: CONDITIONAL at most |
+| 9 | **Scope** | What is the narrowest host and path set that meets the need? | exact hosts, named paths | broad suffixes (`*.example.org`) without a reason for each subdomain |
+| 10 | **Stability** | Versioned, maintained, with deprecation notices? Fallback if it disappears? | stable versioned API; a fallback named (often the Internet Archive) | undocumented or beta endpoints that change silently |
+| 11 | **Downside if wrong** | What happens if agents misuse it? | worst case is a throttled request | IP blacklisting of the user's address, account bans, legal letters: needs a stricter policy or a no |
+| 12 | **Evidence quality** | How do we know each fact above? | read live in the provider's docs today, cited with date | from memory or a third-party blog: [guess] until confirmed |
+
 ## Steps
 
 1. **Name the need.** Which session, project or failed item needs this host, and how many items
