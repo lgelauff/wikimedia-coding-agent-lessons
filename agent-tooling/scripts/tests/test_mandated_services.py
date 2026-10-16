@@ -140,6 +140,21 @@ class TestValidate(unittest.TestCase):
             registry = {"services": [svc]}
             self.assertTrue(any("does not exist" in x for x in M.validate(registry, root)))
 
+    def test_paths_validated(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = self._repo(td)
+            good = connector_service("a", "api.openalex.org")
+            good["paths"] = {"allow": ["/works*"], "deny": ["*secret*"]}
+            self.assertEqual(M.validate({"services": [good]}, root), [])
+            for bad, needle in (({"allow": ["works"]}, "must start with"),
+                                ({"allow": "/works"}, "list of strings"),
+                                ({"permit": ["/x"]}, "only `allow`/`deny`"),
+                                ({}, "is empty")):
+                svc = connector_service("a", "api.openalex.org")
+                svc["paths"] = bad
+                self.assertTrue(any(needle in x for x in M.validate({"services": [svc]}, root)),
+                                f"{bad} should be flagged with {needle!r}")
+
     def test_suffix_overlap_flagged(self):
         with tempfile.TemporaryDirectory() as td:
             root = self._repo(td)

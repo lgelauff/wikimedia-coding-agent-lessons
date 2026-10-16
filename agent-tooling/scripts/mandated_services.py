@@ -152,6 +152,22 @@ def validate(registry: dict, repo_root: Path) -> list[str]:
         if not hosts and not suf_list:
             problems.append(f"{where}: has neither `hosts` nor `host_suffixes`")
 
+        paths = svc.get("paths")
+        if paths is not None:
+            if not isinstance(paths, dict) or set(paths) - {"allow", "deny"}:
+                problems.append(f"{where}: `paths` must be an object with only `allow`/`deny` lists")
+            else:
+                for kind in ("allow", "deny"):
+                    pats = paths.get(kind, [])
+                    if not isinstance(pats, list) or not all(isinstance(p, str) for p in pats):
+                        problems.append(f"{where}: `paths.{kind}` must be a list of strings")
+                        continue
+                    for p in pats:
+                        if not p.startswith(("/", "*")):
+                            problems.append(f"{where}: path pattern `{p}` must start with `/` or `*`")
+                if not paths.get("allow") and not paths.get("deny"):
+                    problems.append(f"{where}: `paths` is empty; drop it or list allow/deny patterns")
+
         sources = svc.get("sources", [])
         if not isinstance(sources, list):
             problems.append(f"{where}: `sources` must be a list")

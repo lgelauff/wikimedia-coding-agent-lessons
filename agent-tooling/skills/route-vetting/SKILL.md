@@ -44,6 +44,10 @@ decide the policy attached to it, or tip a borderline case.
 | 4 | **No cheaper equivalent** | Does an approved route already give the same thing? | it adds coverage or quality we lack (count it) | an approved route already covers it (Unpaywall vs OpenAlex locations) |
 | 5 | **Load and manners** | Can our expected volume stay well inside the documented limits? | documented limit known; our volume is a small fraction; responses cacheable | no stated limit and heavy volume; bursty jobs; no caching possible |
 
+**Page-based routes: at most 25 pages per site per day** (Lodewijk, 2026-10-16). For a route
+that fetches web pages rather than a documented API (a `*.github.io` site, Scholar profiles), more
+than 25 pages from the same site in one day needs his permission first, whatever the site allows.
+
 **Always document the rate limits, high or low** (Lodewijk, 2026-10-16): write the exact
 published numbers, per tier (anonymous / identified / keyed), with the source and date, into the
 connector row, or "none published" if there are none. A generous published limit for anonymous

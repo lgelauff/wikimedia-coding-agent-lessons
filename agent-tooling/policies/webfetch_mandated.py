@@ -22,6 +22,9 @@ the tool on a missing file, which is the failure mode the adapter is written to 
 
 Matching: case-insensitive, trailing dot ignored; exact hosts first, then
 `host_suffixes` (a leading dot matches the apex and any subdomain, never a lookalike).
+Paths (Lodewijk, 2026-10-16: paths say more than hosts): a service may carry
+`"paths": {"allow": [...], "deny": [...]}`, patterns matched from the start against the
+normalised path plus `?query`, with `*` as the only wildcard. No `paths` = any path on the host.
 IP literals, localhost, and non-http(s) schemes are never mandated.
 
 Limits, stated rather than hidden: this judges the **requested** host only. A mandated
@@ -33,6 +36,8 @@ from __future__ import annotations
 import ipaddress
 import json
 import os
+import posixpath
+import re
 import sys
 import urllib.parse
 from pathlib import Path
@@ -47,6 +52,13 @@ REQUEST_TEMPLATE = (
     "connector for this source); (2) why the mandated sources cannot serve it; (3) the "
     "blast radius — what data leaves, to which host, under which licence/ToS. If the "
     "source is legitimate and durable, add a connector to source-connectors first."
+)
+
+PATH_TEMPLATE = (
+    "BLOCKED: `{host}` is in the Mandated Services Registry, but not this path: `{target}`. "
+    "The registry approves only the paths listed for this service (its `paths` allow/deny "
+    "rules; e.g. Google Scholar profiles are approved, Scholar search is disallowed). Do not "
+    "retry or route around it; use the approved path or the redirect named in the connector row."
 )
 
 
@@ -96,19 +108,49 @@ def decide(url: str, registry: dict) -> str | None:
             or _is_ip_literal(host):
         return REQUEST_TEMPLATE.format(host=host)
 
-    hosts: set[str] = set()
-    suffixes: set[str] = set()
-    for svc in registry.get("services", []):
-        hosts.update(str(h).lower() for h in svc.get("hosts", []))
-        hosts.update(str(h).lower() for h in svc.get("auxiliary_hosts", []))
-        suffixes.update(str(s).lower() for s in svc.get("host_suffixes", []))
-
-    if host in hosts:
+    matching = [svc for svc in registry.get("services", []) if _host_matches(host, svc)]
+    if not matching:
+        return REQUEST_TEMPLATE.format(host=host)
+    target = _path_and_query(url)
+    if any(_path_allowed(target, svc) for svc in matching):
         return None
-    for suffix in suffixes:
+    return PATH_TEMPLATE.format(host=host, target=target)
+
+
+def _host_matches(host: str, svc: dict) -> bool:
+    exact = {str(h).lower() for h in svc.get("hosts", []) + svc.get("auxiliary_hosts", [])}
+    if host in exact:
+        return True
+    for suffix in (str(s).lower() for s in svc.get("host_suffixes", [])):
         if suffix.startswith(".") and (host == suffix[1:] or host.endswith(suffix)):
-            return None
-    return REQUEST_TEMPLATE.format(host=host)
+            return True
+    return False
+
+
+def _path_and_query(url: str) -> str:
+    """Normalised path (dot segments resolved) plus `?query`; what path patterns match against."""
+    parsed = urllib.parse.urlparse(url)
+    raw = urllib.parse.unquote(parsed.path or "/")
+    path = posixpath.normpath(raw) if raw not in ("", "/") else "/"
+    if raw.endswith("/") and path != "/":
+        path += "/"
+    return path + (f"?{parsed.query}" if parsed.query else "")
+
+
+def _pattern_matches(pattern: str, target: str) -> bool:
+    """`*` is the only wildcard; everything else is literal (incl. `?`); anchored at the start."""
+    rx = "^" + ".*".join(re.escape(part) for part in pattern.split("*"))
+    return re.match(rx, target) is not None
+
+
+def _path_allowed(target: str, svc: dict) -> bool:
+    """A service without `paths` allows any path. With `paths`: must match an allow
+    pattern (if any are given) and no deny pattern."""
+    rules = svc.get("paths") or {}
+    allow, deny = rules.get("allow", []), rules.get("deny", [])
+    if allow and not any(_pattern_matches(p, target) for p in allow):
+        return False
+    return not any(_pattern_matches(p, target) for p in deny)
 
 
 def main() -> int:

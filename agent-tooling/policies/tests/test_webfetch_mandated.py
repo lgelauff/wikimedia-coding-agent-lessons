@@ -116,6 +116,61 @@ class TestDecideAgainstRealRegistry(unittest.TestCase):
         ]:
             self.assertIsNotNone(P.decide(url, self.registry), f"should deny: {url}")
 
+    def test_scholar_paths_real_registry(self):
+        allow = ["https://scholar.google.com/citations?user=abcDEF123&hl=en",
+                 "https://scholar.google.com/citations?view_op=top_venues&hl=en"]
+        deny = ["https://scholar.google.com/scholar?q=polis",
+                "https://scholar.google.com/scholar?cites=123",
+                "https://scholar.google.com/citations?user=abc&cstart=20",
+                "https://scholar.google.com/citations/../scholar?q=x"]
+        for url in allow:
+            self.assertIsNone(P.decide(url, self.registry), f"should allow: {url}")
+        for url in deny:
+            self.assertIsNotNone(P.decide(url, self.registry), f"should deny: {url}")
+
+
+PATH_FIXTURE = {
+    "services": [
+        {"id": "scholar", "hosts": ["scholar.google.com"],
+         "paths": {"allow": ["/citations?user=*", "/citations?view_op=top_venues*"],
+                   "deny": ["*cstart=*"]}},
+        {"id": "epmc", "hosts": ["www.ebi.ac.uk"], "paths": {"allow": ["/europepmc/*"]}},
+        {"id": "open", "hosts": ["api.openalex.org"]},
+    ]
+}
+
+
+class TestPathRules(unittest.TestCase):
+    def assert_allowed(self, url):
+        self.assertIsNone(P.decide(url, PATH_FIXTURE), f"should allow: {url}")
+
+    def assert_denied(self, url):
+        reason = P.decide(url, PATH_FIXTURE)
+        self.assertIsNotNone(reason, f"should deny: {url}")
+        return reason
+
+    def test_allow_list_paths(self):
+        self.assert_allowed("https://scholar.google.com/citations?user=XyZ")
+        self.assert_allowed("https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=x")
+
+    def test_path_outside_allow_list_denied_with_path_message(self):
+        self.assertIn("not this path", self.assert_denied("https://scholar.google.com/scholar?q=x"))
+        self.assert_denied("https://www.ebi.ac.uk/ena/browser/")
+
+    def test_deny_beats_allow(self):
+        self.assert_denied("https://scholar.google.com/citations?user=XyZ&cstart=20")
+
+    def test_question_mark_is_literal(self):
+        # `?` in a pattern must not act as a one-character wildcard
+        self.assert_denied("https://scholar.google.com/citationsXuser=XyZ")
+
+    def test_dot_segments_and_encoding_cannot_escape(self):
+        self.assert_denied("https://www.ebi.ac.uk/europepmc/../ena/browser/")
+        self.assert_denied("https://www.ebi.ac.uk/europepmc/%2e%2e/ena/")
+
+    def test_no_paths_means_any_path(self):
+        self.assert_allowed("https://api.openalex.org/anything/at/all")
+
 
 if __name__ == "__main__":
     unittest.main()
