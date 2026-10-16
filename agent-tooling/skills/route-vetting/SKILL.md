@@ -137,7 +137,10 @@ content stays personal data). For everything else, "it depends": run the full ta
 10. **Record what the route will reveal about us** in `agent-tooling/settings/outbound-identity.json`:
     User-Agent, identifying headers or parameters, and credential type (never values; the repo is
     public). An identifying field with Lodewijk's e-mail stays "pending" until his yes.
-11. **Record** the verdict and evidence in AGENT-LOG: doc URLs, fetch dates (or Wayback capture
+11. **Decided against or deferred?** Add a dated row to "Kept out of the library" at the end of
+    `source-connectors/references/library.md`: route, decision and date, and a one-line why. That
+    section is the list to revisit; the registry guard ignores it, so nothing there is approved.
+12. **Record** the verdict and evidence in AGENT-LOG: doc URLs, fetch dates (or Wayback capture
     timestamps), the robots text and status, the quote, and the verdict.
 
 ## Sources for these practices

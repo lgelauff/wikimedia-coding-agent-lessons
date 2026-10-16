@@ -86,3 +86,27 @@ endpoint/robots were exercised; `(docs)` = read from documentation/robots only. 
 | **Flickr** (read-only) | REST · `api.flickr.com/services/rest` | API key (read methods) | metadata quota per key; **image CDN `live.staticflickr.com` blocks fast per-IP bursts** | per-photo licence; only free licences → Commons | `nojsoncallback=1`, `per_page=500`; on CDN 429 **pause, go quiet, don't probe** (probing extends the block) | Wayback CDX for `live.staticflickr.com/…` | 2026-08 (endpoint; block behaviour field-observed, not tested here) |
 | **WordPress.com** (VIP blogs, e.g. Diff) | REST · `public-api.wordpress.com/rest/v1.1/sites/<domain>/posts/` | none | no published rate limit; polite paged pulls | per-site (Diff = CC BY-SA) | native `wp-json` may be disabled — the public sibling stays open; `fields=`, `number`≤100, `after`/`before` | site `sitemap.xml`; self-hosted `wp-json` if enabled | 2026-08 (live) |
 
+
+## Kept out of the library
+
+Routes decided against or deferred, with the date and the reason, so they can be revisited.
+Hosts named here are **not** approved (the registry guard stops reading at this heading).
+Re-check with the `route-vetting` skill before changing a verdict.
+
+| Route | Decision (date) | Why |
+|---|---|---|
+| Google Scholar (`scholar.google.com`) | against (2026-10-16) | no API; robots disallows `/scholar`; terms forbid automated queries; CAPTCHAs. Human use only; OpenAlex `locations` give the "all versions" effect |
+| Scholar scraping services (SerpAPI and similar) | against (2026-10-16) | they scrape Scholar for us: the same prohibited access through a third party |
+| ResearchGate, Academia.edu | against (2026-10-16) | no public API; terms and robots against scraping |
+| Publisher TDM APIs (Elsevier, Springer, Wiley) | against for now (2026-10-16) | need institutional keys and agreements; paywalled papers go through Lodewijk's Stanford access as PDF drops |
+| SSRN | against (2026-10-16) | no public API; use OpenAlex metadata or Wayback |
+| Unpaywall (`api.unpaywall.org`) | deferred (2026-10-16) | OpenAlex already carries its open-access locations; requires an `email=` parameter. Revisit if OpenAlex misses OA copies |
+| CORE (`api.core.ac.uk`) | deferred (2026-10-16) | needs a licence/key (Lodewijk's task); vault triage expects little gain. Revisit after a month of the vault trickle |
+| Madrid open data (`datos.madrid.es`) | dropped (2026-10-16) | too specific (Lodewijk); robots also disallows `/api/`, downloads and query strings (Crawl-delay 10). One-off downloads by Lodewijk |
+| Helsinki Region Infoshare (`hri.fi`) | dropped (2026-10-16) | too specific (Lodewijk) |
+| Pabulib (`pabulib.org`) | manual only (2026-10-16) | robots disallows `/download` and `/api`; no API docs or licence. Lodewijk downloads; optionally ask the maintainers |
+| `oecd.ai` | against (2026-10-16) | robots block recorded in the vault; the OECD data API (`sdmx.oecd.org`) is the approved door |
+| EUR-Lex web pages (`eur-lex.europa.eu`) | against (2026-10-15) | bot-challenge page instead of robots; the Publications Office Cellar API is the approved door |
+| Munich participation site (`unser.muenchen.de`, CONSUL) | against (2026-10-12) | robots disallow-all plus named AI-crawler bans; documented API needs a city-issued token |
+| Legifrance (PISTE API), Polish ISAP | undecided (2026-10-16) | APIs exist but keys/terms unchecked; only 2 + 3 failed vault items. Vet with `route-vetting` when needed |
+| Eurostat, Harvard Dataverse, OSF | under investigation (2026-10-16) | Eurostat: only a copyright notice found so far; Dataverse: robots and rate limits unread; OSF: docs unreadable, robots `Disallow: /` |
