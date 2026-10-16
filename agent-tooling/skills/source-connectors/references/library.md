@@ -39,6 +39,7 @@ endpoint/robots were exercised; `(docs)` = read from documentation/robots only. 
 
 | Connector | Protocol · endpoint | Auth | Access policy (robots · rate) | Reuse | Retrieval recipe | Fallback | Verified |
 |---|---|---|---|---|---|---|---|
+| **Eurostat API** | REST/SDMX · `ec.europa.eu/eurostat/api/dissemination/` and `ec.europa.eu/eurostat/api/comext/dissemination/` | none (no account, key or identifying header) | docs: "free of charge programmatic access to statistical metadata and data", "the interface to use for the automation of metadata and data queries" (live 2026-10-16). **Path-limited**: only the two API paths on this shared Commission host; legacy `/eurostat/SDMX/diss-web/rest/` is robots-disallowed and not used. No per-minute limit published; size rules (large queries go to the async queue, very large are refused; fair-use thresholds undisclosed): 1 req/s, async for big queries | reuse "provided you acknowledge the source and indicate any changes"; editorial content CC BY 4.0; non-EU-source data may carry own terms | `statistics/1.0/data/<dataset>` (JSON-stat), `sdmx/2.1/`, `sdmx/3.0/`, `catalogue/`, `1.0/async/` | OECD; Wayback | 2026-10 (live docs) |
 | **OECD Data API** | SDMX · `sdmx.oecd.org` | registration encouraged, not required: **Lodewijk registers** (pending 2026-10-16); until then anonymous | API offered as-is, rate-limited without published numbers: 1 req/s; **`oecd.ai` stays excluded** (robots block recorded) | acknowledge the OECD | SDMX data queries per dataflow | Wayback | 2026-10 (terms + docs) |
 
 ### Scholarly & archive
@@ -116,5 +117,5 @@ Re-check with the `route-vetting` skill before changing a verdict.
 | EUR-Lex web pages (`eur-lex.europa.eu`) | redirect to Publications Office Cellar (2026-10-15); EUR-Lex's own API investigating (2026-10-16) | bot-challenge page instead of robots; the Publications Office Cellar API is the approved door |
 | Munich participation site (`unser.muenchen.de`, CONSUL) | disallowed (2026-10-12) | robots disallow-all plus named AI-crawler bans; documented API needs a city-issued token |
 | Legifrance (PISTE API), Polish ISAP | undecided (2026-10-16) | APIs exist but keys/terms unchecked; only 2 + 3 failed vault items. Vet with `route-vetting` when needed |
-| Eurostat | investigating, verdict ready (2026-10-16) | API docs invite programmatic access; waiting on Lodewijk's yes (path-limited to `/eurostat/api/`) |
+| Eurostat (`ec.europa.eu` outside `/eurostat/api/…`) | redirect to the Eurostat API row (2026-10-16) | the rest of the Commission host is not approved; Lodewijk approved only the invited API paths |
 | Harvard Dataverse | Lodewijk's to-do (2026-10-16) | published data token-free; Harvard API terms allow it within limits; robots unreadable (WAF challenge): Lodewijk decides / may ask Harvard support |

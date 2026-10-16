@@ -131,6 +131,18 @@
       "verified": "2026-10"
     },
     {
+      "id": "eurostat",
+      "service": "Eurostat API (dissemination + comext API paths only)",
+      "kind": "connector",
+      "hosts": ["ec.europa.eu"],
+      "host_suffixes": [],
+      "protocol": "REST/SDMX",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Official statistics",
+      "verified": "2026-10",
+      "paths": {"allow": ["/eurostat/api/dissemination/*", "/eurostat/api/comext/dissemination/*", "/robots.txt"]}
+    },
+    {
       "id": "oecd-sdmx",
       "service": "OECD Data API (SDMX); oecd.ai excluded",
       "kind": "connector",

@@ -170,6 +170,16 @@
       "params": {},
       "credentials": "none",
       "approved": "Lodewijk 2026-10-16: research use, each site's robots, <=25 pages/site/day, open-access condition"
+    },
+    "eurostat": {
+      "hosts": [
+        "ec.europa.eu (/eurostat/api/ paths only)"
+      ],
+      "sent_by": [],
+      "user_agent": "{project} (personal research project; {project-url})",
+      "params": {},
+      "credentials": "none",
+      "approved": "Lodewijk 2026-10-16"
     }
   },
   "to_verify": [

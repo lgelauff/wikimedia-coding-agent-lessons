@@ -128,6 +128,14 @@ class TestDecideAgainstRealRegistry(unittest.TestCase):
         for url in deny:
             self.assertIsNotNone(P.decide(url, self.registry), f"should deny: {url}")
 
+    def test_eurostat_api_paths_only(self):
+        ok = "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/isoc_ci_ifp_iu?geo=NL"
+        self.assertIsNone(P.decide(ok, self.registry))
+        for url in ["https://ec.europa.eu/eurostat/SDMX/diss-web/rest/data/x",
+                    "https://ec.europa.eu/commission/presscorner/home/en",
+                    "https://ec.europa.eu/eurostat/api/dissemination/../../web/main/home"]:
+            self.assertIsNotNone(P.decide(url, self.registry), f"should deny: {url}")
+
 
 PATH_FIXTURE = {
     "services": [
