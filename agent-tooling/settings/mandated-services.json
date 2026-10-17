@@ -229,7 +229,7 @@
     },
     {
       "id": "orcid-public-api",
-      "service": "ORCID public API v3.0, anonymous, GET only, <=1 req/s: author/work disambiguation only, store iDs only",
+      "service": "ORCID public API v3.0, anonymous, GET only, <=1 req/s: author/work disambiguation and preprint finding, store iDs only",
       "kind": "connector",
       "hosts": ["pub.orcid.org"],
       "host_suffixes": [],
