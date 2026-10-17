@@ -23,7 +23,7 @@ output of this skill is a **proposal**: Lodewijk decides, typed in the session's
 
 ## What you may fetch while vetting
 
-Standing rule (Lodewijk, 2026-10-16, AGENT-LOG E392/E393): **API documentation, terms/licence
+Standing rule (Lodewijk, 2026-10-16, decision log): **API documentation, terms/licence
 pages, `robots.txt` and robot/bot/crawler-policy pages may be fetched directly on any host**, with
 the project User-Agent, about 1 request/s, backing off on 429/5xx. Doc paths that the host's own
 robots file disallows go through the Internet Archive instead.
@@ -35,8 +35,8 @@ would permit; doing it first defeats the review.
 
 Spotted a host that looks approvable (an explicit invitation to automated use, high published
 rate limits, an open licence, a bulk dump)? Do not use it yet. Append it to the coordinator's
-candidate list, `~/agent/notes/wikimedia-coding-agent-lessons/ROUTE-CANDIDATES.md` (Mac), using the
-block format there; on another machine, send the block to the sessions coordinator. The
+candidate list (evidence kept privately, decision log), using the
+block format there; from another machine, send the block to the sessions coordinator. The
 coordinator vets candidates with this skill and recommends to Lodewijk.
 
 ## Criteria to weigh

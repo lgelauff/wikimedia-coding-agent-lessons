@@ -1,5 +1,5 @@
 {
-  "$comment": "What our outbound requests reveal about us, per service, and the single source scripts read their User-Agent and identifying parameters from (scripts/outbound_identity.py). Never store a secret, token or e-mail address here: this repo is public. Values that must stay private are named by an env_key, resolved from the central secrets file (~/.config/agent-secrets/.env) or the environment. Templates use {identity}; a [bracketed part] is dropped when an identity inside it is unset. Service ids match settings/mandated-services.json where one exists. Rules (Lodewijk, 2026-10-16): his e-mail goes out only where he approved it; registration and keys are his task. Keep this file current whenever a script starts or stops sending something.",
+  "$comment": "What our outbound requests reveal about us, per service, and the single source scripts read their User-Agent and identifying parameters from (scripts/outbound_identity.py). Never store a secret, token or e-mail address here: this repo is public. Values that must stay private are named by an env_key, resolved from a private secrets file or the environment. Templates use {identity}; a [bracketed part] is dropped when an identity inside it is unset. Service ids match settings/mandated-services.json where one exists. Rules (Lodewijk, 2026-10-16): his e-mail goes out only where he approved it; registration and keys are his task. Keep this file current whenever a script starts or stops sending something.",
   "version": 2,
   "updated": "2026-10-16",
   "identities": {
@@ -12,7 +12,7 @@
     },
     "lodewijk-email": {
       "env_key": "CONTACT_MAILTO",
-      "description": "Lodewijk's Stanford e-mail address; set CONTACT_MAILTO in the central secrets file"
+      "description": "Lodewijk's contact e-mail address; set CONTACT_MAILTO in a private secrets file"
     }
   },
   "default": {
@@ -35,8 +35,7 @@
         "mailto": "{lodewijk-email}"
       },
       "credentials": "free API key optional (none used today)",
-      "approved": "Lodewijk, 2026-10-16: intentional (polite pool); keep sending, but never in the public repo",
-      "notes": "the address was hard-coded until 2026-10-16 and remains in git history before that commit (no rewrite)"
+      "approved": "Lodewijk, 2026-10-16: intentional (polite pool); keep sending, but never in the public repo"
     },
     "crossref": {
       "hosts": [
@@ -138,8 +137,8 @@
       ],
       "user_agent": "gh CLI default",
       "params": {},
-      "credentials": "gh login as lgelauff (Mac: gh auth; hague agent: fine-grained PAT, 19 selected repos)",
-      "approved": "existing setup; read-only gh standing permission (E332)"
+      "credentials": "gh CLI, authenticated",
+      "approved": "existing setup; read-only gh standing permission (decision log, 2026-10-16)"
     },
     "google-scholar-profiles": {
       "hosts": [
