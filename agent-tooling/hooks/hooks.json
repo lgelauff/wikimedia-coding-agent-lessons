@@ -3,6 +3,7 @@
   "hooks": {
     "PreToolUse": [
       { "matcher": "Bash", "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/block_ssh.py\"" }] },
+      { "matcher": "WebFetch", "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/webfetch_registry_gate.py\"" }] },
       { "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/memory_guard.py\"" }] },
       { "matcher": "Bash", "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/github_write_permission.py\"" }] },
       { "matcher": "Read|Edit|NotebookEdit|Bash", "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/block_secret_read.py\"" }] },

@@ -37,7 +37,12 @@ See [`settings/allowlist.md`](settings/allowlist.md). The one rule that always h
 
 ## 5. Add-a-skill checklist
 
-- [ ] `skills/<name>/SKILL.md` with a specific, pushy `description`.
+- [ ] `skills/<name>/SKILL.md` with a specific, pushy `description`: third person, the trigger in
+      the first sentence, ≤1,024 chars, at least one near-miss naming the skill that should win
+      instead. `scripts/lint_skills.py` must report no errors.
+- [ ] Every rule in the skill traces to an observed failure. Curated skills help; on SkillsBench,
+      skills a model wrote for itself scored below no skill.
+- [ ] Queries in `evals/trigger-evals.json` (should-trigger and near-miss), run against the set.
 - [ ] Repo specifics in a documented `.claude/<name>.json`, not hardcoded.
 - [ ] Repeated bash extracted to `scripts/` + tests.
 - [ ] No arbitrary-exec allowlist entries introduced.
@@ -84,7 +89,7 @@ Homebrew 3.11/3.13/3.14, uv 3.12), so code targeted whichever one its author hap
 as the reference skill — all shipped in June 2026 and were removed from this list on
 2026-08-20. The marketplace now carries six plugins.)*
 
-- **No skill has an eval.** §4 above requires `skill-creator` evals for skills with
-  verifiable output, and a documented dry-run for subjective ones. Neither exists for any
-  skill in this repo — a rule with a 100% violation rate. Nothing measures whether a
-  skill fires when it should, or whether overlapping skills crowd each other.
+- **No skill has an output eval.** Triggering is measured (`evals/trigger-evals.json`,
+  `scripts/skill_trigger_eval.py`, run against the whole set so crowding shows). Output
+  quality is not: §4 asks for `skill-creator` with-vs-without evals for skills with
+  verifiable output, and a documented dry-run for subjective ones, and none exists yet.

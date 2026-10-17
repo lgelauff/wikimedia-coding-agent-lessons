@@ -26,7 +26,8 @@ absolutely; reach for `webfetch` knowingly, never reflexively.
 ## Pre-approved channels
 
 The approved sources are the **connectors** declared by the `source-connectors` skill
-(`${AGENT_TOOLING_ROOT}/skills/source-connectors/SKILL.md`), together with the services in
+(`${AGENT_TOOLING_ROOT}/skills/source-connectors/SKILL.md`; the dated connector rows are in
+`skills/source-connectors/references/library.md`), together with the services in
 the `source-collection` package's `SERVICES.md`. Each declares protocol,
 endpoint, auth, access policy, reuse licence and retrieval recipe.
 

@@ -40,8 +40,14 @@ import urllib.request
 
 OPENALEX = "https://api.openalex.org/works"
 CROSSREF = "https://api.crossref.org/works"
-MAILTO = os.environ.get("CROSSREF_MAILTO") or os.environ.get("DISCOVERY_MAILTO") or "lodewijk@stanford.edu"
-UA = f"WikimediaAnalysis/1.0 (research; mailto:{MAILTO}; https://github.com/lgelauff/wikimedia-analysis)"
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import outbound_identity  # noqa: E402
+
+# What we send is declared in settings/outbound-identity.json; the contact e-mail comes from
+# CONTACT_MAILTO in the central secrets file (never from this public repo). Unset = anonymous.
+UA = outbound_identity.user_agent("openalex")
+OPENALEX_PARAMS = outbound_identity.params("openalex")
+CROSSREF_PARAMS = outbound_identity.params("crossref")
 RATE_SECONDS = 1.0
 TIMEOUT = 30
 
@@ -128,7 +134,7 @@ def _authors_openalex(work: dict) -> list[str]:
 def search_openalex(query: str, per_query: int = 25, from_year: int | None = None,
                     open_access_only: bool = False) -> list[dict]:
     """Search OpenAlex works; return normalized candidate dicts."""
-    params = {"search": query, "per-page": min(per_query, 200), "mailto": MAILTO}
+    params = {"search": query, "per-page": min(per_query, 200), **OPENALEX_PARAMS}
     filters = []
     if from_year:
         filters.append(f"from_publication_date:{from_year}-01-01")
@@ -159,7 +165,7 @@ def search_openalex(query: str, per_query: int = 25, from_year: int | None = Non
 
 def search_crossref(query: str, per_query: int = 25, from_year: int | None = None) -> list[dict]:
     """Search Crossref works; return normalized candidate dicts (no abstracts/OA)."""
-    params = {"query": query, "rows": min(per_query, 100), "mailto": MAILTO}
+    params = {"query": query, "rows": min(per_query, 100), **CROSSREF_PARAMS}
     if from_year:
         params["filter"] = f"from-pub-date:{from_year}-01-01"
     url = f"{CROSSREF}?{urllib.parse.urlencode(params)}"

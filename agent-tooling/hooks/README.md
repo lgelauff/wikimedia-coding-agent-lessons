@@ -5,6 +5,7 @@ Claude Code hooks — the product-specific layer (PreToolUse/PostToolUse event i
 | Hook | Event | What it does |
 |---|---|---|
 | `block_ssh.py` | PreToolUse | Blocks `ssh`/`scp`/`sftp`/rsync-over-ssh to remote hosts (present commands for the human to run instead). Adapter over `policies/is_ssh_command.py`; fails closed. |
+| `webfetch_registry_gate.py` | PreToolUse | Blocks WebFetch unless the URL's host **and path** are approved in `settings/mandated-services.json`. Adapter over `policies/webfetch_mandated.py`, the same policy the OpenCode plugin runs before `webfetch`; fails closed on an unparseable event, allows with a warning if the registry is unreadable. WebFetch only (not Bash `curl`). |
 | `memory_guard.py` | PreToolUse | Blocks launching a `Workflow` (or backgrounded `Agent`) under **critical** OS memory pressure, to prevent OOM crashes from fan-outs. Uses macOS `kern.memorystatus_vm_pressure_level` (≥4) / Linux `MemAvailable%`; **not** a free-% threshold (chronically low on macOS). Tunable: `WORKFLOW_BLOCK_PRESSURE_LEVEL` (default 4; set 5 to disable), `WORKFLOW_MIN_FREE_PCT` (Linux, default 8). Fails open. |
 | `block_zotero.py` | PreToolUse | Blocks writes to a protected Zotero path. |
 | `github_write_permission.py` | PreToolUse | Gates GitHub ops: **ask** on any write (push, pr/issue create/comment/review/edit/close/reopen/merge, release, workflow run, `gh api` write), **deny** on catastrophic (repo delete/archive, release delete). Reads pass. Adapter over `policies/classify_github_op.py`; emits the modern `permissionDecision` schema. (Replaced the old `.sh`, which read the wrong JSON path and never fired.) |
@@ -19,7 +20,7 @@ Claude Code hooks — the product-specific layer (PreToolUse/PostToolUse event i
 
 ## Wiring
 
-**Installed as part of the plugin, these wire automatically** via [`hooks.json`](hooks.json) (paths use `${CLAUDE_PLUGIN_ROOT}`, which Claude Code sets for hook commands). Wired by default: `block_ssh`, `memory_guard`, `github_write_permission`, `openrouter_permission` (PreToolUse), `git_hygiene_session` + `operating_notes_session` (SessionStart), `dev_stack_reminder` + `mcp_auth_reminder` (UserPromptSubmit), and `webfetch_content_check` + `tool_token_log` (PostToolUse). `block_zotero.py` ships as a file but is **not** wired (personal path block — wire it yourself if you want it).
+**Installed as part of the plugin, these wire automatically** via [`hooks.json`](hooks.json) (paths use `${CLAUDE_PLUGIN_ROOT}`, which Claude Code sets for hook commands). Wired by default: `block_ssh`, `webfetch_registry_gate`, `memory_guard`, `github_write_permission`, `openrouter_permission` (PreToolUse), `git_hygiene_session` + `operating_notes_session` (SessionStart), `dev_stack_reminder` + `mcp_auth_reminder` (UserPromptSubmit), and `webfetch_content_check` + `tool_token_log` (PostToolUse). `block_zotero.py` ships as a file but is **not** wired (personal path block — wire it yourself if you want it).
 
 > ⚠️ **Dedup if you already wired these manually.** If your `~/.claude/settings.json` already references copies of these hooks (e.g. from before this plugin existed), remove those manual entries after installing the plugin — otherwise each hook fires twice. The plugin's `hooks.json` is now the single source.
 

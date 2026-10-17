@@ -60,7 +60,7 @@ class TestParser(unittest.TestCase):
 
     def test_recipe_column_not_over_collected(self):
         """`zoek.officielebekendmakingen.nl` sits in KOOP's recipe column, not its endpoint."""
-        hosts = M.parse_connector_hosts(REPO_ROOT / "agent-tooling/skills/source-connectors/SKILL.md")
+        hosts = M.parse_connector_hosts(REPO_ROOT / "agent-tooling/skills/source-connectors/references/library.md")
         self.assertIn("repository.overheid.nl", hosts)
         self.assertNotIn("zoek.officielebekendmakingen.nl", hosts)
 
@@ -110,7 +110,7 @@ class TestDrift(unittest.TestCase):
 class TestValidate(unittest.TestCase):
     def _repo(self, td: str) -> Path:
         root = Path(td)
-        (root / "agent-tooling/skills/source-connectors").mkdir(parents=True)
+        (root / M.CONNECTOR_LIBRARY).parent.mkdir(parents=True)
         (root / M.CONNECTOR_LIBRARY).write_text("x", encoding="utf-8")
         return root
 
@@ -139,6 +139,21 @@ class TestValidate(unittest.TestCase):
             svc["sources"] = ["agent-tooling/skills/nope/SKILL.md"]
             registry = {"services": [svc]}
             self.assertTrue(any("does not exist" in x for x in M.validate(registry, root)))
+
+    def test_paths_validated(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = self._repo(td)
+            good = connector_service("a", "api.openalex.org")
+            good["paths"] = {"allow": ["/works*"], "deny": ["*secret*"]}
+            self.assertEqual(M.validate({"services": [good]}, root), [])
+            for bad, needle in (({"allow": ["works"]}, "must start with"),
+                                ({"allow": "/works"}, "list of strings"),
+                                ({"permit": ["/x"]}, "only `allow`/`deny`"),
+                                ({}, "is empty")):
+                svc = connector_service("a", "api.openalex.org")
+                svc["paths"] = bad
+                self.assertTrue(any(needle in x for x in M.validate({"services": [svc]}, root)),
+                                f"{bad} should be flagged with {needle!r}")
 
     def test_suffix_overlap_flagged(self):
         with tempfile.TemporaryDirectory() as td:
