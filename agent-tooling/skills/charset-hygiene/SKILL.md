@@ -30,30 +30,32 @@ the work as removal invites a blunt filter that destroys real content.
 
 ```bash
 # one output, before it goes anywhere
-echo "$TEXT" | charset_guard.py -
+echo "$TEXT" | python3 "${AGENT_TOOLING_ROOT}/scripts/charset_guard.py" -
 
 # one file
-charset_guard.py draft.md
+python3 "${AGENT_TOOLING_ROOT}/scripts/charset_guard.py" draft.md
 
 # strict, for source code
-charset_guard.py --profile ascii src/
+python3 "${AGENT_TOOLING_ROOT}/scripts/charset_guard.py" --profile ascii src/
 
 # a document that genuinely needs other scripts
-charset_guard.py --profile multilingual --scripts greek,cyrillic paper.tex
+python3 "${AGENT_TOOLING_ROOT}/scripts/charset_guard.py" --profile multilingual --scripts greek,cyrillic paper.tex
 
 # content that genuinely needs the extras
-charset_guard.py --allow emoji,math,box README.md
+python3 "${AGENT_TOOLING_ROOT}/scripts/charset_guard.py" --allow emoji,math,box README.md
 
 # whole folder of repos, unattended, manifest for the cleaner
-charset_guard.py ~/Documents/GitHub --jsonl manifest.jsonl
+python3 "${AGENT_TOOLING_ROOT}/scripts/charset_guard.py" ~/Documents/GitHub --jsonl manifest.jsonl
 
 # "what IS in here?" — describe, don't judge; use before choosing a profile
-charset_guard.py --inventory .
+python3 "${AGENT_TOOLING_ROOT}/scripts/charset_guard.py" --inventory .
 ```
 
 As a library — same core at every scale:
 
 ```python
+import os, sys
+sys.path.insert(0, os.path.join(os.environ["AGENT_TOOLING_ROOT"], "scripts"))
 from charset_guard import check_text, check_file, check_tree, build_profile
 
 check_text(model_output).ok            # single output, in memory

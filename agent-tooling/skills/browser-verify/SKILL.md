@@ -41,6 +41,7 @@ Ensure Playwright is present (once):
 python3 -c "import playwright" 2>/dev/null || pip install playwright
 python3 -c "import playwright" && playwright install chromium
 ```
+<!-- lint: allow bare-script -->
 Copy [`references/playwright-template.py`](references/playwright-template.py) to a scratch `probe.py`, set `BASE_URL`, and fill one `check(...)` per plan item (login/navigate in SETUP). Keep the console/pageerror/requestfailed listeners — console errors are failures. Wait on locators, never `networkidle`. Run headless:
 ```bash
 python3 probe.py    # exit 0 = all checks pass + no console/page errors

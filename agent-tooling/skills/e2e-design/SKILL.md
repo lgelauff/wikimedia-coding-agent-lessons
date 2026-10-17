@@ -8,13 +8,9 @@ description: >-
   testing set-up — "do our e2e tests still make sense", "we should rethink the
   end-to-end routes", "add an e2e test for the join flow", "the suite takes 20
   minutes now". Use it INSTEAD of writing another spec next to the existing ones:
-  adding one more test is the obvious move and it is how suites become slow,
-  flaky and still silent on the journeys that matter, because coverage grows per
-  feature while journeys go uncovered. This picks the journeys worth testing from
-  what users actually do, builds each so it asserts what a user perceives rather
-  than the implementation, sets the hermetic boundary and the tier split, and
-  ends a re-think with deletions as well as additions. For running a browser to
-  check one change use browser-verify; for a merge decision use pr-check.
+  that is how suites become slow, flaky and still silent on the journeys that
+  matter. For running a browser to check one change use browser-verify; for a
+  merge decision use pr-check.
 ---
 
 # e2e-design — Claude Code adapter

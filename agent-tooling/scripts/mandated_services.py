@@ -7,7 +7,7 @@ that `policies/webfetch_mandated.py` enforces. It has two jobs:
   1. **Validate** the registry against its own schema, so a malformed entry cannot
      silently produce a rule that matches nothing while reading as protection.
   2. **Catch drift** against the connector library in
-     `skills/source-connectors/SKILL.md`. That library is the human-readable source of
+     `skills/source-connectors/references/library.md`. That library is the human-readable source of
      truth for data connectors; the registry must mirror its endpoints exactly. Add a
      connector row and this fails until the registry follows; remove one and it fails
      the other way. That is what keeps the two from diverging.
@@ -37,9 +37,10 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[1]                       # .../agent-tooling/scripts -> repo
 DEFAULT_REGISTRY = REPO_ROOT / "agent-tooling" / "settings" / "mandated-services.json"
-DEFAULT_SKILL = REPO_ROOT / "agent-tooling" / "skills" / "source-connectors" / "SKILL.md"
+DEFAULT_SKILL = (REPO_ROOT / "agent-tooling" / "skills" / "source-connectors" / "references"
+                 / "library.md")
 
-CONNECTOR_LIBRARY = "agent-tooling/skills/source-connectors/SKILL.md"
+CONNECTOR_LIBRARY = "agent-tooling/skills/source-connectors/references/library.md"
 
 # A hostname: at least one dot, alphabetic TLD of 2+ chars. Deliberately rejects
 # version strings ("2.0", "v1.1") that appear in the same table cells.
@@ -47,7 +48,7 @@ HOSTNAME = re.compile(
     r"(?<![\w.-])((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,})(?![\w.-])",
     re.IGNORECASE,
 )
-LIBRARY_START = re.compile(r"^##\s+4\.\s+The library", re.IGNORECASE)
+LIBRARY_START = re.compile(r"^(##\s+4\.\s+The library|#\s+Connector library)", re.IGNORECASE)
 LIBRARY_END = re.compile(r"^##\s+Kept out of the library", re.IGNORECASE)
 
 
@@ -150,6 +151,22 @@ def validate(registry: dict, repo_root: Path) -> list[str]:
 
         if not hosts and not suf_list:
             problems.append(f"{where}: has neither `hosts` nor `host_suffixes`")
+
+        paths = svc.get("paths")
+        if paths is not None:
+            if not isinstance(paths, dict) or set(paths) - {"allow", "deny"}:
+                problems.append(f"{where}: `paths` must be an object with only `allow`/`deny` lists")
+            else:
+                for kind in ("allow", "deny"):
+                    pats = paths.get(kind, [])
+                    if not isinstance(pats, list) or not all(isinstance(p, str) for p in pats):
+                        problems.append(f"{where}: `paths.{kind}` must be a list of strings")
+                        continue
+                    for p in pats:
+                        if not p.startswith(("/", "*")):
+                            problems.append(f"{where}: path pattern `{p}` must start with `/` or `*`")
+                if not paths.get("allow") and not paths.get("deny"):
+                    problems.append(f"{where}: `paths` is empty; drop it or list allow/deny patterns")
 
         sources = svc.get("sources", [])
         if not isinstance(sources, list):

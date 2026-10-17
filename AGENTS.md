@@ -94,9 +94,11 @@ the adapter layer is for.
 ```bash
 python3 agent-tooling/scripts/check_skill_vars.py   # undefined $VAR in any SKILL.md
 python3 agent-tooling/scripts/audit_skills.py       # cross-skill contradictions
+python3 agent-tooling/scripts/lint_skills.py        # per-skill limits (description ≤1024) and smells
 python3 agent-tooling/scripts/mandated_services.py  # webfetch registry vs connector library drift
 python3 -m unittest agent-tooling.scripts.tests.test_audit_skills \
                     agent-tooling.scripts.tests.test_check_skill_vars \
+                    agent-tooling.scripts.tests.test_lint_skills \
                     agent-tooling.scripts.tests.test_install \
                     agent-tooling.scripts.tests.test_install_instructions \
                     agent-tooling.scripts.tests.test_mandated_services \
