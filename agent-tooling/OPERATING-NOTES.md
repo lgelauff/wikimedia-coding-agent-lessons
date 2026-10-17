@@ -41,11 +41,12 @@ predecessor becomes `… (retired → <successor>)`). Every other session has on
 retitle on status change. Work done: title `— done`, end every message with **Ready to archive.**
 until archived or Lodewijk says to keep you; then stop saying it.
 
-**Research vault** (`~/Documents/GitHub/research-vault`, Mac): Lodewijk's library, including his own
-publications. Every session may **read** it: `index.json` (CSL-JSON catalogue), `pdfs/<id>.pdf`,
-`policy-making/`, `surveys/`. To **add** something, drop a PDF or `.bib` into `inbox/`, or append a
-`---` block to `inbox/pending.txt` (format in its header). Never edit `index.json` or `pdfs/`
-directly; the vault's `ingest.py` does that, run by Lodewijk.
+**Research vault** (`~/Documents/GitHub/research-vault`, Mac): Lodewijk's library. Read freely
+(`index.json` catalogue, `pdfs/<id>.pdf`, `surveys/`); add only via `inbox/` (a PDF/`.bib`, or a
+`---` block appended to `inbox/pending.txt`); never edit `index.json` or `pdfs/` (Lodewijk runs
+`ingest.py`). **Paper wants:** read
+`~/agent/notes/paper-wishlist/WISHLIST.md`, append to its `INBOX.md` (other machines: via the
+coordinator); never start a separate list.
 
 **Context and tokens.** Read line ranges, not whole large files. Don't paste files or logs back. No
 end-of-turn summaries. All questions in one numbered list per round.
