@@ -167,7 +167,7 @@ def main() -> int:
         }
         non_skill |= {
             "source-collection", "wikimedia-analysis", "personal-skills",
-            "webfetch", "source_fetch", "ask", "deny", "allow", "edit", "bash",
+            "webfetch", "ask", "deny", "allow", "edit", "bash",
             "confirmed", "concluded", "guess", "unverified", "manifest",
         }
         # Directories a path-shaped reference may legitimately point into.

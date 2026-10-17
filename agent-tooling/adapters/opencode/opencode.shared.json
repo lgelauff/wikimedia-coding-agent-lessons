@@ -7,6 +7,9 @@
     "Keys whose value or name references ${data_root} are DROPPED when data_root is null.",
     "Permission ordering: OpenCode evaluates last-matching-rule-wins, so the catch-all",
     "'*' comes FIRST and specific rules after. Reordering this file can fail OPEN.",
+    "A bash allow pattern must never begin with '*': the matcher turns '*' into '.*' over",
+    "the whole sub-command, so an allow like '*.env.example*' matches any command that",
+    "contains that substring and (being later) overrides the deny it was meant to except.",
     "The boundary denies at the end of the bash block are best-effort, NOT a control:",
     "they match literal path strings only, so a variable, a glob, or an encoding evades",
     "them, and OpenCode does not path-scan most bash commands at all. The real control",
@@ -91,7 +94,6 @@
         "wget *": "deny",
 
         "*.env*": "deny",
-        "*.env.example*": "allow",
         "*.key*": "deny",
         "*.pem*": "deny",
         "*id_rsa*": "deny",
@@ -105,6 +107,7 @@
     "agent": {
       "build": {
         "permission": {
+          "edit": "allow",
           "bash": {
             "mkdir *": "allow",
             "cp *": "allow",
@@ -124,9 +127,30 @@
             "sort *": "allow",
             "uniq *": "allow",
             "node --check *": "allow",
+            "python3 -m unittest *": "allow",
+            "python3 -m pytest *": "allow",
+            "python3 agent-tooling/scripts/check_skill_vars.py *": "allow",
+            "python3 agent-tooling/scripts/audit_skills.py *": "allow",
+            "python3 agent-tooling/scripts/mandated_services.py *": "allow",
+            "python3 agent-tooling/adapters/opencode/install.py --check": "allow",
+            "git add *": "allow",
 
             "sed -i *": "deny",
-            "sed --in-place *": "deny"
+            "sed --in-place *": "deny",
+            "sudo *": "deny",
+            "ssh *": "deny",
+            "scp *": "deny",
+            "curl *": "deny",
+            "wget *": "deny",
+            "rm -rf *": "deny",
+            "*.env*": "deny",
+            "*.key*": "deny",
+            "*.pem*": "deny",
+            "*id_rsa*": "deny",
+            "*id_ed25519*": "deny",
+            "*/.ssh/*": "deny",
+            "*voice-samples*": "deny",
+            "*${data_root}*": "deny"
           }
         }
       }

