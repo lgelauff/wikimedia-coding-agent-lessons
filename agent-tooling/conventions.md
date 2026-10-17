@@ -71,6 +71,14 @@ called deep-research that did not exist, while `source-connectors` and
 `latex-change-review` existed and were named nowhere. `scripts/check_registration.py`
 checks both directions plus relative links. Run it from `pre-push`.
 
+**A bundled path in a skill body must resolve.** `$SKILL_DIR` was referenced by four
+skills and set by nothing, so every command using it expanded to a path into `/` while
+every test passed. Invoke a bundled script as `${AGENT_TOOLING_ROOT}/scripts/...`, which
+both adapters inject; never `$SKILL_DIR`, never the host-specific `${CLAUDE_PLUGIN_ROOT}`,
+never a bare `agent-tooling/...` path (it resolves against the consuming repo). Link to a
+playbook or sibling skill with a relative path: the Read tool does no variable expansion.
+`scripts/check_skill_vars.py` enforces the variable half from `pre-push`.
+
 ## 8. Python versions
 
 Decided 2026-09-26. Machines had drifted to six interpreters (Apple 3.9, python.org 3.10,
