@@ -971,3 +971,24 @@ of those cases, and the real gap was much narrower. The user was rightly sceptic
 **Rule:** reading a guard tells you what *that* check allows. The whole middleware chain decides what
 gets through. Run the request before stating the scope, and report the cases that were blocked
 alongside the one that got through.
+
+## "Zero of N" in your own extract is not "absent from the source"
+
+Observed 2026-10-11/17 [confirmed]. A census found 0 of 2,879 existing Commons files with a double
+quote in the name in 21 days of mediacounts, against 87–96% for every other punctuation class, while
+AQS showed their traffic. A bug report was drafted: "dump contains no rows for these files". The raw
+dump, read by the user on the bastion, showed the rows were present, CSV-quoted, with totals equal to
+AQS. The defect was the scan's matching rule. The draft had flagged "only a filtered extract is local"
+and made the raw check a precondition for filing, which is what stopped a wrong report.
+
+**Rules:**
+- A scan that keeps only rows matching a prepared list shows that your spellings are absent, not that the
+  data is. Before blaming the source, read the raw record for one known positive.
+- A zero that is **selective by character** (every other punctuation class fine, one class at 0%) is the
+  signature of an encoding step in the source or in your matcher. Same family as the double-encoded URL
+  case in `wikimedia-analytics/lessons.md` ("five silent failures").
+- When a finding depends on a check only the user can run, state the mechanism as unknown and hold the
+  report until it returns. A tool missing on the target host (`bzcat` on the bastion) costs a round trip:
+  give the fallback command up front.
+
+See `wikimedia-analytics/lessons.md` ("Dump first fields…").
