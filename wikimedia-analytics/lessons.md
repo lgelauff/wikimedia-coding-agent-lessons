@@ -274,6 +274,11 @@ Found 2026-10-11/17 [confirmed: raw `mediacounts.2026-08-24.v00.tsv.bz2`, read o
   says only that `base_name` "is normalized, and has special characters percent escaped" and does not
   mention quoting. The escape is a backslash, not RFC 4180's doubled quote, so a default `csv` reader
   does not recover the name either.
+- **Likely origin** [concluded from Gerrit, not verified on a pre-2023 file]: the daily archive query
+  was rewritten on 2023-03-07 (refinery change 891621, T329854) from Hive `CONCAT_WS(tab, …)`, which
+  never quotes, to `INSERT OVERWRITE DIRECTORY … USING CSV OPTIONS ('sep' = '\t')`, the Spark CSV
+  writer, whose defaults (quote `"`, escape `\`, quote values containing the quote) give exactly this
+  form. `PercentEncoder` is not involved (unchanged since 2015). Expect older daily files to be plain.
 - **Consequence:** a scan that compares the first field with a path list matches *none* of these
   files, with no error. 0 of 2,879 existing Commons files with `"` matched over 21 days while 87–96%
   of files with other punctuation did. The rows were there all along: the 2026-08-24 row above has
