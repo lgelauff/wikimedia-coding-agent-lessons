@@ -34,6 +34,10 @@
 - **For editable installs, `deploy.sh` does not need a pip step** — `pip install -e .` creates a symlink; code changes are picked up automatically on restart. Only run pip again when `pyproject.toml` dependencies change.
 - **The uwsgi log is not inside `src/`** — it is typically at `/data/project/<tool>/uwsgi.log`, one level above the repo. If `logto = /dev/stdout` is set in `uwsgi.ini`, use `toolforge webservice logs` instead.
 - **No `sqlite3` CLI on Toolforge** — use Python: `python3 -c 'import sqlite3; c=sqlite3.connect("path/to/db"); ...'`
+- **`cffi` pinned to 1.16.x fails on Python 3.13** — cffi 1.16.0 has no pre-built wheel for 3.13, and its source build needs `libffi-dev` headers that Toolforge lacks. If `pip install -r requirements.txt` fails with `fatal error: ffi.h: No such file or directory`, bump `cffi` to `>=1.17.1`, which ships a 3.13 wheel.
+- **Use `--prefer-binary` when installing requirements** — `python3 -m pip install --prefer-binary -r requirements.txt` avoids source builds wherever a wheel exists.
+- **`No module named 'pip'` means the venv is broken** — rebuild it inside the webservice shell with `python3 -m venv ~/www/python/venv --clear --without-pip`, bootstrap pip with get-pip.py as above, then reinstall requirements.
+- **A `requirements.txt` compiled on an older Python can carry incompatible pins** — if its header says `pip-compile with Python 3.9` and you run 3.13, C extensions (cffi, cryptography) may need bumping. Regenerate with `pip-compile` on the target Python when possible.
 
 ## uWSGI
 
