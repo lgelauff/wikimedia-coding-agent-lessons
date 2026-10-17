@@ -948,3 +948,26 @@ director's watch list.
 
 **Rule:** every folder or file where agents leave messages has a named reader that checks it.
 If no one watches it, it is storage, not a channel.
+
+## Incident triage: find who killed it before proposing a fix
+
+Observed in a production post-mortem, 2026-09-28 [confirmed]. A live session's server went down. The
+app's scheduler log showed it terminating a *different* instance at the same moment. The agent took
+that log as the explanation and proposed a code guard ("never terminate an instance with active
+rooms"). Asking which room was affected showed it was on an instance the scheduler never touched.
+The cloud provider's scaling history then showed the real cause: AWS rebalancing (see
+`aws/lessons.md`). The proposed guard would not have prevented the outage.
+
+**Rule:** before proposing any fix, establish three things from primary evidence: *which* resource
+failed, *when* (its last log line), and *who or what acted on it* (the provider's own record, not the
+app's log of what it asked for). An app's log shows its own actions, not everything that happened.
+
+## Reproduce an access-control finding before filing it
+
+Observed 2026-09-28 [confirmed]. Reading one route's permission check suggested a broad privilege gap.
+A throwaway Playwright spec against a test server showed that an earlier middleware already blocked most
+of those cases, and the real gap was much narrower. The user was rightly sceptical of the first claim.
+
+**Rule:** reading a guard tells you what *that* check allows. The whole middleware chain decides what
+gets through. Run the request before stating the scope, and report the cases that were blocked
+alongside the one that got through.
