@@ -228,6 +228,18 @@
       "paths": {"allow": ["/citations?user=*", "/citations?view_op=top_venues*", "/citations?view_op=metrics_intro*", "/citations?view_op=list_classic_articles*", "/robots.txt"], "deny": ["*cstart=*"]}
     },
     {
+      "id": "orcid-public-api",
+      "service": "ORCID public API v3.0, anonymous, GET only, <=1 req/s: author/work disambiguation only, store iDs only",
+      "kind": "connector",
+      "hosts": ["pub.orcid.org"],
+      "host_suffixes": [],
+      "protocol": "REST (JSON)",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10",
+      "paths": {"allow": ["/v3.0/*"]}
+    },
+    {
       "id": "github-pages",
       "service": "GitHub Pages sites (*.github.io): research use, each site's robots, <=25 pages/site/day",
       "kind": "connector",
