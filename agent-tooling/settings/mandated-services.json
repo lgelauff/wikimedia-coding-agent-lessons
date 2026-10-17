@@ -240,6 +240,42 @@
       "paths": {"allow": ["/v3.0/*"]}
     },
     {
+      "id": "open-library",
+      "service": "Open Library API, anonymous, GET only, <=1 req per 5 s: book lookups, no bulk (use dumps)",
+      "kind": "connector",
+      "hosts": ["openlibrary.org"],
+      "host_suffixes": [],
+      "protocol": "REST (JSON)",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10",
+      "paths": {"allow": ["/search.json*", "/isbn/*", "/works/*", "/authors/*", "/robots.txt"]}
+    },
+    {
+      "id": "dblp-search-api",
+      "service": "DBLP search API, GET only, 1 req per 4 s (robots Crawl-delay 4); no exports, no HTML pages",
+      "kind": "connector",
+      "hosts": ["dblp.org"],
+      "host_suffixes": [],
+      "protocol": "REST (JSON/XML)",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10",
+      "paths": {"allow": ["/search/publ/api*", "/search/author/api*", "/search/venue/api*", "/robots.txt"]}
+    },
+    {
+      "id": "hathitrust-bib-api",
+      "service": "HathiTrust Bibliographic API, GET only, <=1 req per 5 s: identifier lookups (small numbers of items), never bulk",
+      "kind": "connector",
+      "hosts": ["catalog.hathitrust.org"],
+      "host_suffixes": [],
+      "protocol": "REST (JSON)",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10",
+      "paths": {"allow": ["/api/volumes/*", "/robots.txt"]}
+    },
+    {
       "id": "github-pages",
       "service": "GitHub Pages sites (*.github.io): research use, each site's robots, <=25 pages/site/day",
       "kind": "connector",
