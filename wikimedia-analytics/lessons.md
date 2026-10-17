@@ -262,6 +262,29 @@ free-signup tier — worth knowing before assuming you need to pay:
   academic research and mission-aligned non-profit work are explicitly named as good
   fits. Source: [meta.wikimedia.org/wiki/Wikimedia_Enterprise/Access](https://meta.wikimedia.org/wiki/Wikimedia_Enterprise/Access).
 
+## Dump first fields: a name with a double quote is CSV-quoted, so exact matching misses it
+
+Found 2026-10-11/17 [confirmed: raw `mediacounts.2026-08-24.v00.tsv.bz2`, read on the Toolforge bastion].
+
+- In the **mediacounts** daily dumps, a row whose file name contains `"` has the *whole first field*
+  wrapped in quotes with each inner `"` written `\"`, e.g.
+  `"/wikipedia/commons/2/24/\"Petit_March%C3%A9\"_at_Niamey.jpg"`. Other names are plain. The same
+  behaviour was seen earlier in `pageview_complete` (`"\"Weird_Al\"_Yankovic"`). The
+  [wikitech page](https://wikitech.wikimedia.org/wiki/Data_Platform/Data_Lake/Traffic/Mediacounts)
+  says only that `base_name` "is normalized, and has special characters percent escaped" and does not
+  mention quoting. The escape is a backslash, not RFC 4180's doubled quote, so a default `csv` reader
+  does not recover the name either.
+- **Consequence:** a scan that compares the first field with a path list matches *none* of these
+  files, with no error. 0 of 2,879 existing Commons files with `"` matched over 21 days while 87–96%
+  of files with other punctuation did. The rows were there all along: the 2026-08-24 row above has
+  total 109, equal to AQS per-file mediarequests for that file and day. About 0.64% of that day's
+  40.4 M rows (all projects) have a first field containing `"` or `\`.
+- **Fix:** strip the outer quotes and turn `\"` back into `"` before matching, and say so in the scan.
+  Count quote-bearing first fields in the raw file as a standing sanity check; nonzero means your
+  matcher needs the unquoting.
+- `bzcat` is not installed on the Toolforge bastion. Stream with Python (`bz2.open(path, 'rb')`),
+  under `nice timeout`; one pass over a day (~40 M lines) takes a few minutes.
+
 ## Phabricator bug reports
 
 - Follow the standard template: **Steps to replicate**, **What happens**, **What should have happened instead**, **Other information**. Skip sections that don't apply — don't add a "Requested action" section, that's not the convention.
