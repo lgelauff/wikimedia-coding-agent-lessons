@@ -96,6 +96,7 @@ python3 agent-tooling/scripts/check_skill_vars.py   # undefined $VAR in any SKIL
 python3 agent-tooling/scripts/audit_skills.py       # cross-skill contradictions
 python3 agent-tooling/scripts/lint_skills.py        # per-skill limits (description ≤1024) and smells
 python3 agent-tooling/scripts/mandated_services.py  # webfetch registry vs connector library drift
+python3 agent-tooling/scripts/check_public_text.py --range origin/main..HEAD   # private identifiers in what you would push
 python3 -m unittest agent-tooling.scripts.tests.test_audit_skills \
                     agent-tooling.scripts.tests.test_check_skill_vars \
                     agent-tooling.scripts.tests.test_lint_skills \
@@ -108,6 +109,7 @@ python3 -m unittest agent-tooling.scripts.tests.test_audit_skills \
                     agent-tooling.scripts.tests.test_transfer \
                     agent-tooling.scripts.tests.test_coordinator_takeover \
                     agent-tooling.scripts.tests.test_handoff \
+                    agent-tooling.scripts.tests.test_check_public_text \
                     agent-tooling.policies.tests.test_webfetch_mandated
 ```
 

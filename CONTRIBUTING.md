@@ -25,3 +25,24 @@ A lesson belongs in this repo if **all three** of these are true:
 - "Use `action=query` to fetch page content" — in the docs
 - "Add error handling to API calls" — obvious
 - "Cache past edition data as immutable" — project-specific
+
+## Public text: what must not appear
+
+This repo is public, and so is every commit message. None of these may appear in a lesson, a skill,
+a script or a commit message:
+
+- host names or SSH aliases of private machines;
+- absolute home paths (write `/Users/<you>/…` or a relative path) and paths into a private notes hub;
+- e-mail addresses, other than documentation domains such as `example.org`, no-reply addresses and
+  an organisation's own published role addresses;
+- tokens, keys or passwords, even expired ones;
+- internal log ids, session ids, or the names of participants, customers or private projects;
+- details of how a private machine or harness is defended (its threat model).
+
+Hedge what you have not verified: label it [concluded] or [guess], not [confirmed].
+
+`agent-tooling/scripts/check_public_text.py` checks the mechanical part of this list on every push
+(through `agent-tooling/git-hooks/pre-push`): added lines and commit messages. Private host names
+and project names go in a **local** denylist, `.git/info/public-text-denylist`, one term per line.
+That file is never committed, because a committed denylist would publish the names it protects.
+The guard cannot judge prose about threat models; a reader still has to.

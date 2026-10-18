@@ -39,6 +39,9 @@ if ! command -v python3 >/dev/null 2>&1; then
     exit 1
 fi
 
+# git hands the refs being pushed on stdin; read them once, before anything else can.
+PUSH_REFS=$(cat)
+
 STATUS=0
 
 require() {
@@ -68,6 +71,20 @@ if require check_version_bump.py; then
            # the way session-close treats exit 2: unverified is not the same as clean.
            echo "Push blocked: check_version_bump.py could not complete (exit 2)." >&2
            echo "  Usually an unfetched origin/main. Try: git fetch origin" >&2
+           STATUS=1 ;;
+        *) STATUS=1 ;;
+    esac
+fi
+
+# This repo is public: what a push adds (lines and commit messages) must not carry
+# private identifiers. Host names come from the LOCAL denylist in .git/info/, never
+# from the tree. Exit 2 (could not complete) blocks like a finding.
+if require check_public_text.py; then
+    printf '%s\n' "$PUSH_REFS" | python3 "$GUARDS/check_public_text.py" --pre-push --root "$ROOT"
+    case $? in
+        0) ;;
+        2) echo "Push blocked: check_public_text.py could not complete (exit 2)." >&2
+           echo "  Usually an unfetched origin/main for a new branch. Try: git fetch origin" >&2
            STATUS=1 ;;
         *) STATUS=1 ;;
     esac
