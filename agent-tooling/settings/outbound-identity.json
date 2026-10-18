@@ -179,6 +179,16 @@
       "params": {},
       "credentials": "none",
       "approved": "Lodewijk 2026-10-16"
+    },
+    "gitlab-api": {
+      "hosts": [
+        "gitlab.com (/api/v4/ paths only)"
+      ],
+      "sent_by": [],
+      "user_agent": "{project} (personal research project; {project-url})",
+      "params": {},
+      "credentials": "none; GitLab personal access token only if ever needed (Lodewijk registers)",
+      "approved": "Lodewijk 2026-10-18: read-only (GET, API paths only); GitLab API Terms of Use accepted for that use"
     }
   },
   "to_verify": [

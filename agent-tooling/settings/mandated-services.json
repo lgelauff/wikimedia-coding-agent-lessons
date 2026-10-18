@@ -299,6 +299,18 @@
       "paths": {"allow": ["/v2/*", "/robots.txt"]}
     },
     {
+      "id": "gitlab-api",
+      "service": "GitLab.com REST API v4 (GET, public projects; 60 req/h anonymous; API paths only, never pages)",
+      "kind": "connector",
+      "hosts": ["gitlab.com"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10",
+      "paths": {"allow": ["/api/v4/*", "/robots.txt"]}
+    },
+    {
       "id": "huggingface-hub",
       "service": "Hugging Face Hub (public reads; uploads only with Lodewijk's yes)",
       "kind": "connector",
