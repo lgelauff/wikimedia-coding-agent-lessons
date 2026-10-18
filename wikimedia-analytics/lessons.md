@@ -289,6 +289,24 @@ Found 2026-10-11/17 [confirmed: raw `mediacounts.2026-08-24.v00.tsv.bz2`, read o
   matcher needs the unquoting.
 - `bzcat` is not installed on the Toolforge bastion. Stream with Python (`bz2.open(path, 'rb')`),
   under `nice timeout`; one pass over a day (~40 M lines) takes a few minutes.
+- **Your own CSV round-trip can re-key names too.** Found 2026-10-18 [confirmed by the pipeline's
+  owner; reader behaviour reproduced locally]. File names with a quote *pair* at the start
+  (`"X"rest.jpg`) came back from a fetch work order as `Xrest.jpg`: the list had gone through a CSV
+  reader with default quoting, which treats the leading `"X"` as a quoted field. 585 of the 622
+  failing files turned up under the stripped key, so the rows were mis-keyed, not missing. An
+  end-to-end check over half a million rows had reported quotes preserved, because the failure sat in
+  a class of about 0.6% of names. A name that opens with `"` and never closes it is worse: a default
+  reader carries on to the next quote and swallows the delimiter and newline with it.
+  *Verified by:* `csv.reader(io.StringIO('"X"rest.jpg\t5\n'), delimiter='\t')` gives
+  `['Xrest.jpg', '5']`; with `quoting=csv.QUOTE_NONE` it gives `['"X"rest.jpg', '5']`.
+
+**Rules:**
+- Read and write title or file-name lists with `quoting=csv.QUOTE_NONE` on both sides (pandas:
+  `quoting=3`), or with plain `split('\t')`. Never let a default CSV reader or writer touch a key column.
+- Undo the dump's own quoting at one documented boundary (unquote first, then percent-decode), and make
+  every later join report both matched and missed rows.
+- An aggregate check cannot see a failure concentrated in a small class. Compare the failure rate per
+  name class (contains `"`, starts with `"`, non-ASCII, and so on) against the base rate.
 
 ## Phabricator bug reports
 
@@ -356,3 +374,85 @@ image-request measure.*
 
 - **Start a usage aggregate from the smaller side.** `GROUP BY il_target_id` over ~10⁸ `imagelinks`
   rows is fine; joining `page` per row to filter first is not.
+
+## pageview_complete: the format changes under you by era and by file type
+
+Probed 2026-06-27 to 2026-09-27 on the Toolforge dumps mount [confirmed unless marked].
+
+- **The letter-coded column means different things in daily and monthly files.** Each count is
+  prefixed with `chr(65 + slot)`. In **daily** files the slot is the hour (`A` = 00:00 … `X` = 23:00).
+  In **monthly** files the slot is the **day of the month**, so it runs past `Z` into `[ \ ] ^ _` for
+  days 27–31. The slots sum to the `view_count` column exactly. So a monthly file already gives you a
+  daily series; you only need the far larger daily files for hours. A parser that assumes letters
+  `A`–`X` drops days 25–31 of every monthly file without an error.
+- **The early monthly files are a different dataset.** Before 2015-05 the `monthly/` files are
+  desktop-only (no `mobile-web` or `mobile-app` rows), their titles are percent-encoded
+  (`%D8%A7%D9%84…`) rather than the later underscored form, and `page_id` is `null` in every row that
+  was probed from 2014-09 through 2015-08 (about two-thirds filled in a 2016-01 sample). Decode titles
+  before any join across 2015, and fold redirects by title in that window, because there is no
+  page_id to fold on.
+- **Redirect views are already folded onto the target's `page_id`**, checked at 2018, 2025 and 2026.
+  The AQS per-article API counts the title as requested instead. Expect the two to differ for any
+  article with incoming redirects. That is a definitional difference, not a bug in either.
+- **The `automated` agent files do not exist before 2020-05.** A collector that treats a missing file
+  as zero views turns "this agent class did not exist yet" into "no bot traffic". Record those days as
+  absent, not zero.
+- Rows with no page_id may have 5 fields instead of 6 (the readme says so). Tell them apart by
+  checking which token is an access method, not by position.
+
+**Rule:** before using a pageview_complete series across years, probe one file from each era you
+touch (pre-2015-05, 2015–2019, 2020 onward) and check the access methods, the page_id null rate, the
+title encoding and the slot count.
+
+## AQS mediarequests: what a 404, a gap and the agent split mean
+
+Probed 2026-09-07/09 on the live API [confirmed].
+
+- **There is no publication floor.** Daily per-file values as low as 1 are returned. A claim that
+  "AQS 404s below a volume threshold" is in circulation and is wrong. The
+  [troubleshooting page](https://doc.wikimedia.org/generated-data-platform/aqs/analytics-api/documentation/troubleshooting.html) says a 404 means zero
+  *or* not loaded yet, and that zero values are left out of a series.
+- **A gap inside a 200 response is a zero day.** One file returned 28 of 30 days; the other two had no
+  requests. When you line a series up against a date range, fill gaps with 0. Near the end of the
+  series (the last day or two may not be loaded yet), treat a gap as missing instead.
+- **The agent bins differ from pageviews.** For mediarequests, `all-agents = user + spider` exactly, and
+  `agent=automated` returns HTTP 400. Pageviews splits into `user + automated + spider`. So the two
+  `user` populations are not the same, and a requests-per-pageview ratio of `user` over `user`
+  divides by the wrong denominator.
+- **`top` gotchas:** the `files` array is not sorted by `rank`, and `file_path` comes back already
+  percent-encoded. Unquote it before you build a `per-file` URL, or you double-encode it (see "five
+  silent failures" above).
+- **One call covers the whole history.** A single `per-file … /daily/2015010100/2026063000` request
+  returned 4,178 daily points. The cost is one call per file, so splitting a range into years only
+  multiplies calls. No maximum range is documented; 11½ years is the longest we tried.
+- **Only HTTP 200 (and 206 from byte 0) is counted.** The refinery query filters on status 200 with
+  the comment "No 304 per RFC discussion", so cached revalidations never show up. That is
+  `analytics-refinery` `hql/mediarequest/hourly.hql`, read 2026-09-08; the API docs do not say it.
+- There is no access dimension (desktop vs mobile) and no page field at any endpoint, for the whole
+  history back to 2015.
+
+**Rule:** a 404 or a gap from AQS is "zero or not loaded yet", never "suppressed". Fill interior gaps
+with 0, leave the trailing edge as missing, and never divide a mediarequests `user` count by a
+pageviews `user` count without saying the populations differ.
+
+## Clickstream: the readme is out of date on coverage, and the external rows carry no source
+
+Checked 2026-07-23 against the live dump index and 2026-08-05 on raw files [confirmed].
+
+- **Coverage grew in two steps** that the readme does not show: 5 wikis at the 2017-11 start, 11 by
+  2019-09, and 40 from 2024-08 on. Simple English is never included. Read the directory index, not the
+  readme, before you plan a per-language series.
+- **`type=external` rows carry only five `prev` values** (`other-search`, `other-empty`,
+  `other-internal`, `other-external`, `other-other`). There is no referring domain or URL, so
+  navigation from another language edition cannot be seen at all. `other-internal` is real and sizeable
+  (about 11.7 M clicks on dewiki in 2017-11) and needs an explicit place in any referral-mix
+  denominator.
+- **The 2017 Japanese and Russian files are broken for outgoing links.** Referrer URLs were matched
+  before UTF-8 decoding, so native-script source titles almost vanish from `prev` (4.7% of link rows
+  on jawiki, 0.1% on ruwiki in 2017-11, against 96.6% and 93.9% in 2019-11). Fixed in 2019
+  ([T191964](https://phabricator.wikimedia.org/T191964)); no corrected 2017 file exists.
+- Files are sorted by `curr`, not `prev`. A line-limited sample gives almost no coverage of source
+  articles; read the whole file and filter on titles instead.
+
+**Rule:** before any clickstream series across languages or years, check the month's directory index
+for the wiki, and check the native-script share of `prev` on that file.

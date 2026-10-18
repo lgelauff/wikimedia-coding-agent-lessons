@@ -992,3 +992,26 @@ and made the raw check a precondition for filing, which is what stopped a wrong 
   give the fallback command up front.
 
 See `wikimedia-analytics/lessons.md` ("Dump first fields…").
+
+## A join that matches nothing looks like data: make every join count its misses
+
+Observed 2026-10-09 to 2026-10-18 [confirmed], four times in one research pipeline over Wikimedia
+data. Each time an empty match came out as zeros, and the zeros passed every downstream check:
+
+- A control arm whose key join returned nothing became all zeros. After subtracting day effects it
+  still passed a `min(sd) > 0` check, and a partial correlation of +0.82 over 5,243 articles was
+  reported against an empty control.
+- 239 titles vanished because their Action API batch went past the URL limit (`wikimedia/lessons.md`).
+- About 0.8% of file names were percent-encoded in one producer's output and decoded in the other's,
+  and those names joined to zeros.
+- Dump names with CSV quoting, and names re-keyed by a default CSV reader, never matched
+  (`wikimedia-analytics/lessons.md`, "Dump first fields…").
+
+**Rules:**
+- Every key join reports rows asked, matched and missed, per arm, and the run fails when an arm has no
+  matches at all.
+- Normalise any key that can contain a quote, backslash or `%` at one documented boundary, before
+  the first join, not inside each consumer.
+- A check that cannot fail on an empty input is not a check. Test it once on an empty arm.
+
+See also "Zero of N in your own extract is not absent from the source", above.

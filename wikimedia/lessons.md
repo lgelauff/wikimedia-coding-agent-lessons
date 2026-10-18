@@ -43,6 +43,19 @@ Common actions: `query` (fetch data), `parse` (render wikitext), `edit` (write, 
 - `uiprop=options` returns all user preferences including skin and gender — useful for personalisation without extra calls.
 - Add `maxlag=5` to bulk requests to be a good citizen on shared infrastructure.
 
+## Batched GETs of non-Latin titles pass the URL limit and come back empty
+
+Observed 2026-10-11 [confirmed]. A collector sent `titles=` batches of 50 by GET and silently lost 239
+of its titles, mostly Cyrillic. Percent-encoding costs about 6 bytes per non-Latin character, so a
+batch of long Cyrillic titles goes past the roughly 8 kB URL limit and the request returns nothing
+usable. Sent one at a time, every one of the titles resolved. The tell was that the losses came in
+whole multiples of the batch size.
+
+**Rule:** send title batches with POST (the Action API accepts POST for reads), and after every batch
+check that the number of titles returned (counting `normalized`, `redirects` and `missing`) equals
+the number you asked for. Losses that are multiples of your batch size mean a batch failed, not that
+the pages are missing.
+
 ## Commons thumbnail API
 
 - Use `action=query&prop=imageinfo&iiprop=url&iiurlwidth=N` to get a resized thumbnail URL.
