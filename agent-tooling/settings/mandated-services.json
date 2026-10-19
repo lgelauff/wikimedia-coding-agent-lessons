@@ -411,6 +411,18 @@
       "verified": "2026-09"
     },
     {
+      "id": "madrid-decide-300114",
+      "service": "Madrid open data, Decide Madrid dataset 300114 only (niche): dataset page + 8 CSVs, <=1 req per 10 s, each file once, <=50/day",
+      "kind": "connector",
+      "hosts": ["datos.madrid.es"],
+      "host_suffixes": [],
+      "protocol": "HTTPS files (CKAN 2.9)",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Deliberation & civic research",
+      "verified": "2026-10",
+      "paths": {"allow": ["/dataset/300114-0-madrid-decide*", "/robots.txt"], "deny": ["*?*", "/api/*", "/datastore/*"]}
+    },
+    {
       "id": "phabricator",
       "service": "Wikimedia Phabricator (read-only)",
       "kind": "connector",
