@@ -509,6 +509,42 @@
       "verified": "2026-09"
     },
     {
+      "id": "bls-api-v1",
+      "service": "BLS Public Data API v1 (niche, list B): keyless, <=1 req per 10 s, within 25/day",
+      "kind": "connector",
+      "hosts": ["api.bls.gov"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Official statistics",
+      "verified": "2026-10",
+      "paths": {"allow": ["/publicAPI/v1/*"]}
+    },
+    {
+      "id": "pew-research-machine-readable",
+      "service": "Pew Research machine-readable pages (list A): /text, /topline, RLS markdown, llms.txt; <=1 page per 10 s, <=25/day",
+      "kind": "connector",
+      "hosts": ["www.pewresearch.org"],
+      "host_suffixes": [],
+      "protocol": "HTTPS pages",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Media & web",
+      "verified": "2026-10",
+      "paths": {"allow": ["/*/topline*", "/*/text*", "/religious-landscape-study/*/markdown*", "/religious-landscape-study/*.md", "/llms.txt", "/robots.txt"]}
+    },
+    {
+      "id": "voa-articles",
+      "service": "Voice of America articles (niche, list B): /a/ pages only, <=1 page per 10 s, <=25/day; VOA-produced = public domain",
+      "kind": "connector",
+      "hosts": ["www.voanews.com"],
+      "host_suffixes": [],
+      "protocol": "HTTPS pages",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Media & web",
+      "verified": "2026-10",
+      "paths": {"allow": ["/a/*", "/robots.txt"], "deny": ["*?p=*"]}
+    },
+    {
       "id": "flickr",
       "service": "Flickr (read-only)",
       "kind": "connector",
