@@ -276,6 +276,18 @@
       "paths": {"allow": ["/api/volumes/*", "/robots.txt"]}
     },
     {
+      "id": "plos",
+      "service": "PLOS Search API (<=1 req per 12 s) + article pages/files (<=1 per 30 s, <=25/day); CC BY",
+      "kind": "connector",
+      "hosts": ["api.plos.org", "journals.plos.org"],
+      "host_suffixes": [],
+      "protocol": "REST (Solr JSON) + HTTPS article files",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10",
+      "paths": {"allow": ["/search*", "/*/article?id=*", "/*/article/file?id=*", "/robots.txt"], "deny": ["*/article/metrics*", "*/user*"]}
+    },
+    {
       "id": "github-pages",
       "service": "GitHub Pages sites (*.github.io): research use, each site's robots, <=25 pages/site/day",
       "kind": "connector",
