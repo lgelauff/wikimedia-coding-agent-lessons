@@ -170,6 +170,9 @@ content stays personal data). For everything else, "it depends": run the full ta
 11. **Decided against or deferred?** Add a dated row to "Kept out of the library" at the end of
     `source-connectors/references/library.md`: route, decision and date, and a one-line why. That
     section is the list to revisit; the registry guard ignores it, so nothing there is approved.
+    **Every disallowed or deferred row carries a revisit date, 6 to 12 months out, and the exact
+    pages it rests on** (URL plus Wayback capture timestamp or live fetch date, and the quoted
+    words), so the re-check is a matter of re-reading those pages (Lodewijk, 2026-10-19).
 12. **Record** the verdict and evidence in AGENT-LOG: doc URLs, fetch dates (or Wayback capture
     timestamps), the robots text and status, the quote, and the verdict.
 
