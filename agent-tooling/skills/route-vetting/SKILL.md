@@ -61,6 +61,15 @@ published numbers, per tier (anonymous / identified / keyed), with the source an
 connector row, or "none published" if there are none. A generous published limit for anonymous
 callers is itself evidence that automated traffic is expected (DataCite: 500 requests per 5
 minutes unidentified); a very low one sets the policy.
+
+**"Reasonable use" without numbers: low default cap, raised by relevance (Lodewijk, 2026-10-19).**
+When the provider's terms ask for reasonable, non-excessive or small-scale use but publish no
+daily limit (GovData.de "übermäßige oder unzumutbare Belastung", World Bank "reasonable request
+volume", HathiTrust "small numbers of items"), keep it reasonable with a low default cap per day
+(GovData.de: 50), not a high one. **This default is for list B (niche) routes only.** List A
+routes are general purpose, so their daily cap is decided per route. Use that serves a need a human has approved is more
+reasonable, so with that approval the daily cap lifts; the pacing (seconds between requests)
+stays.
 | 6 | **Access and identity** | What key, account, registration or identifying header is requested, and who provides it? | none; or registration encouraged/required, which Lodewijk does (his task) and the key goes into the agent-secrets store | agents would need to create accounts, accept terms, share personal credentials, or send his e-mail without his yes |
 | 7 | **Data class** | Personal data? Licence? May results be republished, or sent to a third-party model host? | open licence, no personal data | personal data (policy: counts and links only); restrictive or per-record licences; analysis-only data |
 | 8 | **Legal context** | Jurisdiction, TDM rules, database rights, public-sector reuse law | clear reuse basis (open licence, public-sector reuse act) | TDM reserved; database right asserted; unclear terms: CONDITIONAL at most |
