@@ -300,6 +300,78 @@
       "paths": {"allow": ["/search*", "/*/article?id=*", "/*/article/file?id=*", "/robots.txt"], "deny": ["*/article/metrics*", "*/user*"]}
     },
     {
+      "id": "owid-grapher",
+      "service": "Our World in Data chart data (list A): /grapher CSV/metadata/zip only, <=1 req per 5 s",
+      "kind": "connector",
+      "hosts": ["ourworldindata.org"],
+      "host_suffixes": [],
+      "protocol": "HTTPS files",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Official statistics",
+      "verified": "2026-10",
+      "paths": {"allow": ["/grapher/*.csv*", "/grapher/*.metadata.json*", "/grapher/*.zip*", "/robots.txt"]}
+    },
+    {
+      "id": "worldbank-indicators",
+      "service": "World Bank Indicators API v2 (list A): <=1 req per 5 s, <=500/day unless a human approves more; non-commercial",
+      "kind": "connector",
+      "hosts": ["api.worldbank.org"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Official statistics",
+      "verified": "2026-10",
+      "paths": {"allow": ["/v2/*"]}
+    },
+    {
+      "id": "federal-register",
+      "service": "Federal Register API (list A): <=1 req per 10 s, extra cautious; challenge page = stop",
+      "kind": "connector",
+      "hosts": ["www.federalregister.gov"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Government & legislatures",
+      "verified": "2026-10",
+      "paths": {"allow": ["/api/v1/*", "/robots.txt"]}
+    },
+    {
+      "id": "uk-parliament-apis",
+      "service": "UK Parliament APIs (list A): <=1 req per 5 s",
+      "kind": "connector",
+      "hosts": ["members-api.parliament.uk", "bills-api.parliament.uk", "hansard-api.parliament.uk", "commonsvotes-api.parliament.uk", "committees-api.parliament.uk", "questions-statements-api.parliament.uk", "whatson-api.parliament.uk"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Government & legislatures",
+      "verified": "2026-10",
+      "paths": {"allow": ["/*"]}
+    },
+    {
+      "id": "propublica-nonprofits",
+      "service": "ProPublica Nonprofit Explorer API (niche, list B): <=1 req per 5 s; no whole-dataset republishing",
+      "kind": "connector",
+      "hosts": ["projects.propublica.org"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Government & legislatures",
+      "verified": "2026-10",
+      "paths": {"allow": ["/nonprofits/api/v2/*", "/robots.txt"]}
+    },
+    {
+      "id": "github-rest-api",
+      "service": "GitHub REST API, read-only (list A): GET /repos and /search/repositories, <=1 req per 5 s, anonymous",
+      "kind": "connector",
+      "hosts": ["api.github.com"],
+      "host_suffixes": [],
+      "protocol": "REST",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Scholarly & archive",
+      "verified": "2026-10",
+      "paths": {"allow": ["/repos/*", "/search/repositories*"]}
+    },
+    {
       "id": "github-pages",
       "service": "GitHub Pages sites (*.github.io): research use, each site's robots, <=25 pages/site/day",
       "kind": "connector",
