@@ -137,6 +137,18 @@
       "paths": {"allow": ["/eurostat/api/dissemination/*", "/eurostat/api/comext/dissemination/*", "/robots.txt"]}
     },
     {
+      "id": "govdata-de",
+      "service": "GovData.de catalogue metadata (niche): CKAN action API + SPARQL, GET only, <=1 req per 10 s, <=50/day unless a human approves more",
+      "kind": "connector",
+      "hosts": ["ckan.govdata.de", "www.govdata.de"],
+      "host_suffixes": [],
+      "protocol": "CKAN v3 + SPARQL",
+      "sources": ["agent-tooling/skills/source-connectors/references/library.md"],
+      "access_policy_ref": "source-connectors §4 · Official statistics",
+      "verified": "2026-10",
+      "paths": {"allow": ["/api/3/action/*", "/sparql*", "/robots.txt"]}
+    },
+    {
       "id": "oecd-sdmx",
       "service": "OECD Data API (SDMX); oecd.ai excluded",
       "kind": "connector",
