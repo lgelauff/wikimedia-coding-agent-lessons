@@ -126,6 +126,12 @@ content stays personal data). For everything else, "it depends": run the full ta
    no robots file (no restrictions), but 401/403/429, a 5xx or an unreachable host means **do
    not approve yet**: record UNVERIFIED and retry another day. Honour any `Crawl-delay`, and save
    the file's text, fetch date and status in the log, since the file can change later.
+   **Recognise standard patterns (Lodewijk, 2026-10-19).** Many portals ship their platform's stock
+   robots file. Compare it with the platform default before reading intent into it: CKAN 2.9's
+   default is `Disallow: /api/` + `Crawl-Delay: 10` (Madrid, 2026-10-19). Software defaults and
+   SEO housekeeping, aimed at search crawlers, are not an access policy. **Official reports and
+   presentations count as provider documentation**: Madrid's 2025 report to its transparency
+   committee promises API consumption with Python examples, which overrules its robots file.
 4. **Check machine-readable mining opt-outs.** Look for `/.well-known/tdmrep.json`, a `tdm-reservation`
    header or meta tag, and `ai.txt`. A text-and-data-mining reservation is legally meaningful in
    the EU even when robots.txt allows crawling: it makes the verdict CONDITIONAL at most (metadata
