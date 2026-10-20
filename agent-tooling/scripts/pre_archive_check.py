@@ -29,7 +29,12 @@ Checks
   4 open-files     `lsof +D <path>` (20 s timeout): any process with a file or its cwd inside the
                    path. This process and its ancestors (the session running the check) are
                    excluded and named in the reason.
-  5 whole-tree     (--whole-tree only) stashes made on this branch (WARN: the stash stack is
+  5 whole-tree     (--whole-tree only) unique-ignored: in a linked worktree, every ignored file
+                   that is not a dependency cache or a paper output must be identical (sha256) at
+                   the same path in the main checkout, or be in a --manifest; otherwise FAIL.
+                   Compared file by file from the worktree's side, never with a negative filter
+                   on main's paths (worktrees live inside main's .claude/, so such a filter hides
+                   exactly the worktree-only files). Also: stashes made on this branch (WARN: the stash stack is
                    shared and outlives the worktree, so it is not lost, but it is unsaved work),
                    and other worktrees on the same branch or commit (info).
   6 state          (--state only) the file must have been modified today (local date).
@@ -240,29 +245,47 @@ def check_unpushed(top, handed_over):
     return [_r("unpushed", PASS, "every commit is on a remote")]
 
 
-def check_outputs(top, globs, manifests, warn_mb):
-    ignored = _z(git(top, "ls-files", "--others", "--ignored", "--exclude-standard", "-z"))
+class DurableStore:
+    """The --manifest files: which contents have a verified copy in a durable store."""
+
+    def __init__(self, manifests):
+        self.manifests = list(manifests)
+        self.index = {}
+        for m in self.manifests:
+            for sha, copies in parse_manifest(m).items():
+                self.index.setdefault(sha, []).extend(copies)
+        self._verified = {}   # copy path -> sha, so each durable copy is hashed once
+
+    def listed(self, sha):
+        return sha in self.index
+
+    def saved(self, sha):
+        """True only if a listed copy exists and re-hashes to `sha`."""
+        for copy in self.index.get(sha, ()):
+            if copy not in self._verified:
+                try:
+                    self._verified[copy] = sha256_file(copy)
+                except OSError:
+                    self._verified[copy] = None
+            if self._verified[copy] == sha:
+                return True
+        return False
+
+
+def ignored_files(top):
+    """Ignored files under top. A trailing '/' marks a nested repository (for example a worktree
+    under .claude/worktrees/); git does not descend into it, and it is checked on its own."""
+    entries = _z(git(top, "ls-files", "--others", "--ignored", "--exclude-standard", "-z"))
+    return [p for p in entries if not p.endswith("/")], [p for p in entries if p.endswith("/")]
+
+
+def check_outputs(top, globs, store, warn_mb):
+    ignored, nested = ignored_files(top)
     outputs = [p for p in ignored if cache_kind(p) is None and matches_output(p, globs)]
     output_set = set(outputs)
     other = [p for p in ignored if cache_kind(p) is None and p not in output_set]
     results = []
-
-    index = {}
-    for m in manifests:
-        for sha, copies in parse_manifest(m).items():
-            index.setdefault(sha, []).extend(copies)
-    verified = {}   # copy path -> sha, so each durable copy is hashed once
-
-    def saved(sha):
-        for copy in index.get(sha, ()):
-            if copy not in verified:
-                try:
-                    verified[copy] = sha256_file(copy)
-                except OSError:
-                    verified[copy] = None
-            if verified[copy] == sha:
-                return True
-        return False
+    index, saved, manifests = store.index, store.saved, store.manifests
 
     missing, stale_copy = [], []
     for p in outputs:
@@ -310,8 +333,61 @@ def check_outputs(top, globs, manifests, warn_mb):
                           big))
     results.append(_r("ignored-other", INFO,
                       f"{len(other)} other ignored file(s) (not outputs, not caches); "
-                      f"dependency caches {dep_bytes / 1024 / 1024:.0f} MB, not counted"))
+                      f"dependency caches {dep_bytes / 1024 / 1024:.0f} MB, not counted"
+                      + (f"; {len(nested)} nested repo(s)/worktree(s), not checked from here"
+                         if nested else ""), nested))
     return results
+
+
+def _main_worktree(top):
+    """Path of the main checkout: the first entry of `git worktree list`."""
+    for line in git(top, "worktree", "list", "--porcelain").splitlines():
+        if line.startswith("worktree "):
+            return os.path.realpath(line[len("worktree "):])
+    raise CheckError("git worktree list returned no worktree")
+
+
+def _same_file(a, b):
+    try:
+        if not os.path.isfile(b) or os.path.getsize(a) != os.path.getsize(b):
+            return False
+        return sha256_file(a) == sha256_file(b)
+    except OSError:
+        return False
+
+
+def check_unique_ignored(top, globs, store):
+    """Ignored files in a linked worktree that the main checkout does not hold byte for byte
+    (notes in .claude/, run logs, drafts). Archiving the worktree loses them.
+
+    The comparison starts from the WORKTREE's own file list and looks each file up in main by
+    path. Never the other way round with a negative filter: worktrees usually live under
+    main's .claude/worktrees/, so excluding 'only in main/.claude' from a diff also hides every
+    file that exists only in the worktree."""
+    main = _main_worktree(top)
+    if main == os.path.realpath(top):
+        return [_r("unique-ignored", INFO, "this is the main checkout: nothing to compare with")]
+    ignored, _ = ignored_files(top)
+    # Paper outputs are judged by the outputs check; dependency caches are never worth saving.
+    candidates = [p for p in ignored
+                  if cache_kind(p) != "dep" and not matches_output(p, globs)]
+    unsaved = []
+    for p in candidates:
+        full = os.path.join(top, p)
+        if os.path.islink(full) or _same_file(full, os.path.join(main, p)):
+            continue
+        try:
+            if store.saved(sha256_file(full)):
+                continue
+        except OSError as e:
+            raise CheckError(f"cannot hash {p}: {e}")
+        unsaved.append(p)
+    if unsaved:
+        return [_r("unique-ignored", FAIL,
+                   f"{len(unsaved)} ignored file(s) exist only in this worktree (not identical in "
+                   f"the main checkout, not in a --manifest): unsaved", unsaved)]
+    return [_r("unique-ignored", PASS,
+               f"{len(candidates)} ignored file(s), each identical in the main checkout or saved")]
 
 
 def _ancestors():
@@ -443,14 +519,19 @@ def run(args):
     except CheckError as e:
         return [_r("repo", ERROR, f"{path} is not a git work tree: {e}")], None
 
+    globs = args.output_glob or DEFAULT_OUTPUT_GLOBS
+    try:
+        store = DurableStore(args.manifest)
+    except CheckError as e:
+        return [_r("manifest", ERROR, f"could not check: {e}")], top
     steps = [
         ("uncommitted", lambda: check_uncommitted(top)),
         ("unpushed", lambda: check_unpushed(top, args.handed_over)),
-        ("outputs", lambda: check_outputs(top, args.output_glob or DEFAULT_OUTPUT_GLOBS,
-                                          args.manifest, args.warn_mb)),
+        ("outputs", lambda: check_outputs(top, globs, store, args.warn_mb)),
         ("open-files", lambda: check_open_files(top)),
     ]
     if args.whole_tree:
+        steps.append(("unique-ignored", lambda: check_unique_ignored(top, globs, store)))
         steps.append(("whole-tree", lambda: check_whole_tree(top)))
     if args.state:
         steps.append(("state", lambda: check_state(args.state)))

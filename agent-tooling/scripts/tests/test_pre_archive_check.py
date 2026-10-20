@@ -52,7 +52,7 @@ class Repo(unittest.TestCase):
         subprocess.run(["git", "init", "-q", "-b", "main", str(self.repo)], check=True)
         (self.repo / "README").write_text("x\n")
         (self.repo / ".gitignore").write_text(
-            "results/\nanalysis/**/out/\nprivate/\n.venv/\nnode_modules/\ntmp/\nbig/\n")
+            "results/\nanalysis/**/out/\nprivate/\n.venv/\nnode_modules/\ntmp/\nbig/\n.claude/\n")
         sh(self.repo, "add", "-A")
         sh(self.repo, "commit", "-q", "-m", "init")
         sh(self.repo, "remote", "add", "origin", str(self.remote))
@@ -256,11 +256,25 @@ class TestOpenFiles(Repo):
         self.assertTrue(any(i.startswith(f"pid {child.pid} ") for i in self.items(r, "open-files")))
 
     def test_lsof_timeout_is_could_not_check(self):
-        with mock.patch.object(pac, "LSOF_TIMEOUT", 0.0001), \
-                mock.patch.object(pac.subprocess.Popen, "communicate",
-                                  side_effect=[subprocess.TimeoutExpired("lsof", 0), ("", "")]):
+        class Hung:                       # an lsof that never answers; nothing is spawned
+            pid, returncode, killed = 0, None, False
+
+            def __init__(self, *a, **k):
+                self.calls = 0
+
+            def communicate(self, timeout=None):
+                self.calls += 1
+                if self.calls == 1:
+                    raise subprocess.TimeoutExpired("lsof", timeout)
+                return "", ""
+
+            def kill(self):
+                Hung.killed = True
+
+        with mock.patch.object(pac.subprocess, "Popen", Hung):
             with self.assertRaises(pac.CheckError):
                 pac.check_open_files(str(self.repo))
+        self.assertTrue(Hung.killed)
 
 
 class TestCouldNotCheck(Repo):
@@ -304,6 +318,63 @@ class TestWholeTree(Repo):
         sh(self.repo, "worktree", "add", "-q", "--detach", str(other))
         _, r = self.check("--whole-tree")
         self.assertEqual(self.items(r, "shared-branch"), [f"{other} (same commit)"])
+
+
+class TestUniqueIgnored(Repo):
+    """A worktree nested under the main checkout's .claude/worktrees/, as the app makes them.
+
+    The near-miss this guards: comparing the worktree's .claude/ with main's using a negative
+    filter on main's .claude/ paths also hid the worktree-only files, because the worktree
+    itself lives under main's .claude/."""
+
+    def setUp(self):
+        super().setUp()
+        (self.repo / ".claude").mkdir()
+        (self.repo / ".claude" / "shared.md").write_text("same in both\n")
+        self.wt = self.repo / ".claude" / "worktrees" / "w"
+        sh(self.repo, "worktree", "add", "-q", "--detach", str(self.wt))
+        (self.wt / ".claude").mkdir()
+        (self.wt / ".claude" / "shared.md").write_text("same in both\n")
+        (self.wt / ".claude" / "unique.md").write_text("only here\n")
+
+    def check_wt(self, *extra):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = pac.main(["--path", str(self.wt), "--json", *extra])
+        return code, json.loads(out.getvalue())
+
+    def test_unique_note_in_nested_worktree_is_unsaved(self):
+        code, r = self.check_wt("--whole-tree")
+        self.assertEqual(code, 1, r["results"])
+        self.assertEqual(self.items(r, "unique-ignored"), [".claude/unique.md"])
+
+    def test_only_in_whole_tree_mode(self):
+        code, r = self.check_wt()
+        self.assertEqual(self.statuses(r, "unique-ignored"), [])
+        self.assertEqual(code, 0, r["results"])
+
+    def test_same_path_different_content_is_unsaved(self):
+        (self.wt / ".claude" / "unique.md").unlink()
+        (self.wt / ".claude" / "shared.md").write_text("edited in the worktree\n")
+        code, r = self.check_wt("--whole-tree")
+        self.assertEqual(code, 1)
+        self.assertEqual(self.items(r, "unique-ignored"), [".claude/shared.md"])
+
+    def test_identical_copies_pass(self):
+        (self.wt / ".claude" / "unique.md").unlink()
+        code, r = self.check_wt("--whole-tree")
+        self.assertEqual(code, 0, r["results"])
+
+    def test_unique_note_saved_in_manifest_passes(self):
+        m = self.manifest([("unique-copy.md", b"only here\n")])
+        code, r = self.check_wt("--whole-tree", "--manifest", str(m))
+        self.assertEqual(code, 0, r["results"])
+
+    def test_main_checkout_lists_nested_worktree_without_hashing_it(self):
+        code, r = self.check("--whole-tree")
+        self.assertEqual(self.statuses(r, "unique-ignored"), ["info"])
+        self.assertIn(".claude/worktrees/w/", self.items(r, "ignored-other"))
+        self.assertEqual(code, 0, r["results"])
 
 
 class TestState(Repo):
