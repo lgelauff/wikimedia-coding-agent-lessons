@@ -290,6 +290,44 @@ Found 2026-10-11/17 [confirmed: raw `mediacounts.2026-08-24.v00.tsv.bz2`, read o
 - `bzcat` is not installed on the Toolforge bastion. Stream with Python (`bz2.open(path, 'rb')`),
   under `nice timeout`; one pass over a day (~40 M lines) takes a few minutes.
 
+## The same quoting bites you reading your OWN TSVs, and `awk` will tell you the file is fine
+
+Found 2026-10-19 [confirmed: a well-formed TSV written and then read back in one session].
+
+The lesson above is about quoting in *their* files. The mirror-image failure is quoting in *yours*:
+about **1% of enwiki article and file names legitimately contain a `"`** — `"Rags"_Scheuermann_Field`,
+`1.1"_AA_Gun_Norfolk.jpg`, `Das_Torpedoboot_"G_39"`, `An_early_reprint_of_"A_Message_to_Garcia".jpg`.
+Write those to a tab-separated file and it is perfectly well formed. Read it with
+`pandas.read_csv(..., sep="\t")` and rows break, because pandas' C parser applies **CSV quoting
+semantics to tab-delimited data by default**: `quotechar='"'`, so a field starting with `"` swallows
+the following tabs until the next `"`.
+
+- ⭐ **The giveaway is that two tools disagree about the same file**, which is what makes this easy to
+  misdiagnose as corruption upstream. On one real 107,611-row file:
+  `awk -F'\t' 'NF!=5'` reported **0 malformed rows**; pandas raised
+  `ParserError: Expected 5 fields in line 12097, saw 6`. ⇒ If a splitter says the file is clean and a
+  CSV reader says it is ragged, suspect the **reader**, not the file. Do not start hunting for a
+  corrupt writer upstream.
+- **Fix:** `pd.read_csv(path, sep="\t", quoting=csv.QUOTE_NONE)` on every TSV read, and
+  `to_csv(..., quoting=csv.QUOTE_NONE, escapechar="\\")` on every write. Plain
+  `line.split("\t")` was never affected — this is purely a CSV-reader default.
+- ⚠ **`QUOTE_NONE` is not a universal answer** — it is right for TSVs whose fields cannot contain a
+  tab or a newline, which is the case for Wikimedia titles and file names. It is wrong for files
+  where quoting is load-bearing, and it is irrelevant to hand-rolled splitters and to the dump-side
+  defect above (whose escape is a backslash, not RFC 4180's doubled quote, so no `csv` setting
+  recovers it — see the previous lesson).
+- **Base rates to expect**, all measured on real enwiki populations: **1,063 of 107,611** image-pair
+  rows (~1.0%), **231 of 76,819** lead files (0.30%), **4,950 of 977,194** unit files (0.51%).
+  ⇒ Small enough to pass every smoke test on a `head`, large enough to corrupt a production join.
+- ⭐ **Count the quote-bearing rows and print the number**, on both sides. A scan that reports
+  "N of M quoted first fields kept" turns the next regression into a visible zero instead of a silent
+  one; this family of defect has recurred **four** times in one project (two dump-side: mediacounts
+  and `pageview_complete`; two reader-side) and every instance was first recorded as missing data.
+- ⚠ Related, if you normalise before matching: percent-decoding an allowlist **and** the data is safe
+  (both sides decode identically), but it is not injective — a literal `A%2CB.jpg` and a real
+  `A,B.jpg` collapse to the same key. Rare, but it makes a path list silently ambiguous rather than
+  wrong, so count the collisions rather than assuming there are none.
+
 ## Phabricator bug reports
 
 - Follow the standard template: **Steps to replicate**, **What happens**, **What should have happened instead**, **Other information**. Skip sections that don't apply — don't add a "Requested action" section, that's not the convention.
