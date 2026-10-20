@@ -570,9 +570,9 @@
 
     {
       "id": "mediawiki-action-api",
-      "service": "MediaWiki Action API (any Wikimedia wiki)",
+      "service": "MediaWiki Action + REST APIs (any Wikimedia wiki): /w/api.php, /w/rest.php, /api/rest_v1",
       "kind": "wikimedia-api",
-      "hosts": ["www.wikidata.org", "commons.wikimedia.org", "meta.wikimedia.org"],
+      "hosts": ["www.wikidata.org", "commons.wikimedia.org", "meta.wikimedia.org", "wikimania.wikimedia.org", "www.wikifunctions.org", "species.wikimedia.org", "foundation.wikimedia.org", "incubator.wikimedia.org", "outreach.wikimedia.org"],
       "host_suffixes": [
         ".wikipedia.org",
         ".wiktionary.org",
@@ -585,19 +585,19 @@
         ".wikispecies.org"
       ],
       "protocol": "MediaWiki Action API (`/w/api.php`)",
-      "sources": ["cowork-skills/wikimedia-data-collection/skills/mediawiki-action-api/SKILL.md"],
-      "access_policy_ref": "mediawiki-action-api · maxlag=5, descriptive UA, paginate on `continue`",
+      "sources": ["cowork-skills/wikimedia-data-collection/skills/mediawiki-action-api/SKILL.md", "agent-tooling/skills/source-connectors/references/wikimedia-apis.md"],
+      "access_policy_ref": "mediawiki-action-api · governed by the Wikimedia Robot policy (wikitech, 2026-03-16): unauthenticated, 1 request at a time, under 5 req/s, gzip, honour 429 Retry-After; and Wikimedia APIs/Rate limits (mediawiki.org, 2026-10-15): 200 req/min with a compliant UA, 10 without, at most 3 concurrent. maxlag=5, descriptive UA, paginate on `continue`. robots.txt (Disallow /w/, /api/ for *) governs page crawling, not these documented API calls. wikimania.wikimedia.org added (Lodewijk, 2026-10-20: Wikimania API falls under Wikimedia policy)",
       "verified": "2026-06"
     },
     {
       "id": "wikidata-sparql",
-      "service": "Wikidata Query Service (WDQS)",
+      "service": "Wikidata Query Service (WDQS): main graph + scholarly graph (split 2025-05-09)",
       "kind": "wikimedia-api",
-      "hosts": ["query.wikidata.org"],
+      "hosts": ["query.wikidata.org", "query-scholarly.wikidata.org"],
       "host_suffixes": [],
       "protocol": "SPARQL over HTTPS",
       "sources": ["cowork-skills/wikimedia-data-collection/skills/wikidata-sparql/SKILL.md"],
-      "access_policy_ref": "wikidata-sparql · 60s query timeout, rate-limited per agent, descriptive UA",
+      "access_policy_ref": "wikidata-sparql · 60s query timeout, rate-limited per agent, descriptive UA; Wikimedia Robot policy + Rate limits (see wikimedia-apis.md)",
       "verified": "2026-06"
     },
     {
@@ -612,6 +612,28 @@
       "verified": "2026-06"
     },
 
+    {
+      "id": "wikimedia-eventstreams",
+      "service": "Wikimedia EventStreams (SSE): live recent changes etc.",
+      "kind": "wikimedia-api",
+      "hosts": ["stream.wikimedia.org"],
+      "host_suffixes": [],
+      "protocol": "Server-Sent Events (/v2/stream/{name})",
+      "sources": ["agent-tooling/skills/source-connectors/references/wikimedia-apis.md"],
+      "access_policy_ref": "wikimedia-apis.md \u00b7 small-scale external use; one stream connection at a time; 15-min timeout, resume with Last-Event-ID; Robot policy",
+      "verified": "2026-10-20"
+    },
+    {
+      "id": "wikimedia-media",
+      "service": "Wikimedia media files (originals and thumbnails)",
+      "kind": "wikimedia-api",
+      "hosts": ["upload.wikimedia.org"],
+      "host_suffixes": [],
+      "protocol": "HTTPS files",
+      "sources": ["agent-tooling/skills/source-connectors/references/wikimedia-apis.md"],
+      "access_policy_ref": "wikimedia-apis.md \u00b7 Robot policy media row: at most 2 concurrent, 25 Mbps; descriptive UA",
+      "verified": "2026-10-20"
+    },
     {
       "id": "liftwing",
       "service": "LiftWing inference (OpenAI-compatible)",

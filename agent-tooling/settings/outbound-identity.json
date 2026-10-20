@@ -1,7 +1,7 @@
 {
   "$comment": "What our outbound requests reveal about us, per service, and the single source scripts read their User-Agent and identifying parameters from (scripts/outbound_identity.py). Never store a secret, token or e-mail address here: this repo is public. Values that must stay private are named by an env_key, resolved from a private secrets file or the environment. Templates use {identity}; a [bracketed part] is dropped when an identity inside it is unset. Service ids match settings/mandated-services.json where one exists. Rules (Lodewijk, 2026-10-16): his e-mail goes out only where he approved it; registration and keys are his task. Keep this file current whenever a script starts or stops sending something.",
   "version": 2,
-  "updated": "2026-10-16",
+  "updated": "2026-10-20",
   "identities": {
     "project": {
       "value": "WikimediaAnalysis/1.0",
@@ -179,6 +179,70 @@
       "params": {},
       "credentials": "none",
       "approved": "Lodewijk 2026-10-16"
+    },
+    "mediawiki-action-api": {
+      "hosts": [
+        "*.wikipedia.org and the other wikis in the registry entry"
+      ],
+      "sent_by": [],
+      "user_agent": "{project} (research bot; {project-url})",
+      "params": {},
+      "credentials": "none",
+      "approved": "Lodewijk, 2026-10-20 (per-provider rules); Wikimedia User-Agent policy (foundation.wikimedia.org, modified 2026-03-27): '<client>/<version> (<contact>) <library>/<version>', bots include 'bot'; the calling script appends its HTTP library and version, e.g. ' python-requests/2.32'"
+    },
+    "wikidata-sparql": {
+      "hosts": [
+        "query.wikidata.org",
+        "query-scholarly.wikidata.org"
+      ],
+      "sent_by": [],
+      "user_agent": "{project} (research bot; {project-url})",
+      "params": {},
+      "credentials": "none",
+      "approved": "Lodewijk, 2026-10-20 (per-provider rules); Wikimedia User-Agent policy (foundation.wikimedia.org, modified 2026-03-27): '<client>/<version> (<contact>) <library>/<version>', bots include 'bot'; the calling script appends its HTTP library and version, e.g. ' python-requests/2.32'"
+    },
+    "wikimedia-analytics": {
+      "hosts": [
+        "wikimedia.org"
+      ],
+      "sent_by": [],
+      "user_agent": "{project} (research bot; {project-url})",
+      "params": {},
+      "credentials": "none",
+      "approved": "Lodewijk, 2026-10-20 (per-provider rules); Wikimedia User-Agent policy (foundation.wikimedia.org, modified 2026-03-27): '<client>/<version> (<contact>) <library>/<version>', bots include 'bot'; the calling script appends its HTTP library and version, e.g. ' python-requests/2.32'"
+    },
+    "wikimedia-eventstreams": {
+      "hosts": [
+        "stream.wikimedia.org"
+      ],
+      "sent_by": [],
+      "user_agent": "{project} (research bot; {project-url})",
+      "params": {},
+      "credentials": "none",
+      "approved": "Lodewijk, 2026-10-20 (per-provider rules); Wikimedia User-Agent policy (foundation.wikimedia.org, modified 2026-03-27): '<client>/<version> (<contact>) <library>/<version>', bots include 'bot'; the calling script appends its HTTP library and version, e.g. ' python-requests/2.32'"
+    },
+    "wikimedia-media": {
+      "hosts": [
+        "upload.wikimedia.org"
+      ],
+      "sent_by": [],
+      "user_agent": "{project} (research bot; {project-url})",
+      "params": {},
+      "credentials": "none",
+      "approved": "Lodewijk, 2026-10-20 (per-provider rules); Wikimedia User-Agent policy (foundation.wikimedia.org, modified 2026-03-27): '<client>/<version> (<contact>) <library>/<version>', bots include 'bot'; the calling script appends its HTTP library and version, e.g. ' python-requests/2.32'"
+    },
+    "wikimedia-public-data": {
+      "hosts": [
+        "dumps.wikimedia.org",
+        "analytics.wikimedia.org",
+        "lists.wikimedia.org",
+        "diff.wikimedia.org"
+      ],
+      "sent_by": [],
+      "user_agent": "{project} (research bot; {project-url})",
+      "params": {},
+      "credentials": "none",
+      "approved": "Lodewijk, 2026-10-20 (per-provider rules); Wikimedia User-Agent policy (foundation.wikimedia.org, modified 2026-03-27): '<client>/<version> (<contact>) <library>/<version>', bots include 'bot'; the calling script appends its HTTP library and version, e.g. ' python-requests/2.32'"
     }
   },
   "to_verify": [
@@ -186,5 +250,10 @@
     "research-vault ingest/source-collection: what UA and params it sends",
     "huggingface_hub library default User-Agent in deposit scripts",
     "migrate liftwing_suite.py, llm_provider.py, check_wayback_coverage.py to outbound_identity.user_agent()"
-  ]
+  ],
+  "user_agent_standard": {
+    "baseline": "Every request: product token and version ({project}), the purpose (research), a public contact URL ({project-url}); no e-mail address unless Lodewijk approved it for that service; never a browser or generic UA (curl, python-requests alone).",
+    "provider_rules": "On top of the baseline, follow each provider's own User-Agent or identification instructions (format, extra tokens, parameters) as its docs state; record them in that service's entry here.",
+    "source": "Lodewijk, 2026-10-20: 'The user agent might have to be different for different APIs, follow their instructions. But let's keep some common standards around'"
+  }
 }

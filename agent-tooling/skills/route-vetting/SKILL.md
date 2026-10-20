@@ -155,7 +155,14 @@ content stays personal data). For everything else, "it depends": run the full ta
    - **NOT SUPPORTED** (= **disallowed**: don't even try): only when explicitly disapproved in public: terms forbid automated or AI
      use; a robots disallow with no documented API; named AI-crawler bans (Munich CONSUL,
      2026-10-12, including a script a human runs for us); a TDM reservation; a documented API
-     that requires a token we have not been issued.
+     that requires a token we have not been issued. **A robots file that names one of our own
+     agents** (`Claude-Code`, `ClaudeBot`, `Claude-User`, `anthropic-ai`, `opencode`, ...) means
+     no direct access by any of our agents.
+     **When a property restricts AI agents** (robots.txt naming our agents, terms on use,
+     a TDM reservation), ask the director before any use of that property's content. Content
+     used under restrictive terms is stored labelled with its rights holder and terms, kept
+     out of anything we publish beyond short attributed quotes, and any other reuse needs a
+     human's yes (Lodewijk, 2026-10-20). Never work around a paywall or login.
    - **ASK**: not explicitly disapproved and not clearly supported (no docs, silent terms, an
      unclear mirror). Bring it to Lodewijk with the evidence; he decides.
    - **UNVERIFIED**: the docs or robots could not be read yet (outage, challenge page). Say why
