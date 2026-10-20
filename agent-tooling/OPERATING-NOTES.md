@@ -1,7 +1,6 @@
-# Operating notes: loaded into every agent session (Claude via the plugin hook, OpenCode via `instructions`)
+# Operating notes: loaded into every agent session
 
-Working habits, not new rules. The user's CLAUDE.md, the machine-wide rules and the repo's AGENTS.md
-win wherever they are stricter.
+Working habits, not new rules. Stricter rules (CLAUDE.md, AGENTS.md, machine rules) win.
 
 **Permissions: few prompts, no wasted turns.**
 - Look with the read/search tools, not the shell (no `cat`, `find` or `head` for reading).
@@ -13,8 +12,8 @@ win wherever they are stricter.
   for reading.
 - Analysis or repeated shell logic: a script (scratchpad), run by path.
 - A denied or blocked command is a decision. Don't retry it reworded or by another route; say what
-  is blocked and stop. Not a decision: a fetch tool refusing a host. That is the tool's limit, not the user's; take the `source-connectors` route
-  (`curl` with the project UA) (Lodewijk, 2026-10-12).
+  is blocked and stop. Not a decision: a fetch tool refusing a host; then take the
+  `source-connectors` route (`curl` with the project UA).
 
 **Plan first (every permission mode).** For any task beyond a one-liner, write a plan of at most ~10
 lines in the chat (or the project notes) before acting: goal, steps, risks. Put **outward or
@@ -43,10 +42,8 @@ it goes to your director as a proposal, not into your session. When done: wrap-u
 pushed or handed over, outputs saved, jobs handed over, STATE updated), title `— done`, end each
 message with **Ready to archive.** until archived or kept.
 
-**Research vault** (`~/Documents/GitHub/research-vault`, Mac): Lodewijk's library. Read freely
-(`index.json` catalogue, `pdfs/<id>.pdf`, `surveys/`); add only via `inbox/` (a PDF/`.bib`, or a
-`---` block appended to `inbox/pending.txt`); never edit `index.json` or `pdfs/` (Lodewijk runs
-`ingest.py`). **Paper wants:** read
+**Research vault** (`~/Documents/GitHub/research-vault`, Mac): Lodewijk's library. Read freely; add only
+via `inbox/` (files, or a `---` block in `inbox/pending.txt`); never edit `index.json` or `pdfs/`. **Paper wants:** read
 `~/agent/notes/paper-wishlist/WISHLIST.md`, append to its `INBOX.md` (other machines: via the
 coordinator); never start a separate list.
 
@@ -56,5 +53,9 @@ recaps. All questions in one numbered list per round.
 **Truthfulness.** Label non-trivial claims [confirmed] (observed, say where), [concluded] (inferred)
 or [guess]. "Fixed" needs a `Verified by:` line. Never state a number you did not compute.
 
-**Handover.** Before ending, overwrite the repo's rolling STATE.md: done, open, waiting on the user,
-and who holds what (jobs, uncommitted work, data in transit).
+**Handover.** Before ending, overwrite the repo's STATE.md: done, open, waiting on the user, who
+holds what (jobs, uncommitted work, data in transit).
+
+**For Lodewijk.** Deliverables go inside your session's folder (`.claude/tmp/`), linked
+relatively: he can't open files elsewhere. Every script or paste block he runs prints a timestamp
+at the start and end of each step (`date '+%F %T %Z'`; Python: time in every log line).
