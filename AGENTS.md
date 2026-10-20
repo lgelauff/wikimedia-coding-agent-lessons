@@ -110,6 +110,7 @@ python3 -m unittest agent-tooling.scripts.tests.test_audit_skills \
                     agent-tooling.scripts.tests.test_coordinator_takeover \
                     agent-tooling.scripts.tests.test_handoff \
                     agent-tooling.scripts.tests.test_check_public_text \
+                    agent-tooling.scripts.tests.test_pre_archive_check \
                     agent-tooling.policies.tests.test_webfetch_mandated
 ```
 
