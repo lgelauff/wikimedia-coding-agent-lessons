@@ -689,3 +689,19 @@ to stop stray meetings being left behind.
 - **Register the cleanup before creating the first resource.**
 - **Before reporting done,** check for leftover node or Chromium processes from the project's
   worktrees.
+
+## `git pull --ff-only origin main` on the remote silently misses a package on a feature branch
+
+Reported by a data-project director, 2026-10-20 [confirmed by that session]. A runbook told the
+operator to update the remote checkout with `git pull --ff-only origin main`, but five commits of
+the package (including a new allowlist) existed only on a feature branch. The pull succeeded,
+the scanner would have read the old allowlist and printed a clean DONE. It was caught before
+anything was pasted.
+
+**Rules:**
+- **The runbook names the branch and the commit the package is on,** and the preflight checks
+  out and verifies that exact commit, not `main`.
+- **It lists the sha256 of every shipped file,** data files such as allowlists included, and
+  the preflight checks them on the remote before launch.
+- This extends "Rehearse against the checkout you will actually upload from" above: a
+  successful pull is not evidence that the right files arrived.
