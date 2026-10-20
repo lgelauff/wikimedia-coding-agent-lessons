@@ -705,3 +705,13 @@ anything was pasted.
   the preflight checks them on the remote before launch.
 - This extends "Rehearse against the checkout you will actually upload from" above: a
   successful pull is not evidence that the right files arrived.
+
+## A Toolforge job cannot launch other Toolforge jobs
+
+Reported by a data-project director, 2026-10-20 [confirmed by that session]. A packet used a
+controller job to start its step jobs. The `toolforge` CLI is not available inside a running job,
+so the controller could not launch anything. Its guard refused before writing any output, so it
+failed safely, but the run had to be restarted by hand.
+
+**Rule:** chain jobs from the bastion (a launcher script run by the operator) or through the jobs
+API, never from inside a job. Rehearse the launcher itself, not only the steps.
