@@ -52,3 +52,19 @@ Before **starting** new heavy Mac work, check the flag: if `focus_guard.py statu
 until the next `on`. A paused job looks hung (state `T`): do not kill or restart it; it resumes when
 the Focus ends. Jobs on hague and Toolforge are not affected, and do not need registering. Never
 register the Claude app or any `claude` process (the script refuses).
+
+## Metered connection (phone hotspot)
+
+Same mechanism, second trigger. Register a big download or upload with `--kind big-transfer`:
+
+```bash
+python3 agent-tooling/scripts/focus_guard.py register <job-name> <pid> --owner <your-session> --kind big-transfer
+```
+
+`focus_guard.py metered on` then pauses only the jobs registered that way (a Focus pauses every
+registered job); `metered off` resumes them. Flags and stopped-lists are separate (`metered-on`,
+`metered-stopped.json`), and a job held by both is resumed only when both have ended. It was added to
+this script rather than made a second tool because the safety rules (registered pids only, command
+re-check, never `claude`, SIGSTOP/SIGCONT only) are the ones to keep identical. Detecting the
+connection is `machine_check.py`'s job (see `machine-check.md`); `metered on|off` is run by an agent or
+Lodewijk after it reports `metered`. Not wired to any automatic trigger.

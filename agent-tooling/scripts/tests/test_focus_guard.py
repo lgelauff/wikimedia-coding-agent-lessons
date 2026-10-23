@@ -282,5 +282,87 @@ class TestRegistry(Base):
         self.assertIn("focus: off", r.stdout)
 
 
+class TestMetered(Base):
+    def test_metered_pauses_only_big_transfer_jobs(self):
+        big, other, plain = self.sleeper(), self.sleeper(), self.sleeper()
+        self.reg("big", big, "--kind", "big-transfer")
+        self.reg("other", other)
+        self.reg("plain", plain, "--kind", "")
+        self.assertEqual(json.loads(self.jobfile("big").read_text())["kind"], "big-transfer")
+        self.assertEqual(self.run_cmd("metered", "on")[0], 0)
+        self.assertTrue((self.state / "metered-on").read_text().strip())
+        self.assertTrue(self.is_stopped(big.pid))
+        self.assertTrue(self.is_running(other.pid))
+        self.assertTrue(self.is_running(plain.pid))
+        self.assertFalse((self.state / "focus-on").exists())
+        out = self.run_cmd("status")[1]
+        self.assertIn("metered: ON since", out)
+        self.assertIn("focus: off", out)
+        self.assertEqual(self.run_cmd("metered", "off")[0], 0)
+        self.assertTrue(self.wait_state(big.pid, "S"))
+        self.assertFalse((self.state / "metered-on").exists())
+        self.assertFalse((self.state / "metered-stopped.json").exists())
+
+    def test_focus_still_pauses_every_job_not_just_big_transfers(self):
+        other = self.sleeper()
+        self.reg("other", other)
+        self.run_cmd("on")
+        self.assertTrue(self.is_stopped(other.pid))
+
+    def test_metered_on_twice_and_off_twice_are_safe(self):
+        p = self.sleeper()
+        self.reg("big", p, "--kind", "big-transfer")
+        self.assertEqual(self.run_cmd("metered", "on")[0], 0)
+        self.assertEqual(self.run_cmd("metered", "on")[0], 0)
+        self.assertTrue(self.is_stopped(p.pid))
+        self.assertEqual(self.run_cmd("metered", "off")[0], 0)
+        self.assertEqual(self.run_cmd("metered", "off")[0], 0)
+        self.assertTrue(self.wait_state(p.pid, "S"))
+
+    def test_job_held_by_focus_and_metered_resumes_only_when_both_end(self):
+        p = self.sleeper()
+        self.reg("big", p, "--kind", "big-transfer")
+        self.run_cmd("on")
+        self.run_cmd("metered", "on")
+        self.run_cmd("metered", "off")
+        self.assertTrue(self.is_stopped(p.pid))  # Focus still holds it
+        self.run_cmd("off")
+        self.assertTrue(self.wait_state(p.pid, "S"))
+
+    def test_focus_off_leaves_metered_held_job_stopped(self):
+        p = self.sleeper()
+        self.reg("big", p, "--kind", "big-transfer")
+        self.run_cmd("metered", "on")
+        self.run_cmd("on")
+        self.run_cmd("off")
+        self.assertTrue(self.is_stopped(p.pid))
+        self.run_cmd("metered", "off")
+        self.assertTrue(self.wait_state(p.pid, "S"))
+
+    def test_unregister_resumes_a_metered_stopped_job(self):
+        p = self.sleeper()
+        self.reg("big", p, "--kind", "big-transfer")
+        self.run_cmd("metered", "on")
+        self.run_cmd("unregister", "big")
+        self.assertTrue(self.wait_state(p.pid, "S"))
+        self.assertFalse((self.state / "metered-stopped.json").exists())
+
+    def test_metered_never_signals_a_claude_process_or_unregistered_pid(self):
+        c = self.shell_job("claude-code-run")
+        (self.state / "pausable").mkdir(parents=True)
+        cmd = F.Guard.command_of(c.pid)
+        (self.state / "pausable" / "hand.json").write_text(
+            json.dumps({"pid": c.pid, "command": cmd, "kind": "big-transfer"}))
+        unreg = self.sleeper()
+        self.run_cmd("metered", "on")
+        self.assertTrue(self.is_running(c.pid))
+        self.assertTrue(self.is_running(unreg.pid))
+
+    def test_register_rejects_unknown_kind(self):
+        p = self.sleeper()
+        with self.assertRaises(SystemExit):
+            self.run_cmd("register", "x", str(p.pid), "--kind", "bogus")
+
+
 if __name__ == "__main__":
     unittest.main()

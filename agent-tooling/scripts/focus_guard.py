@@ -6,13 +6,18 @@ Run by a macOS Shortcuts personal automation ("When any Focus turns on/off"), an
 
   focus_guard.py on                       # flag + SIGSTOP every registered, alive, matching job
   focus_guard.py off                      # remove flag + SIGCONT exactly the jobs `on` stopped
-  focus_guard.py status                   # on/off, registered jobs, which are stopped
-  focus_guard.py register <name> <pid> [--owner <session>]
+  focus_guard.py metered on|off           # same mechanism, for a metered connection (phone hotspot):
+                                          # pauses only jobs registered with --kind big-transfer
+  focus_guard.py status                   # focus and metered on/off, registered jobs, which are stopped
+  focus_guard.py register <name> <pid> [--owner <session>] [--kind big-transfer]
   focus_guard.py unregister <name>
       [--state-dir DIR] [--log FILE]      # default: state/ and logs/focus-guard.log in the agent hub
 
 Layout under the state dir: `focus-on` (flag, ISO timestamp), `pausable/<name>.json` (pid, command,
-started, owner), `focus-stopped.json` (the jobs this tool stopped: the only ones `off` resumes).
+started, owner, kind), `focus-stopped.json` (the jobs this tool stopped: the only ones `off` resumes).
+`metered on` writes `metered-on` and `metered-stopped.json` the same way. A job held by both a Focus and
+a metered pause is resumed only when the last of the two ends. Who runs `metered on|off`: an agent or
+Lodewijk, after `machine_check.py` reports the connection as metered; nothing detects it automatically.
 
 Safety
   * Only registered jobs are signalled; nothing else, ever. Only SIGSTOP and SIGCONT; nothing that ends a process.
@@ -37,6 +42,7 @@ DEFAULT_STATE = pathlib.Path.home() / "agent" / "state"
 DEFAULT_LOG = pathlib.Path.home() / "agent" / "logs" / "focus-guard.log"
 PS_TIMEOUT = 10.0
 FORBIDDEN = "claude"  # case-insensitive substring of the command
+METERED_KIND = "big-transfer"
 
 
 def now():
@@ -44,12 +50,27 @@ def now():
 
 
 class Guard:
-    def __init__(self, state_dir, log):
+    def __init__(self, state_dir, log, reason="focus"):
+        self.state_dir, self.log_arg = state_dir, log
+        self.reason = reason
         self.state = pathlib.Path(state_dir)
         self.log_path = pathlib.Path(log)
-        self.flag = self.state / "focus-on"
+        self.flag = self.state / f"{reason}-on"
         self.pausable = self.state / "pausable"
-        self.stopped_file = self.state / "focus-stopped.json"
+        self.stopped_file = self.state / f"{reason}-stopped.json"
+
+    def sibling(self):
+        return Guard(self.state_dir, self.log_arg, "metered" if self.reason == "focus" else "focus")
+
+    def selects(self, job):
+        """Focus pauses every registered job; a metered connection only the big transfers."""
+        return self.reason == "focus" or job.get("kind") == METERED_KIND
+
+    def held_by_sibling(self, name, rec):
+        """True if the other reason is still on and stopped this same process."""
+        sib = self.sibling()
+        held = sib.load_stopped().get(name)
+        return sib.flag.exists() and bool(held) and held.get("pid") == rec["pid"]
 
     # -- helpers -------------------------------------------------------------------------
     def log(self, msg):
@@ -129,7 +150,7 @@ class Guard:
         return live
 
     # -- commands ------------------------------------------------------------------------
-    def register(self, name, pid, owner):
+    def register(self, name, pid, owner, kind=""):
         if not name or "/" in name or name.startswith("."):
             return self.fail(f"bad job name {name!r}")
         command = self.command_of(pid)
@@ -139,7 +160,7 @@ class Guard:
             self.log(f"refuse register {name} pid {pid}: command contains {FORBIDDEN!r}")
             return self.fail(f"refusing to register pid {pid}: its command contains {FORBIDDEN!r}")
         self.pausable.mkdir(parents=True, exist_ok=True)
-        rec = {"pid": pid, "command": command, "started": now(), "owner": owner}
+        rec = {"pid": pid, "command": command, "started": now(), "owner": owner, "kind": kind}
         (self.pausable / f"{name}.json").write_text(json.dumps(rec, indent=2) + "\n")
         self.log(f"register {name} pid {pid}")
         self.prune()
@@ -150,11 +171,12 @@ class Guard:
         p = self.pausable / f"{name}.json"
         existed = p.exists()
         p.unlink(missing_ok=True)
-        stopped = self.load_stopped()
-        if name in stopped:
-            # Do not orphan a job we stopped: resume it, then forget it.
-            self.resume(name, stopped.pop(name))
-            self.save_stopped(stopped)
+        for g in (self, self.sibling()):
+            stopped = g.load_stopped()
+            if name in stopped:
+                # Do not orphan a job we stopped: resume it, then forget it.
+                g.resume(name, stopped.pop(name), force=True)
+                g.save_stopped(stopped)
         self.log(f"unregister {name}" + ("" if existed else " (was not registered)"))
         self.prune()
         print(f"unregistered {name}" if existed else f"{name} was not registered")
@@ -164,13 +186,15 @@ class Guard:
         self.state.mkdir(parents=True, exist_ok=True)
         if not self.flag.exists():
             self.flag.write_text(now() + "\n")
-            self.log("focus on: flag created")
+            self.log(f"{self.reason} on: flag created")
         else:
-            self.log("focus on: flag already present")
+            self.log(f"{self.reason} on: flag already present")
         stopped = self.load_stopped()
         for name, job in self.prune().items():
             if FORBIDDEN in job["command"].lower():
                 self.log(f"skip {name} pid {job['pid']}: command contains {FORBIDDEN!r}")
+                continue
+            if not self.selects(job):
                 continue
             if name in stopped:
                 continue  # already stopped by us
@@ -183,10 +207,13 @@ class Guard:
             self.log(f"SIGSTOP {name} pid {job['pid']}")
             self.save_stopped(stopped)
         self.save_stopped(stopped)
-        print(f"focus on: {len(stopped)} job(s) stopped")
+        print(f"{self.reason} on: {len(stopped)} job(s) stopped")
         return 0
 
-    def resume(self, name, rec):
+    def resume(self, name, rec, force=False):
+        if not force and self.held_by_sibling(name, rec):
+            self.log(f"keep {name} pid {rec['pid']} stopped: {self.sibling().reason} is still on")
+            return False
         if self.command_of(rec["pid"]) != rec["command"]:
             self.log(f"skip resume {name} pid {rec['pid']}: gone or pid reused")
             return False
@@ -201,25 +228,28 @@ class Guard:
     def off(self):
         if self.flag.exists():
             self.flag.unlink()
-            self.log("focus off: flag removed")
+            self.log(f"{self.reason} off: flag removed")
         else:
-            self.log("focus off: flag already absent")
+            self.log(f"{self.reason} off: flag already absent")
         stopped = self.load_stopped()
         resumed = sum(1 for name, rec in stopped.items() if self.resume(name, rec))
         self.save_stopped({})
         self.prune()
-        print(f"focus off: {resumed} job(s) resumed")
+        print(f"{self.reason} off: {resumed} job(s) resumed")
         return 0
 
     def status(self):
         jobs = self.prune()
-        stopped = self.load_stopped()
-        print("focus: " + ("ON since " + self.flag.read_text().strip() if self.flag.exists() else "off"))
+        sib = self.sibling()
+        stopped = {**sib.load_stopped(), **self.load_stopped()}
+        for g in (self, sib):
+            print(f"{g.reason}: " + ("ON since " + g.flag.read_text().strip() if g.flag.exists() else "off"))
         if not jobs:
             print("no registered jobs")
         for name, job in jobs.items():
             st = "STOPPED" if name in stopped else "running"
-            print(f"  {name}\tpid {job['pid']}\t{st}\towner={job.get('owner') or '-'}\t{job['command'][:60]}")
+            kind = job.get("kind") or "-"
+            print(f"  {name}\tpid {job['pid']}\t{st}\towner={job.get('owner') or '-'}\tkind={kind}\t{job['command'][:60]}")
         return 0
 
     @staticmethod
@@ -236,16 +266,21 @@ def main(argv=None):
     sub.add_parser("on")
     sub.add_parser("off")
     sub.add_parser("status")
+    m = sub.add_parser("metered")
+    m.add_argument("state", choices=["on", "off"])
     r = sub.add_parser("register")
     r.add_argument("name")
     r.add_argument("pid", type=int)
     r.add_argument("--owner", default="")
+    r.add_argument("--kind", default="", choices=["", METERED_KIND])
     u = sub.add_parser("unregister")
     u.add_argument("name")
     a = ap.parse_args(argv)
-    g = Guard(a.state_dir, a.log)
+    g = Guard(a.state_dir, a.log, "metered" if a.cmd == "metered" else "focus")
+    if a.cmd == "metered":
+        return getattr(g, a.state)()
     if a.cmd == "register":
-        return g.register(a.name, a.pid, a.owner)
+        return g.register(a.name, a.pid, a.owner, a.kind)
     if a.cmd == "unregister":
         return g.unregister(a.name)
     return getattr(g, a.cmd)()

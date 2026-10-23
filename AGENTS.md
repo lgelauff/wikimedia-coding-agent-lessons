@@ -112,6 +112,7 @@ python3 -m unittest agent-tooling.scripts.tests.test_audit_skills \
                     agent-tooling.scripts.tests.test_check_public_text \
                     agent-tooling.scripts.tests.test_pre_archive_check \
                     agent-tooling.scripts.tests.test_focus_guard \
+                    agent-tooling.scripts.tests.test_machine_check \
                     agent-tooling.policies.tests.test_webfetch_mandated
 ```
 
