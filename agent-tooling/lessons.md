@@ -715,3 +715,14 @@ failed safely, but the run had to be restarted by hand.
 
 **Rule:** chain jobs from the bastion (a launcher script run by the operator) or through the jobs
 API, never from inside a job. Rehearse the launcher itself, not only the steps.
+
+## A session scratchpad is not durable: commit any script whose number you record
+
+Reported by a data-project director, 2026-10-24 [confirmed by that session]. Eleven analysis
+scripts written in a session's scratchpad were wiped when the session restarted. Only the numbers
+transcribed from them survived, including the evidence behind a rewritten validation gate.
+
+**Rule:** the moment a number enters a finding, a registry row, a spec or a correction, the
+script that produced it is committed to the project's `scripts/` (or the analysis folder),
+together with its input checksums. The scratchpad is for throwaway work only. A number whose
+producing script is gone is unverified, however carefully it was copied.
