@@ -62,6 +62,12 @@ connector row, or "none published" if there are none. A generous published limit
 callers is itself evidence that automated traffic is expected (DataCite: 500 requests per 5
 minutes unidentified); a very low one sets the policy.
 
+**Retries count against the budget (Lodewijk, 2026-10-24).** Every daily cap and request
+budget in a connector row counts *all* requests a job sends, including retries, backoff
+re-sends and the re-run of a chunk after a kill. Size a job's cap for the expected re-runs, and
+let a resumed job skip chunks whose checksummed done marker exists, so a kill does not re-spend
+the budget.
+
 **"Reasonable use" without numbers: low default cap, raised by relevance (Lodewijk, 2026-10-19).**
 When the provider's terms ask for reasonable, non-excessive or small-scale use but publish no
 daily limit (GovData.de "übermäßige oder unzumutbare Belastung", World Bank "reasonable request

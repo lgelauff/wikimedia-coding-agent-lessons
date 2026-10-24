@@ -78,6 +78,10 @@ Everything below applies to all three.
   at a time per host (~1 req/s), honour `Retry-After` with exponential backoff on `429`/`503`,
   `Accept-Encoding: gzip`. Authenticate only to raise limits, never to unlock a write path;
   read tokens from the environment and degrade to unauthenticated rather than fail.
+- **Retries spend the same budget.** A connector row's daily cap or request budget counts every
+  request sent, retries and re-runs after a kill included. Long jobs are chunked with
+  checksummed done markers, so a resumed run skips finished chunks instead of re-fetching them
+  (Lodewijk, 2026-10-24).
 - **Get the artifact, not the announcement.** Prefer the canonical, versioned path the record
   points to (e.g. an FRBR/XML manifestation) over the front-end, which can 504. Structured
   XML/JSON over HTML; `pdftotext` for PDFs (skip binary-only scans → OCR). Follow an
