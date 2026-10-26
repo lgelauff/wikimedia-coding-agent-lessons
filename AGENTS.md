@@ -108,6 +108,7 @@ python3 -m unittest agent-tooling.scripts.tests.test_audit_skills \
                     agent-tooling.scripts.tests.test_transfer \
                     agent-tooling.scripts.tests.test_coordinator_takeover \
                     agent-tooling.scripts.tests.test_handoff \
+                    agent-tooling.scripts.tests.test_data_locations_check \
                     agent-tooling.policies.tests.test_webfetch_mandated
 ```
 
