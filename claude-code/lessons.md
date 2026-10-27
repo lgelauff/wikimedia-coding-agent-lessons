@@ -1015,3 +1015,24 @@ data. Each time an empty match came out as zeros, and the zeros passed every dow
 - A check that cannot fail on an empty input is not a check. Test it once on an empty arm.
 
 See also "Zero of N in your own extract is not absent from the source", above.
+
+## An equality check passes on two empty or two stale outputs
+
+Observed 2026-10-26 [confirmed], while gating a new streaming merge against the old merge. The check was
+`cmp old.tsv new.tsv && echo IDENTICAL`. It printed IDENTICAL twice when the new code had produced nothing:
+
+1. **The command never ran.** It was stored in a variable (`PY="python3 -I merge.py --base …"; $PY --merge …`). The
+   Bash tool's shell here is zsh, which does not word-split an unquoted parameter. It looked for a program named by
+   the whole string and failed. Both outputs were empty files, and empty equals empty.
+2. **The new mode refused.** It exited 1 by design, left the old mode's output file in place under the shared name,
+   and the comparison read that file twice.
+
+**Rules:**
+- A comparison counts only if:
+  - each side's command exited 0;
+  - each side meets a minimum size (lines, rows or a total);
+  - the new side was written by this run (its own path, or a sidecar or mtime from this run).
+- Give each side its own output path. Never compare two runs that write to the same file name.
+- In zsh, put a reusable command in a function (`py() { python3 … "$@"; }`), not in a string variable.
+
+Same family as "Zero of N" above: a pass that only means nothing happened.
