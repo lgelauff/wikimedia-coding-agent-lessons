@@ -1015,3 +1015,71 @@ data. Each time an empty match came out as zeros, and the zeros passed every dow
 - A check that cannot fail on an empty input is not a check. Test it once on an empty arm.
 
 See also "Zero of N in your own extract is not absent from the source", above.
+
+## An equality check passes on two empty or two stale outputs
+
+Observed 2026-10-26 [confirmed], while gating a new streaming merge against the old merge. The check was
+`cmp old.tsv new.tsv && echo IDENTICAL`. It printed IDENTICAL twice when the new code had produced nothing:
+
+1. **The command never ran.** It was stored in a variable (`PY="python3 -I merge.py --base …"; $PY --merge …`). The
+   Bash tool's shell here is zsh, which does not word-split an unquoted parameter. It looked for a program named by
+   the whole string and failed. Both outputs were empty files, and empty equals empty.
+2. **The new mode refused.** It exited 1 by design, left the old mode's output file in place under the shared name,
+   and the comparison read that file twice.
+
+**Rules:**
+- A comparison counts only if:
+  - each side's command exited 0;
+  - each side meets a minimum size (lines, rows or a total);
+  - the new side was written by this run (its own path, or a sidecar or mtime from this run).
+- Give each side its own output path. Never compare two runs that write to the same file name.
+- In zsh, put a reusable command in a function (`py() { python3 … "$@"; }`), not in a string variable.
+
+Same family as "Zero of N" above: a pass that only means nothing happened.
+
+## A checker that shares the scanner's matching rule shares its blind spots
+
+Observed 2026-10-27 [confirmed by the scanner's owner, against the code]. A multi-wiki pageview scan kept
+only article-namespace rows. It lowercased each title's prefix byte by byte (ASCII only), but compared it
+against a namespace list lowercased as Unicode. A capitalised non-Latin prefix such as Russian `Категория:`
+therefore never matched and was counted as an article: 2.6–3.4% of Russian and 6.7–12.1% of Ukrainian desktop
+views. The independent recount passed every edition with 0 mismatches, because it reused the same
+prefix-matching rule. The checker had earlier been made independent of the scanner's namespace *list*; the
+*matching code* stayed shared.
+
+**Rules:**
+- A two-sided check is independent only if the two sides share neither the data (lists, tables) nor the
+  logic that applies them (normalisation, case folding, parsing). Name both when calling a checker
+  independent.
+- Seed the self-test with a known positive from every script and case class the run covers: a capitalised
+  Cyrillic, Greek or CJK namespace prefix, not only Latin ones. A control that only covers the editions you
+  read easily misses the rest.
+- Case folding and comparison must use the same function on both sides (`str.casefold()` on decoded text),
+  never `bytes.lower()` on one side and `str.lower()` on the other.
+
+Same family as "An equality check passes on two empty or two stale outputs": a pass that measured less than
+it claimed.
+
+## A dry run made by deleting the dangerous lines deletes only the ones you remembered
+
+Observed 2026-10-27 [confirmed, self-reported by the session]. To dry-run an upload script, a session ran a
+copy of it with the `ssh` lines filtered out. The filter missed the `rsync` line, which also talks to the
+remote host, so about 93 MB went to the shared server without the user's go-ahead. Nothing was launched,
+and the real upload later overwrote and hash-checked the files, but the rule "nothing goes to the server
+without the user's paste" was broken.
+
+What to learn: removing side effects by name is a denylist, and a denylist is only as complete as your
+memory of the script. Any other line that touches a remote host, writes outside a scratch folder or
+deletes something still runs.
+
+**What to do instead:**
+- **Don't execute to inspect.** For "what would this do", read it and run `bash -n` (syntax only), or
+  print the expanded commands. That answers the question without running anything.
+- **If it must run, build the dry run into the script.** Route every side effect (ssh, scp, rsync, tar
+  to a host, `toolforge`, `rm`, `mv`) through one function such as `act() { if [ -n "${DRY:-}" ]; then
+  echo "WOULD: $*"; else "$@"; fi; }`. Then `DRY=1` covers every line, including ones added later.
+- **Point the target somewhere harmless.** Take the remote host and path from variables (`HOST`, `DEST`)
+  and, in a rehearsal, set them to a local scratch folder. A line you missed then writes to your
+  scratch folder, not to the server.
+- **When it goes wrong anyway, say so at once** to the owner and the user, with what was written where.
+  That is what kept this one cheap.
