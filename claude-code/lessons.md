@@ -990,3 +990,26 @@ Observed 2026-10-26 [confirmed], while gating a new streaming merge against the 
 - In zsh, put a reusable command in a function (`py() { python3 … "$@"; }`), not in a string variable.
 
 Same family as "Zero of N" above: a pass that only means nothing happened.
+
+## A checker that shares the scanner's matching rule shares its blind spots
+
+Observed 2026-10-27 [confirmed by the scanner's owner, against the code]. A multi-wiki pageview scan kept
+only article-namespace rows. It lowercased each title's prefix byte by byte (ASCII only), but compared it
+against a namespace list lowercased as Unicode. A capitalised non-Latin prefix such as Russian `Категория:`
+therefore never matched and was counted as an article: 2.6–3.4% of Russian and 6.7–12.1% of Ukrainian desktop
+views. The independent recount passed every edition with 0 mismatches, because it reused the same
+prefix-matching rule. The checker had earlier been made independent of the scanner's namespace *list*; the
+*matching code* stayed shared.
+
+**Rules:**
+- A two-sided check is independent only if the two sides share neither the data (lists, tables) nor the
+  logic that applies them (normalisation, case folding, parsing). Name both when calling a checker
+  independent.
+- Seed the self-test with a known positive from every script and case class the run covers: a capitalised
+  Cyrillic, Greek or CJK namespace prefix, not only Latin ones. A control that only covers the editions you
+  read easily misses the rest.
+- Case folding and comparison must use the same function on both sides (`str.casefold()` on decoded text),
+  never `bytes.lower()` on one side and `str.lower()` on the other.
+
+Same family as "An equality check passes on two empty or two stale outputs": a pass that measured less than
+it claimed.
