@@ -1059,3 +1059,27 @@ prefix-matching rule. The checker had earlier been made independent of the scann
 
 Same family as "An equality check passes on two empty or two stale outputs": a pass that measured less than
 it claimed.
+
+## A dry run made by deleting the dangerous lines deletes only the ones you remembered
+
+Observed 2026-10-27 [confirmed, self-reported by the session]. To dry-run an upload script, a session ran a
+copy of it with the `ssh` lines filtered out. The filter missed the `rsync` line, which also talks to the
+remote host, so about 93 MB went to the shared server without the user's go-ahead. Nothing was launched,
+and the real upload later overwrote and hash-checked the files, but the rule "nothing goes to the server
+without the user's paste" was broken.
+
+What to learn: removing side effects by name is a denylist, and a denylist is only as complete as your
+memory of the script. Any other line that touches a remote host, writes outside a scratch folder or
+deletes something still runs.
+
+**What to do instead:**
+- **Don't execute to inspect.** For "what would this do", read it and run `bash -n` (syntax only), or
+  print the expanded commands. That answers the question without running anything.
+- **If it must run, build the dry run into the script.** Route every side effect (ssh, scp, rsync, tar
+  to a host, `toolforge`, `rm`, `mv`) through one function such as `act() { if [ -n "${DRY:-}" ]; then
+  echo "WOULD: $*"; else "$@"; fi; }`. Then `DRY=1` covers every line, including ones added later.
+- **Point the target somewhere harmless.** Take the remote host and path from variables (`HOST`, `DEST`)
+  and, in a rehearsal, set them to a local scratch folder. A line you missed then writes to your
+  scratch folder, not to the server.
+- **When it goes wrong anyway, say so at once** to the owner and the user, with what was written where.
+  That is what kept this one cheap.
