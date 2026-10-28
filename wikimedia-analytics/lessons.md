@@ -135,6 +135,22 @@ answers "tell me about item X". So parsing them well is worth doing once, proper
   file** on another, and reported zero errors, because every line it saw was well-formed — there was
   one. **Anything verified on a single project is verified on a sample of one**, so re-verify per
   wiki and per run rather than treating it as settled.
+- **Layout also changes over time on the same wiki, between consecutive monthly runs.** Observed
+  2026-10-28 [confirmed]: enwiki `redirect`, `page`, `linktarget` and `pagelinks` were one `INSERT`
+  per line in 20260801 and `INSERT … VALUES` alone, then one tuple per line, in 20260901. eswiki and
+  hiwiki were still one-line in 20260901. A preflight that had passed on 0701 and 0801 stopped on
+  0901. The rule above was already written down, yet an audit found four readers in live job packets
+  that parsed by line. A lesson in a file did not stop new code from repeating the bug, so make it a
+  check:
+  - **One shared reader.** Every job imports the same tuple scanner. A job packet that brings its own
+    SQL parser is held at admission until it uses the shared one. Helpers that look at single lines
+    (`parse_tuple_line`) count as their own parser.
+  - **A row-count floor, in both directions.** Pin the expected rows per table from the previous run
+    (or `dumpstatus.json`) and fail on far fewer *or* far more. A line reader on the other layout
+    returns either 0 rows or one row per `INSERT`. The second looks like success, so an `rows: None`
+    expectation is not a check.
+  - **Record the layout with the input.** Next to path, size and sha1, write which layout each table
+    had, so a later change is visible in the run record instead of in the results.
 - **Find the statement end by tracking quotes, not with `find(";")`.** Page titles legally contain
   semicolons, so `AT&T;_Inc` ends the statement early and everything after it is skipped.
 - **Assert chunk-invariance in a committed test — on the row count *and* a content digest.** Parse
