@@ -1015,3 +1015,68 @@ data. Each time an empty match came out as zeros, and the zeros passed every dow
 - A check that cannot fail on an empty input is not a check. Test it once on an empty arm.
 
 See also "Zero of N in your own extract is not absent from the source", above.
+
+## A `[confirmed]` label can't catch a scope error
+
+Observed 2026-10-27/28 [confirmed]. In one session an agent made three false claims, each built on an
+honest observation that covered less than the claim did:
+- `grep -r` over its worktree found nothing, and it wrote that a deletion record "appears nowhere in the
+  repo". Its branch had forked before the commit that added the record.
+- Two data folders had mtimes of 2026-10-25, and it wrote that both were "pulled 2026-10-25
+  `[confirmed, file mtimes]`". That date was a rebuild date; the artifact's own metadata gave a
+  source date a month earlier, and one of the folders didn't belong in the claim at all.
+- It handed over a check whose log glob could never match the job's file names. The empty result read
+  as a failed run, not a failed check.
+
+A fourth case from the same week, by another agent: a data-location record listed copies as verified
+because `du -sb` sizes matched. A size match is not a byte check, so the copies were counted as safe.
+
+The label made these worse. `[confirmed]` certified the part that was checked and lent that to the
+part that wasn't, and it read as more rigorous than an unlabelled sentence. A reader can't see where
+the observation stops and the inference starts, and that boundary is what they need.
+
+**Rules:**
+- `[confirmed]` names what was observed *and what it was observed over* (this worktree, this folder,
+  this sample). A claim wider than that is `[concluded]`, however direct the observation felt.
+- A search over one worktree, branch or folder says nothing about the repo. Before claiming a record is
+  absent, check the default branch: `git show origin/main:<path>` or `git log origin/main -- <path>`.
+- A collection or pull date comes from the artifact's own provenance record (name which one), never from
+  a filesystem timestamp.
+- A check that finds nothing is not a finding until it has been shown to find a known positive. Run
+  it once on something that should match before handing it over.
+- "Verified" means the method can detect a changed byte (checksum, `cmp`, `diff`). A size or count
+  match is a size check; record it as that.
+
+Same family as "Zero of N in your own extract is not absent from the source" above.
+
+## In dictated input, "Haiku" and "Hague" are the same word
+
+Observed 2026-10-28 [confirmed: the user, "haiku is just a mistranscription of hague"]. The user
+dictates most messages. "Hague" is the name of their remote compute host; speech-to-text wrote it as
+"Haiku", which is also a Claude model. In one day this led one session to plan "Haiku subagents only"
+for a job meant to run on the host, and to write that into a memory note, which then had to be
+withdrawn. A second session guessed the other way and happened to be right.
+
+Both readings are plausible, and they decide different things: one picks the model and its cost, the
+other picks the machine, its disk and who must start the job. Neither reading looks like an error.
+
+**Rule:** when "Haiku" or "Hague" in dictated input would decide which model runs or where a job
+runs, restate the reading in one line and get a yes before acting. The same holds for any project or
+host name that is also a common word or a product name.
+
+## A corroborating number must come from its own computation
+
+Observed 2026-10-28 [confirmed: reported by the owning session; the worker's own retraction is commit
+c35eb566 in the analysis repo]. A worker session presented +0.016 as derived "independently" by its own
+route. The figure was the owner's (0.048 − 0.032) restated; the independent route gave +0.009. The
+worker caught and retracted this itself. In the same exchange it reported two "discrepancies" with the
+owner's numbers. Both came from its own centring choice, which it had not checked first.
+
+A restated number looks like agreement, and a definitional difference looks like a disagreement. Both
+mislead in the same way: the reader can't see which arithmetic produced which figure.
+
+**Rules:**
+- Before claiming two routes converge, show the arithmetic of each route, from its own inputs. A number
+  taken from the other side is not a second route.
+- Before reporting a disagreement as unresolved, re-run your own method under the other side's
+  definitions (centring, denominators, filters). Report what remains after that.
