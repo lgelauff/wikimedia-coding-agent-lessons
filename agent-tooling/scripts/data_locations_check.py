@@ -13,6 +13,7 @@ Rules (Lodewijk 2026-10-26, see the README next to the TSV):
 import argparse
 import csv
 import os
+import re
 import sys
 from datetime import date, datetime
 
@@ -23,9 +24,11 @@ LOCATIONS = {"mac", "drive", "hague", "hf-private", "toolforge", "github", "othe
 CLASSES = {"paper-output", "irreplaceable", "input", "derived", "cache", "pii"}
 STATUSES = {"present", "moving", "removed"}
 NEEDS_TWO = {"paper-output", "irreplaceable", "pii"}
-DRIVE_ROOT = "/Volumes/Data storage"
+DRIVE_ROOT = "/Volumes/Research"
 STALE_DAYS = 30
 MOVING_DAYS = 2
+# verified_at means a byte-level check (P017: size checks were once recorded as verification).
+BYTE_CHECK = re.compile(r"sha\d*sum|shasum|md5|b3sum|rsync\s+[^;]*--checksum|lfs|\bdiff\b|\bcmp\b", re.I)
 DEFAULT_TSV = os.path.expanduser("~/agent/notes/data-locations/DATA-LOCATIONS.tsv")
 
 
@@ -33,9 +36,13 @@ def parse_date(text):
     return datetime.strptime(text[:10], "%Y-%m-%d").date()
 
 
+def byte_checked(row):
+    return bool(row["verified_at"]) and bool(BYTE_CHECK.search(row["verified_how"]))
+
+
 def counts(row):
-    """A copy counts: present, verified, and (toolforge) on the keep register."""
-    if row["status"] != "present" or not row["verified_at"]:
+    """A copy counts: present, verified byte-level, and (toolforge) on the keep register."""
+    if row["status"] != "present" or not byte_checked(row):
         return False
     if row["location"] == "toolforge" and row["keep_register"] != "yes":
         return False
@@ -70,6 +77,10 @@ def check(rows, today, check_fs=True):
             errors.append("%s: %s" % (where, "; ".join(bad)))
             continue
         by_id.setdefault(row["dataset_id"], []).append(row)
+        if row["verified_at"] and not byte_checked(row):
+            errors.append("%s: verified_at set but verified_how names no byte-level check "
+                          "(sha256sum -c, shasum -c, md5, rsync --checksum, lfs, diff, cmp): %r; "
+                          "a size check is not verification, does not count" % (where, row["verified_how"]))
 
         if row["status"] == "present" and check_fs and row["location"] in ("mac", "drive"):
             if not os.path.exists(row["path"]):

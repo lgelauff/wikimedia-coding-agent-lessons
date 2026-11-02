@@ -21,7 +21,7 @@ TODAY = date(2026, 10, 26)
 def row(**kw):
     base = {c: "" for c in dlc.COLUMNS}
     base.update(dataset_id="p/ds", project="p", owner="X", what="w", **{"class": "input"},
-                location="hague", path="/x", bytes="100", verified_at="2026-10-20",
+                location="hague", path="/x", bytes="100", verified_at="2026-10-20", verified_how="sha256sum -c 3/3 OK",
                 status="present", updated_at="2026-10-26 10:00", rebuild="none")
     base.update(kw)
     return base
@@ -59,6 +59,21 @@ class Rules(unittest.TestCase):
     def test_paper_output_single_copy_is_error(self):
         e, _ = run([row(**{"class": "paper-output"})])
         self.assertTrue(any("needs two counting copies" in x for x in e))
+
+    def test_size_check_is_not_verification(self):
+        # P017: du -sb was recorded as verification and made copies count.
+        for how in ("du -sb", "ls -la pasted", "docker system df", ""):
+            e, _ = run([row(verified_how=how), row(location="hf-private")])
+            self.assertEqual(len([x for x in e if "no byte-level check" in x]), 1, how)
+        # and such a copy does not count: alone it leaves the dataset with no counting copy
+        e, _ = run([row(verified_how="du -sb")])
+        self.assertTrue(any("p/ds: no counting copy" in x for x in e))
+
+    def test_byte_checks_accepted(self):
+        for how in ("sha256sum -c 4/4 OK", "shasum -a 1 -c 13/13 OK", "md5 vs FILES.tsv 7/7 OK",
+                    "rsync -a --checksum dry run clean", "hub lfs.sha256", "diff -rq vs source", "cmp OK"):
+            e, w = run([row(verified_how=how), row(location="hf-private")])
+            self.assertEqual(e, [], how)
 
     def test_unverified_copy_does_not_count(self):
         e, w = run([row(verified_at="")])
