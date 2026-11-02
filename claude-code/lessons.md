@@ -949,6 +949,29 @@ director's watch list.
 **Rule:** every folder or file where agents leave messages has a named reader that checks it.
 If no one watches it, it is storage, not a channel.
 
+## Incident triage: find who killed it before proposing a fix
+
+Observed in a production post-mortem, 2026-09-28 [confirmed]. A live session's server went down. The
+app's scheduler log showed it terminating a *different* instance at the same moment. The agent took
+that log as the explanation and proposed a code guard ("never terminate an instance with active
+rooms"). Asking which room was affected showed it was on an instance the scheduler never touched.
+The cloud provider's scaling history then showed the real cause: AWS rebalancing (see
+`aws/lessons.md`). The proposed guard would not have prevented the outage.
+
+**Rule:** before proposing any fix, establish three things from primary evidence: *which* resource
+failed, *when* (its last log line), and *who or what acted on it* (the provider's own record, not the
+app's log of what it asked for). An app's log shows its own actions, not everything that happened.
+
+## Reproduce an access-control finding before filing it
+
+Observed 2026-09-28 [confirmed]. Reading one route's permission check suggested a broad privilege gap.
+A throwaway Playwright spec against a test server showed that an earlier middleware already blocked most
+of those cases, and the real gap was much narrower. The user was rightly sceptical of the first claim.
+
+**Rule:** reading a guard tells you what *that* check allows. The whole middleware chain decides what
+gets through. Run the request before stating the scope, and report the cases that were blocked
+alongside the one that got through.
+
 ## "Zero of N" in your own extract is not "absent from the source"
 
 Observed 2026-10-11/17 [confirmed]. A census found 0 of 2,879 existing Commons files with a double
@@ -969,3 +992,26 @@ and made the raw check a precondition for filing, which is what stopped a wrong 
   give the fallback command up front.
 
 See `wikimedia-analytics/lessons.md` ("Dump first fields…").
+
+## A join that matches nothing looks like data: make every join count its misses
+
+Observed 2026-10-09 to 2026-10-18 [confirmed], four times in one research pipeline over Wikimedia
+data. Each time an empty match came out as zeros, and the zeros passed every downstream check:
+
+- A control arm whose key join returned nothing became all zeros. After subtracting day effects it
+  still passed a `min(sd) > 0` check, and a partial correlation of +0.82 over 5,243 articles was
+  reported against an empty control.
+- 239 titles vanished because their Action API batch went past the URL limit (`wikimedia/lessons.md`).
+- About 0.8% of file names were percent-encoded in one producer's output and decoded in the other's,
+  and those names joined to zeros.
+- Dump names with CSV quoting, and names re-keyed by a default CSV reader, never matched
+  (`wikimedia-analytics/lessons.md`, "Dump first fields…").
+
+**Rules:**
+- Every key join reports rows asked, matched and missed, per arm, and the run fails when an arm has no
+  matches at all.
+- Normalise any key that can contain a quote, backslash or `%` at one documented boundary, before
+  the first join, not inside each consumer.
+- A check that cannot fail on an empty input is not a check. Test it once on an empty arm.
+
+See also "Zero of N in your own extract is not absent from the source", above.

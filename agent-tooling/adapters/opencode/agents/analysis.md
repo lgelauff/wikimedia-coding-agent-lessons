@@ -67,8 +67,10 @@ A number without a vintage is not reproducible.
 
 ## Non-negotiables
 
-- **`webfetch` is denied to you.** All fetching goes through `source_fetch`, which records
-  provenance and honours rate limits. `webfetch` bypasses all of it.
+- **`webfetch` is denied to you.** You never fetch interactively. Either delegate the
+  retrieval to the `sources` harness, or fetch inside a script you write (`fetch_*.py`)
+  against a connector declared by the `source-connectors` skill — so the retrieval is
+  logged and re-runnable.
 - **Never state a number you have not computed.** "I don't know" and "unverified" are
   preferred outputs. A confident guess in a manuscript is the worst failure mode this
   harness exists to prevent.

@@ -173,6 +173,52 @@ class TestValidate(unittest.TestCase):
             registry = {"services": [svc]}
             self.assertTrue(any("verified" in x for x in M.validate(registry, root)))
 
+    def test_calendar_invalid_verified_flagged(self):
+        """`2026-13` and `2026-02-30` match the shape but are not dates (review
+        should-fix). A verification stamp that is not a day must not read as verified."""
+        with tempfile.TemporaryDirectory() as td:
+            root = self._repo(td)
+            for bad in ("2026-13", "2026-00", "2026-02-30", "2026-04-31"):
+                svc = connector_service("a", "api.openalex.org")
+                svc["verified"] = bad
+                self.assertTrue(any("real" in x and "verified" in x
+                                    for x in M.validate({"services": [svc]}, root)),
+                                f"{bad} should be rejected")
+
+    def test_calendar_valid_verified_accepted(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = self._repo(td)
+            for good in ("2026-02", "2026-02-28", "2024-02-29"):
+                svc = connector_service("a", "api.openalex.org")
+                svc["verified"] = good
+                self.assertEqual(M.validate({"services": [svc]}, root), [],
+                                 f"{good} should be accepted")
+
+    def test_suffix_vs_suffix_overlap_flagged(self):
+        """`.api.example.org` and `.example.org` both match the same request under
+        different owners — ownership is undefined (review should-fix)."""
+        with tempfile.TemporaryDirectory() as td:
+            root = self._repo(td)
+            a = connector_service("a", "alpha.net")
+            a["host_suffixes"] = [".api.example.org"]
+            b = connector_service("b", "beta.net")
+            b["host_suffixes"] = [".example.org"]
+            problems = M.validate({"services": [a, b]}, root)
+            self.assertTrue(any("suffix `.api.example.org`" in x and "covered by suffix" in x
+                                for x in problems), problems)
+
+    def test_nested_suffixes_on_one_service_allowed(self):
+        """One service may own both `.example.org` and `.api.example.org` — no ambiguity."""
+        with tempfile.TemporaryDirectory() as td:
+            root = self._repo(td)
+            a = connector_service("a", "alpha.net")
+            a["host_suffixes"] = [".example.org", ".api.example.org"]
+            self.assertEqual(M.validate({"services": [a]}, root), [])
+
+    def test_real_registry_validates(self):
+        registry = M.load(M.DEFAULT_REGISTRY)
+        self.assertEqual(M.validate(registry, REPO_ROOT), [])
+
     def test_non_list_sources_is_a_problem_not_a_crash(self):
         with tempfile.TemporaryDirectory() as td:
             root = self._repo(td)

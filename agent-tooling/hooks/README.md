@@ -26,6 +26,13 @@ Claude Code hooks — the product-specific layer (PreToolUse/PostToolUse event i
 
 For **non-plugin** use (copying hooks into `~/.claude/hooks/` and wiring by hand), the same structure applies with literal paths instead of `${CLAUDE_PLUGIN_ROOT}`.
 
-`pre-commit` is a **git** hook, not a Claude hook — it lives in `../git-hooks/`, goes in your repo's `.git/hooks/` (or a global `core.hooksPath`), and needs `detect-secrets` (`pipx install detect-secrets`).
+`pre-commit` and `pre-push` are **git** hooks, not Claude hooks — they live in `../git-hooks/`. `pre-commit` needs `detect-secrets`
+(`uv tool install detect-secrets`, or `pipx install detect-secrets` where pipx is present); `pre-push` runs the drift guards
+(`check_registration.py`, `check_skill_vars.py`, `check_version_bump.py`). Enable both from inside this repo with
+`git config core.hooksPath agent-tooling/git-hooks`.
+To enable them for every repo, `--global` needs an **absolute** path — a relative one
+resolves against whichever repo you are in, so it is simply not found elsewhere. The
+absolute form is safe globally: `pre-push` resolves its guards from its own location
+and no-ops when the pushing repo is not this one.
 
 Secrets the hooks use (e.g. `MISTRAL_API_KEY` for the review path) come from your environment — set them in your shell profile, never in these files.

@@ -32,6 +32,7 @@ import argparse
 import json
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -96,6 +97,27 @@ def connector_hosts(registry: dict) -> set[str]:
 
 def _suffix_ok(suffix: str) -> bool:
     return bool(re.fullmatch(r"\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+", suffix))
+
+
+def _verified_ok(value: str) -> bool:
+    """A real calendar date, not just the shape of one.
+
+    `2026-13`, `2026-02-30`, and `2026-00` all match a YYYY-MM(-DD) regex but are not
+    dates; accepting them would let a typo pass as a verification stamp.
+    """
+    m = re.fullmatch(r"(\d{4})-(\d{2})(?:-(\d{2}))?", value)
+    if not m:
+        return False
+    year, month, day = int(m.group(1)), int(m.group(2)), m.group(3)
+    if not 1 <= month <= 12:
+        return False
+    if day is None:
+        return True
+    try:
+        date(year, month, int(day))
+    except ValueError:
+        return False
+    return True
 
 
 def validate(registry: dict, repo_root: Path) -> list[str]:
@@ -179,14 +201,22 @@ def validate(registry: dict, repo_root: Path) -> list[str]:
                 problems.append(f"{where}: source `{src}` does not exist")
 
         verified = str(svc.get("verified", ""))
-        if not re.fullmatch(r"\d{4}-\d{2}(-\d{2})?", verified):
-            problems.append(f"{where}: `verified` must be YYYY-MM or YYYY-MM-DD, got `{verified}`")
+        if not _verified_ok(verified):
+            problems.append(f"{where}: `verified` must be a real YYYY-MM or YYYY-MM-DD date, got `{verified}`")
 
     # An exact host covered by another entry's suffix is ambiguous: which entry owns it?
     for h, sid in exact.items():
         for s, owner in suffixes.items():
             if owner != sid and (h == s[1:] or h.endswith(s)):
                 problems.append(f"host `{h}` ({sid}) is also covered by suffix `{s}` ({owner})")
+
+    # A suffix covered by another entry's suffix is the same ambiguity one level up:
+    # `.api.example.org` (service A) and `.example.org` (service B) both match the same
+    # request, so ownership is undefined. Same-service nesting is deliberate and allowed.
+    for s, sid in suffixes.items():
+        for other, owner in suffixes.items():
+            if other != s and owner != sid and (s == other[1:] or s.endswith(other)):
+                problems.append(f"suffix `{s}` ({sid}) is also covered by suffix `{other}` ({owner})")
 
     return problems
 

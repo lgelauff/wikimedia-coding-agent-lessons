@@ -1,0 +1,21 @@
+{
+  "work_dir": "./work",
+  "user_agent": "slides-beside-video/0.1 (https://example.org/your-project; you@example.org)",
+  "whisper_cli": "whisper-cli",
+  "whisper_model": "./models/ggml-large-v3-turbo-q5_0.bin",
+  "deck_inventory": null,
+  "overrides_csv": "./overrides.csv",
+  "min_free_disk_gb": 12,
+  "clef": true,
+  "budget_file": null,
+  "budget": {
+    "download_bytes": null,
+    "api_calls": null,
+    "clef_calls": null
+  },
+  "qc": {
+    "out_dir": "./qc_out",
+    "download_cap_gb": 5,
+    "exclude": []
+  }
+}

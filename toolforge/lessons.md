@@ -34,6 +34,10 @@
 - **For editable installs, `deploy.sh` does not need a pip step** — `pip install -e .` creates a symlink; code changes are picked up automatically on restart. Only run pip again when `pyproject.toml` dependencies change.
 - **The uwsgi log is not inside `src/`** — it is typically at `/data/project/<tool>/uwsgi.log`, one level above the repo. If `logto = /dev/stdout` is set in `uwsgi.ini`, use `toolforge webservice logs` instead.
 - **No `sqlite3` CLI on Toolforge** — use Python: `python3 -c 'import sqlite3; c=sqlite3.connect("path/to/db"); ...'`
+- **`cffi` pinned to 1.16.x fails on Python 3.13** — cffi 1.16.0 has no pre-built wheel for 3.13, and its source build needs `libffi-dev` headers that Toolforge lacks. If `pip install -r requirements.txt` fails with `fatal error: ffi.h: No such file or directory`, bump `cffi` to `>=1.17.1`, which ships a 3.13 wheel.
+- **Use `--prefer-binary` when installing requirements** — `python3 -m pip install --prefer-binary -r requirements.txt` avoids source builds wherever a wheel exists.
+- **`No module named 'pip'` means the venv is broken** — rebuild it inside the webservice shell with `python3 -m venv ~/www/python/venv --clear --without-pip`, bootstrap pip with get-pip.py as above, then reinstall requirements.
+- **A `requirements.txt` compiled on an older Python can carry incompatible pins** — if its header says `pip-compile with Python 3.9` and you run 3.13, C extensions (cffi, cryptography) may need bumping. Regenerate with `pip-compile` on the target Python when possible.
 
 ## uWSGI
 
@@ -83,6 +87,23 @@
   - a process started after `become <tool>` is owned by the **tool user**, so from another session you must `become` again before you can `pkill -9 -f <script>`; and **bastions are host-local** — you can only kill it from the *same* `tools-bastion-NN`.
 - **Rule: on the bastion, only light commands** — `ls`, a quick `--inspect`/head of one file, and **job submission/monitoring**. Everything else → **`toolforge jobs run …`** (dedicated core, faster, and killable with `toolforge jobs delete <name>`). Even a 2-file "smoke test" belongs in a job. Symptom that you got this wrong: a `--test`/scan that runs >5 min on the bastion with no per-file progress output.
 - **`toolforge jobs run --wait` gives up after 600 s (10 min) but the JOB KEEPS RUNNING.** The timeout is on the client *wait*, not the job — you get `ERROR: timed out 600 seconds waiting for job '<name>' to complete` while `toolforge jobs list` still shows it `Running`. So `--wait` is only for jobs you're confident finish in <10 min. For anything longer, launch **detached** (omit `--wait`) and poll: `toolforge jobs list` + `tail -f` the redirected `> $D/<name>.out 2>&1` log. Don't re-run on the "timeout" — you'll start a second copy. (Redirect stdout/stderr to a file so a detached job's progress is readable; job logs otherwise need `toolforge jobs logs`.)
+
+## `--command`: a shell variable expands before your `bash -c` runs
+
+Observed 2026-10-11 [confirmed by a failed job: its log said `No such file or directory`; the
+mechanism below is concluded, not traced]. A job
+launched as
+
+```bash
+toolforge jobs run prep --image python3.13 --command 'bash -c "export D=/data/project/<tool>/run; cd $D && python3 prep.py"'
+```
+
+ran `cd` with an empty path. The job's own wrapper shell expands `$D` inside the double quotes before
+`bash -c` ever sees it, and at that point `D` is unset. The single quotes only protect the string
+from *your* shell.
+
+**Rule:** no shell variables inside `--command`. Spell out absolute paths, or put the steps in a
+script and pass the environment inline: `--command 'D=/data/project/<tool>/run bash /data/project/<tool>/run/prep.sh'`.
 
 ## Jobs: memory caps, sizing & multi-wiki runtime estimation
 
@@ -166,6 +187,13 @@ rsync -avP login.toolforge.org:/data/project/<tool>/run/ /abs/path/to/store/
 
 `rsync` is the better default for anything large or repeated: it resumes, it verifies, and re-running
 it after a dropped connection transfers only what is missing.
+
+**On macOS, `rsync` may be openrsync, and openrsync ignores the `/./` anchor in `rsync -R`.** Observed
+2026-10-11 [confirmed: `rsync --version` reported openrsync, protocol 29]. A transfer written as
+`rsync -avR /src/./data/x.tsv dest/` recreated the whole source path under `dest/` instead of only
+`data/x.tsv`. A checksum check against the expected paths caught it. Don't use `-R` with `/./` in
+commands meant to run on a Mac: create the target directories and name each destination, or install
+GNU rsync and call it by its full path.
 
 **Give the destination as an absolute path.** A relative destination resolves against whatever
 directory the terminal happens to be in, and a multi-gigabyte retrieval landing in the wrong repo is

@@ -61,6 +61,21 @@ published numbers, per tier (anonymous / identified / keyed), with the source an
 connector row, or "none published" if there are none. A generous published limit for anonymous
 callers is itself evidence that automated traffic is expected (DataCite: 500 requests per 5
 minutes unidentified); a very low one sets the policy.
+
+**Retries count against the budget (Lodewijk, 2026-10-24).** Every daily cap and request
+budget in a connector row counts *all* requests a job sends, including retries, backoff
+re-sends and the re-run of a chunk after a kill. Size a job's cap for the expected re-runs, and
+let a resumed job skip chunks whose checksummed done marker exists, so a kill does not re-spend
+the budget.
+
+**"Reasonable use" without numbers: low default cap, raised by relevance (Lodewijk, 2026-10-19).**
+When the provider's terms ask for reasonable, non-excessive or small-scale use but publish no
+daily limit (GovData.de "übermäßige oder unzumutbare Belastung", World Bank "reasonable request
+volume", HathiTrust "small numbers of items"), keep it reasonable with a low default cap per day
+(GovData.de: 50), not a high one. **This default is for list B (niche) routes only.** List A
+routes are general purpose, so their daily cap is decided per route. Use that serves a need a human has approved is more
+reasonable, so with that approval the daily cap lifts; the pacing (seconds between requests)
+stays.
 | 6 | **Access and identity** | What key, account, registration or identifying header is requested, and who provides it? | none; or registration encouraged/required, which Lodewijk does (his task) and the key goes into the agent-secrets store | agents would need to create accounts, accept terms, share personal credentials, or send his e-mail without his yes |
 | 7 | **Data class** | Personal data? Licence? May results be republished, or sent to a third-party model host? | open licence, no personal data | personal data (policy: counts and links only); restrictive or per-record licences; analysis-only data |
 | 8 | **Legal context** | Jurisdiction, TDM rules, database rights, public-sector reuse law | clear reuse basis (open licence, public-sector reuse act) | TDM reserved; database right asserted; unclear terms: CONDITIONAL at most |
@@ -117,6 +132,12 @@ content stays personal data). For everything else, "it depends": run the full ta
    no robots file (no restrictions), but 401/403/429, a 5xx or an unreachable host means **do
    not approve yet**: record UNVERIFIED and retry another day. Honour any `Crawl-delay`, and save
    the file's text, fetch date and status in the log, since the file can change later.
+   **Recognise standard patterns (Lodewijk, 2026-10-19).** Many portals ship their platform's stock
+   robots file. Compare it with the platform default before reading intent into it: CKAN 2.9's
+   default is `Disallow: /api/` + `Crawl-Delay: 10` (Madrid, 2026-10-19). Software defaults and
+   SEO housekeeping, aimed at search crawlers, are not an access policy. **Official reports and
+   presentations count as provider documentation**: Madrid's 2025 report to its transparency
+   committee promises API consumption with Python examples, which overrules its robots file.
 4. **Check machine-readable mining opt-outs.** Look for `/.well-known/tdmrep.json`, a `tdm-reservation`
    header or meta tag, and `ai.txt`. A text-and-data-mining reservation is legally meaningful in
    the EU even when robots.txt allows crawling: it makes the verdict CONDITIONAL at most (metadata
@@ -140,7 +161,14 @@ content stays personal data). For everything else, "it depends": run the full ta
    - **NOT SUPPORTED** (= **disallowed**: don't even try): only when explicitly disapproved in public: terms forbid automated or AI
      use; a robots disallow with no documented API; named AI-crawler bans (Munich CONSUL,
      2026-10-12, including a script a human runs for us); a TDM reservation; a documented API
-     that requires a token we have not been issued.
+     that requires a token we have not been issued. **A robots file that names one of our own
+     agents** (`Claude-Code`, `ClaudeBot`, `Claude-User`, `anthropic-ai`, `opencode`, ...) means
+     no direct access by any of our agents.
+     **When a property restricts AI agents** (robots.txt naming our agents, terms on use,
+     a TDM reservation), ask the director before any use of that property's content. Content
+     used under restrictive terms is stored labelled with its rights holder and terms, kept
+     out of anything we publish beyond short attributed quotes, and any other reuse needs a
+     human's yes (Lodewijk, 2026-10-20). Never work around a paywall or login.
    - **ASK**: not explicitly disapproved and not clearly supported (no docs, silent terms, an
      unclear mirror). Bring it to Lodewijk with the evidence; he decides.
    - **UNVERIFIED**: the docs or robots could not be read yet (outage, challenge page). Say why
@@ -155,6 +183,9 @@ content stays personal data). For everything else, "it depends": run the full ta
 11. **Decided against or deferred?** Add a dated row to "Kept out of the library" at the end of
     `source-connectors/references/library.md`: route, decision and date, and a one-line why. That
     section is the list to revisit; the registry guard ignores it, so nothing there is approved.
+    **Every disallowed or deferred row carries a revisit date, 6 to 12 months out, and the exact
+    pages it rests on** (URL plus Wayback capture timestamp or live fetch date, and the quoted
+    words), so the re-check is a matter of re-reading those pages (Lodewijk, 2026-10-19).
 12. **Record** the verdict and evidence in AGENT-LOG: doc URLs, fetch dates (or Wayback capture
     timestamps), the robots text and status, the quote, and the verdict.
 

@@ -1,0 +1,7 @@
+work/
+qc_out/
+models/
+config.json
+overrides.csv
+__pycache__/
+*.pyc

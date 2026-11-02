@@ -1,0 +1,6 @@
+# Python 3.13 (tested). System tools, not pip: ffmpeg/ffprobe 8.1, tesseract 5.5.2, whisper.cpp (whisper-cli),
+# curl. Model: ggml-large-v3-turbo-q5_0.bin from the whisper.cpp model repository.
+numpy==2.5.4
+opencv-python-headless==5.0.0.93  # version number, not an address; public-text: ok
+PyMuPDF==1.28.2
+Pillow==12.1.1

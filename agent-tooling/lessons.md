@@ -689,3 +689,40 @@ to stop stray meetings being left behind.
 - **Register the cleanup before creating the first resource.**
 - **Before reporting done,** check for leftover node or Chromium processes from the project's
   worktrees.
+
+## `git pull --ff-only origin main` on the remote silently misses a package on a feature branch
+
+Reported by a data-project director, 2026-10-20 [confirmed by that session]. A runbook told the
+operator to update the remote checkout with `git pull --ff-only origin main`, but five commits of
+the package (including a new allowlist) existed only on a feature branch. The pull succeeded,
+the scanner would have read the old allowlist and printed a clean DONE. It was caught before
+anything was pasted.
+
+**Rules:**
+- **The runbook names the branch and the commit the package is on,** and the preflight checks
+  out and verifies that exact commit, not `main`.
+- **It lists the sha256 of every shipped file,** data files such as allowlists included, and
+  the preflight checks them on the remote before launch.
+- This extends "Rehearse against the checkout you will actually upload from" above: a
+  successful pull is not evidence that the right files arrived.
+
+## A Toolforge job cannot launch other Toolforge jobs
+
+Reported by a data-project director, 2026-10-20 [confirmed by that session]. A packet used a
+controller job to start its step jobs. The `toolforge` CLI is not available inside a running job,
+so the controller could not launch anything. Its guard refused before writing any output, so it
+failed safely, but the run had to be restarted by hand.
+
+**Rule:** chain jobs from the bastion (a launcher script run by the operator) or through the jobs
+API, never from inside a job. Rehearse the launcher itself, not only the steps.
+
+## A session scratchpad is not durable: commit any script whose number you record
+
+Reported by a data-project director, 2026-10-24 [confirmed by that session]. Eleven analysis
+scripts written in a session's scratchpad were wiped when the session restarted. Only the numbers
+transcribed from them survived, including the evidence behind a rewritten validation gate.
+
+**Rule:** the moment a number enters a finding, a registry row, a spec or a correction, the
+script that produced it is committed to the project's `scripts/` (or the analysis folder),
+together with its input checksums. The scratchpad is for throwaway work only. A number whose
+producing script is gone is unverified, however carefully it was copied.

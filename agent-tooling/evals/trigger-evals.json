@@ -42,7 +42,8 @@
       "id": "bulk-classify",
       "query": "I need to classify about 4000 talk page comments as constructive or not. I don't want to burn claude tokens on something this mechanical — what's the cheap option",
       "expect_playbook": "playbooks/liftwing-llm.md",
-      "note": "liftwing-llm became a playbook on 2026-09-17 (D15); the skill wrapper was removed. The query should still route to the same knowledge, via the analysis profile's reference rather than a skill trigger. Re-enable this as a skill case only if a skill returns."
+      "scope": "on-disk reachability, NOT skill-library routing",
+      "note": "liftwing-llm became a playbook on 2026-09-17 (D15); the skill wrapper was removed. Re-scoped 2026-09-21: this case asserts only that the knowledge is reachable from the harness repo, not that the installed skill library routes to it. A real run scored PLAYBOOK 3/3, but a captured `claude -p` transcript shows the model reached playbooks/liftwing-llm.md with two Bash calls (`grep -rIil liftwing` then `cat`), no Skill call — so the pass is an artifact of cwd being this repo. From any other project cwd the query would not route. Hardening (neutral cwd, or rejecting file-exploration reach) is deferred by decision. Re-enable as a skill case only if a skill returns."
     },
     {
       "id": "enterprise-token",

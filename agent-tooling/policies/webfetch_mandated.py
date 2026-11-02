@@ -48,8 +48,8 @@ REQUEST_TEMPLATE = (
     "BLOCKED: `{host}` is not in the Mandated Services Registry "
     "(agent-tooling/settings/mandated-services.json). webfetch is restricted to declared "
     "sources. To request an exception, write to the human — do not retry, do not route "
-    "around it. State: (1) the exact URL and what you tried first (source_fetch, or the "
-    "connector for this source); (2) why the mandated sources cannot serve it; (3) the "
+    "around it. State: (1) the exact URL and what you tried first (the connector for this "
+    "source, or the script you ran); (2) why the mandated sources cannot serve it; (3) the "
     "blast radius — what data leaves, to which host, under which licence/ToS. If the "
     "source is legitimate and durable, add a connector to source-connectors first."
 )

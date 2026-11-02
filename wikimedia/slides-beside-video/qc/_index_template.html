@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Video QC overview</title>
+<style>
+:root{
+  --bg:#f7f7f5;--panel:#ffffff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e2e2e0;--hover:#f0f0ec;--accent:#2563a8;
+  --match:#2b6cb0;--nomatch:#d9661a;--unm:#a3a3a8;--chip:#efefea;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141416;--panel:#1d1d20;--ink:#ececee;--muted:#9a9aa2;--line:#2e2e33;--hover:#26262b;--accent:#7fb0e8;
+  --match:#5b9be0;--nomatch:#f08a3e;--unm:#6e6e76;--chip:#2a2a2f;}}
+:root[data-theme="dark"]{--bg:#141416;--panel:#1d1d20;--ink:#ececee;--muted:#9a9aa2;--line:#2e2e33;--hover:#26262b;--accent:#7fb0e8;
+  --match:#5b9be0;--nomatch:#f08a3e;--unm:#6e6e76;--chip:#2a2a2f;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+header{padding:16px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;flex-wrap:wrap;gap:8px 20px;align-items:baseline}
+header h1{font-size:18px;margin:0}
+header .silver{color:var(--muted)}
+nav a{margin-right:14px;font-weight:500}
+nav a.on{color:var(--ink);border-bottom:2px solid var(--accent)}
+main{padding:16px;max-width:1500px;margin:0 auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.kpi b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.kpi span{color:var(--muted);font-size:12px}
+h2{font-size:15px;margin:22px 0 8px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:12px;white-space:nowrap}
+tr.click{cursor:pointer}tr.click:hover{background:var(--hover)}
+tr.sel{background:var(--hover);outline:2px solid var(--accent);outline-offset:-2px}
+.num{text-align:right}.nw{white-space:nowrap}
+td.title{min-width:220px}
+.bar{display:flex;height:10px;width:140px;border-radius:3px;overflow:hidden;background:var(--chip)}
+.bar i{display:block;height:100%}
+.v-match{color:var(--match)}.v-no{color:var(--nomatch)}.v-unm{color:var(--muted)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.legend span{margin-right:14px;color:var(--muted);font-size:12px}
+.chip{display:inline-block;background:var(--chip);border-radius:10px;padding:0 7px;font-size:12px;margin:1px 2px 1px 0}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+select,input[type=search]{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 7px;font:inherit}
+label.tog{color:var(--muted);font-size:13px}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:14px;align-items:start}
+@media (max-width:1000px){.split{grid-template-columns:1fr}}
+.list{max-height:70vh;overflow:auto}
+.viewer{position:sticky;top:10px}
+.imgs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media (max-width:600px){.imgs{grid-template-columns:1fr}}
+.imgs figure{margin:0}.imgs img{width:100%;border:1px solid var(--line);border-radius:4px;background:#000;display:block}
+.imgs figcaption{color:var(--muted);font-size:12px;margin-top:3px}
+dl{display:grid;grid-template-columns:max-content 1fr;gap:3px 12px;margin:10px 0 0}
+dt{color:var(--muted)}dd{margin:0}
+.strip{width:100%;height:58px;display:block;cursor:pointer}
+.muted{color:var(--muted)}
+.btn{background:var(--chip);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:4px 10px;cursor:pointer;font:inherit}
+pre.md{white-space:pre-wrap;font:12.5px/1.5 ui-monospace,Menlo,monospace;margin:0}
+details summary{cursor:pointer;font-weight:600}
+.talkhead{display:flex;flex-wrap:wrap;gap:4px 18px;align-items:baseline;margin-bottom:6px}
+.talkhead h2{margin:0}
+</style>
+</head>
+<body>
+<header>
+  <h1>Video QC overview</h1>
+  <span class="silver">Slides beside video: agent quality check. Every verdict is <b>silver</b> (agent), not gold.</span>
+  <nav id="nav"></nav>
+</header>
+<main id="main"></main>
+<template id="summary-md"><!--SUMMARY--></template>
+<script>
+const D = /*DATA*/null;
+const $ = (s, el=document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const mmss = t => { t = Math.floor(t); return String(Math.floor(t/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0"); };
+const VC = {"match":"var(--match)","no match":"var(--nomatch)","unmeasurable":"var(--unm)"};
+const vcls = v => v==="match"?"v-match":v==="no match"?"v-no":"v-unm";
+const STRATA = ["page_change","no_slide","low_confidence","rest"];
+const tally = ps => { const c={n:ps.length,match:0,"no match":0,unmeasurable:0}; ps.forEach(p=>c[p.v]++);
+  const m=c.match+c["no match"]; c.agree = m? c.match/m : null; return c; };
+const pct = x => x==null ? "–" : Math.round(100*x)+" %";
+const bar = c => `<div class="bar" title="${c.match} match · ${c["no match"]} no match · ${c.unmeasurable} unmeasurable">`+
+  ["match","no match","unmeasurable"].map(v=>`<i style="width:${100*c[v]/Math.max(c.n,1)}%;background:${VC[v]}"></i>`).join("")+`</div>`;
+const legend = `<div class="legend">${["match","no match","unmeasurable"].map(v=>`<span><i class="dot" style="background:${VC[v]}"></i>${v}</span>`).join("")}</div>`;
+const allPts = () => D.talks.flatMap(t => t.pts.map(p => Object.assign(p,{talk:t})));
+allPts();
+
+function nav(active){
+  const items=[["#/","Overview"],["#/points/all","All points"],["#/files","Files & summary"]];
+  $("#nav").innerHTML = items.map(([h,l])=>`<a href="${h}" class="${active===h?'on':''}">${l}</a>`).join("");
+}
+
+function overview(){
+  nav("#/");
+  const base = D.talks.filter(t=>!t.added), extra = D.talks.filter(t=>t.added);
+  const P = base.flatMap(t=>t.pts.filter(p=>p.k==="p")), Dc = base.flatMap(t=>t.pts.filter(p=>p.k==="d"));
+  const a = tally(P), dc = tally(Dc);
+  const sec = P.filter(p=>p.v2), secSame = sec.filter(p=>p.v2===p.v).length;
+  const hours = base.reduce((s,t)=>s+t.dur,0)/3600;
+  let h = `<div class="kpis">
+    <div class="kpi"><b>${base.length}</b><span>talks, ${hours.toFixed(1)} h of video</span></div>
+    <div class="kpi"><b>${a.n.toLocaleString()}</b><span>points judged (whole video)</span></div>
+    <div class="kpi"><b>${pct(a.agree)}</b><span>agreement, measurable points</span></div>
+    <div class="kpi"><b>${a.unmeasurable.toLocaleString()}</b><span>unmeasurable (no readable screen)</span></div>
+    <div class="kpi"><b>${dc.match}/${dc.match+dc["no match"]}</b><span>decoys wrongly matched (${dc.unmeasurable} unmeasurable)</span></div>
+    <div class="kpi"><b>${secSame}/${sec.length}</b><span>same verdict from second judge (enriched subset)</span></div>
+  </div>`;
+  h += `<h2>Per stratum</h2><div class="card"><table><tr><th>stratum</th><th class="num">n</th><th class="num">match</th><th class="num">no match</th><th class="num">unmeasurable</th><th class="num">agreement</th><th></th></tr>`+
+    [...STRATA,"all"].map(s=>{const c=tally(s==="all"?P:P.filter(p=>p.st===s));
+      return `<tr class="click" onclick="location.hash='#/points/all?st=${s==="all"?"":s}'"><td>${s}</td><td class="num">${c.n}</td><td class="num">${c.match}</td><td class="num">${c["no match"]}</td><td class="num">${c.unmeasurable}</td><td class="num"><b>${pct(c.agree)}</b></td><td>${bar(c)}</td></tr>`}).join("")+`</table>${legend}</div>`;
+  const talkTable = list => `<div class="card"><table>
+    <tr><th>#</th><th>talk</th><th class="num">length</th><th class="num">points</th><th>verdicts</th><th class="num">agreement</th>${STRATA.map(s=>`<th class="num">${s.replace("_"," ")}</th>`).join("")}<th class="num">decoys no match</th><th>files</th></tr>`+
+    list.map(t=>{const p=t.pts.filter(x=>x.k==="p"), d=t.pts.filter(x=>x.k==="d"), c=tally(p), dd=tally(d);
+      return `<tr class="click" onclick="if(!event.target.closest('a'))location.hash='#/points/${t.n}'">
+      <td>${t.n.replace("tx","")}</td><td class="title">${esc(t.title.replace(/\.(webm|ogv|mp4)$/,""))}<div class="muted">${t.year} · ${t.decks.length} deck${t.decks.length>1?"s":""}${t.method==="transcript"?' · <b>transcript vs slide</b> (no screen in shot)':""}</div></td>
+      <td class="num">${mmss(t.dur)}</td><td class="num">${c.n}</td><td>${bar(c)}</td><td class="num"><b>${pct(c.agree)}</b></td>
+      ${STRATA.map(s=>{const x=tally(p.filter(q=>q.st===s)); const m=x.match+x["no match"]; return `<td class="num" title="${x.n} points, ${m} measurable">${m?pct(x.agree):"–"}<div class="muted">${m}/${x.n}</div></td>`}).join("")}
+      <td class="num">${dd["no match"]}/${dd.n}</td>
+      <td><a href="${t.key}/summary.md">summary</a> · <a href="${t.key}/points.csv">points.csv</a> · <a href="${esc(t.commons)}" target="_blank" rel="noopener">Commons</a></td></tr>`}).join("")+
+    `</table><p class="muted">Agreement = match / (match + no match). Small counts are noise: the line under each stratum rate is measurable / total.</p></div>`;
+  h += `<h2>Per talk <span class="muted" style="font-weight:400">· click a row to browse its points</span></h2>` + talkTable(base);
+  h += filesBlock();
+  $("#main").innerHTML = h;
+}
+
+function filesBlock(){
+  return `<h2>Files</h2><div class="card"><table>${D.files.map(([f,d])=>`<tr><td><a href="${f}">${f}</a></td><td class="muted">${d}</td></tr>`).join("")}
+    <tr><td class="muted">&lt;talk&gt;/img/</td><td class="muted">The exact frames and page renders the judges saw (browse them via the points view)</td></tr></table></div>`;
+}
+
+function files(){
+  nav("#/files");
+  $("#main").innerHTML = filesBlock()+`<h2>SUMMARY.md</h2><div class="card"><pre class="md">${$("#summary-md").innerHTML}</pre></div>`;
+}
+
+let cur = {list:[], i:-1};
+function points(which, q){
+  nav(which==="all"?"#/points/all":"");
+  const T = which==="all" ? null : D.talks.find(t=>t.n===which);
+  const params = new URLSearchParams(q||"");
+  const opt = (arr,name,lab) => `<select data-f="${name}"><option value="">${lab}: all</option>${arr.map(x=>`<option ${params.get(name)===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`;
+  const src = T ? T.pts : D.talks.flatMap(t=>t.pts);
+  const labels=[...new Set(src.map(p=>p.lab))].sort();
+  let h = "";
+  if(T){
+    const c=tally(T.pts.filter(p=>p.k==="p"));
+    h += `<div class="talkhead"><h2>${T.n} · ${esc(T.title)}</h2>
+      <span class="muted">${mmss(T.dur)} · ${T.segments} timeline segments · agreement <b>${pct(c.agree)}</b> · ${c.match} / ${c["no match"]} / ${c.unmeasurable}</span></div>
+      <div class="muted" style="margin-bottom:8px">
+        <a href="${esc(T.commons)}" target="_blank" rel="noopener">recording on Commons</a> ·
+        ${T.deck_title?`<a href="${esc(T.deck_pages[0])}" target="_blank" rel="noopener">deck: ${esc(T.deck_title)}</a>`:""}
+        ${T.decks.length>1?` (+${T.decks.length-1} more deck${T.decks.length>2?"s":""} found by content)`:""} ·
+        <a href="${T.key}/summary.md">summary.md</a> · <a href="${T.key}/points.csv">points.csv</a> · <a href="${T.key}/decoys.csv">decoys.csv</a> · <a href="${T.key}/meta.json">meta.json</a> ·
+        ${T.method==="transcript"?`<b>transcript vs slide</b>: judges read the Whisper transcript ±20 s, no video frames`:`video sha1 <code>${T.sha1.slice(0,12)}…</code> verified, ${(T.bytes/1e6).toFixed(0)} MB, deleted after extraction`}</div>
+      <div class="card"><svg class="strip" id="strip" viewBox="0 0 1000 58" preserveAspectRatio="none"></svg>
+      <div class="muted" style="display:flex;justify-content:space-between;font-size:12px"><span>00:00</span><span>lanes: ${STRATA.join(" · ")} · click a tick to open it</span><span>${mmss(T.dur)}</span></div>${legend}</div>`;
+  } else {
+    h += `<div class="talkhead"><h2>All points</h2><span class="muted">${D.talks.length} talks</span></div>`;
+  }
+  h += `<div class="filters">
+    ${T?"":opt(D.talks.map(t=>t.n),"talk","talk")}
+    ${opt(STRATA,"st","stratum")} ${opt(["match","no match","unmeasurable"],"v","verdict")} ${opt(labels,"lab","pipeline label")}
+    ${opt(["slide","no_screen","unclear","browser","blank","other"],"scr","screen")}
+    <label class="tog"><input type="checkbox" data-f="dec" ${params.get("dec")?"checked":""}> decoys only</label>
+    <label class="tog"><input type="checkbox" data-f="sec" ${params.get("sec")?"checked":""}> second judge disagrees</label>
+    <input type="search" data-f="q" placeholder="search reasons" value="${esc(params.get("q")||"")}">
+    <span class="muted" id="count"></span></div>
+    <div class="split"><div class="card list"><table id="tbl"></table></div><div class="card viewer" id="viewer"><p class="muted">Select a point to see the frame and the deck page the judge compared. Keys: ← → or j k.</p></div></div>`;
+  $("#main").innerHTML = h;
+  const read = () => { const f={}; document.querySelectorAll("[data-f]").forEach(e=>{ f[e.dataset.f]= e.type==="checkbox"? e.checked : e.value; }); return f; };
+  const apply = () => {
+    const f = read();
+    let L = src.filter(p => (f.dec ? p.k==="d" : p.k==="p")
+      && (!f.talk || p.talk.n===f.talk) && (!f.st || p.st===f.st || (f.dec && p.ds===f.st)) && (!f.v || p.v===f.v)
+      && (!f.lab || p.lab===f.lab) && (!f.scr || p.scr===f.scr) && (!f.sec || (p.v2 && p.v2!==p.v))
+      && (!f.q || (p.why+" "+p.why2).toLowerCase().includes(f.q.toLowerCase())));
+    cur.list = L; cur.i = -1;
+    $("#count").textContent = L.length.toLocaleString()+" shown";
+    $("#tbl").innerHTML = `<tr>${T?"":"<th>#</th>"}<th>time · page</th><th>verdict</th><th>reason <span style="font-weight:400">(stratum · pipeline label)</span></th></tr>`+
+      L.slice(0,3000).map((p,i)=>`<tr class="click" data-i="${i}">${T?"":`<td>${p.talk.n}</td>`}<td class="nw">${mmss(p.t)}<div class="muted">${p.k==="d"?`decoy #${p.dt} `:""}${p.pg?(p.talk.decks.length>1?`d${p.dk || "?"} `:"")+"p"+p.pg:"no slide"}</div></td>
+        <td class="${vcls(p.v)} nw"><b>${p.v}</b>${p.v2&&p.v2!==p.v?`<div class="muted">2nd: ${p.v2}</div>`:""}</td>
+        <td>${esc(p.why)}<div class="muted" style="font-size:12px">${p.k==="d"?"decoy":p.st} · ${p.lab}</div></td></tr>`).join("")
+      + (L.length>3000?`<tr><td colspan="4" class="muted">first 3000 of ${L.length}; narrow the filters</td></tr>`:"");
+    $("#tbl").onclick = e => { const tr=e.target.closest("tr[data-i]"); if(tr) show(+tr.dataset.i); };
+    const qs = Object.entries(f).filter(([k,v])=>v && !(T && k==="talk")).map(([k,v])=>k+"="+encodeURIComponent(v===true?1:v)).join("&");
+    history.replaceState(null,"",`#/points/${which}${qs?"?"+qs:""}`);
+    if(T) strip(T, L);
+  };
+  document.querySelectorAll("[data-f]").forEach(e=>e.addEventListener("input",apply));
+  apply();
+  const pick = params.get("i"); if(pick){ const j=cur.list.findIndex(p=>p.id===pick); if(j>=0) show(j); }
+}
+
+function strip(T, L){
+  const lane = {page_change:0,no_slide:1,low_confidence:2,rest:3};
+  const inL = new Set(L);
+  $("#strip").innerHTML = STRATA.map((s,i)=>`<rect x="0" y="${2+i*14}" width="1000" height="12" fill="var(--chip)"/>`).join("")+
+    T.pts.filter(p=>p.k==="p").map(p=>`<rect x="${(1000*p.t/T.dur).toFixed(1)}" y="${2+lane[p.st]*14}" width="2.2" height="12" fill="${VC[p.v]}" opacity="${inL.has(p)?1:0.18}"><title>${mmss(p.t)} · p${p.pg||"–"} · ${p.v}</title></rect>`).join("")+
+    `<line id="cursor" x1="-5" x2="-5" y1="0" y2="58" stroke="var(--ink)" stroke-width="1.5"/>`;
+  $("#strip").onclick = e => {
+    const r = e.currentTarget.getBoundingClientRect(), t = (e.clientX-r.left)/r.width*T.dur;
+    let best=-1, bd=1e9; cur.list.forEach((p,i)=>{const d=Math.abs(p.t-t); if(d<bd){bd=d;best=i;}});
+    if(best>=0) show(best);
+  };
+}
+
+function show(i){
+  if(i<0||i>=cur.list.length) return;
+  cur.i=i; const p=cur.list[i], T=p.talk;
+  document.querySelectorAll("#tbl tr.sel").forEach(r=>r.classList.remove("sel"));
+  const tr=$(`#tbl tr[data-i="${i}"]`); if(tr){tr.classList.add("sel"); tr.scrollIntoView({block:"nearest"});}
+  const c=$("#cursor"); if(c){const x=1000*p.t/T.dur; c.setAttribute("x1",x); c.setAttribute("x2",x);}
+  const refs = p.ref.map((r,j)=>`<figure><a href="${r}" target="_blank"><img src="${r}" loading="lazy" alt="reference"></a><figcaption>${p.k==="d"?(p.dk2==="near"?`near decoy: another page (${p.pg}) of the same deck`:`decoy: page ${p.pg} of a deck from talk ${p.dt}`):p.pg?`deck page ${p.pg}${T.decks.length>1?" (deck "+p.dk+")":""}`:`contact sheet ${j+1}: all deck pages`}</figcaption></figure>`).join("");
+  $("#viewer").innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+      <b>#${T.n} · ${mmss(p.t)}</b><span><button class="btn" onclick="show(cur.i-1)">←</button> <button class="btn" onclick="show(cur.i+1)">→</button></span></div>
+    <div class="imgs">${p.fr?`<figure><a href="${p.fr}" target="_blank"><img src="${p.fr}" alt="frame"></a><figcaption>recording frame at ${mmss(p.t)} (${p.t.toFixed(1)} s)</figcaption></figure>`:
+      `<figure><pre class="md" style="max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:4px;padding:6px">${esc(p.words).replace(/ \| /g,"\n").replace("&gt;&gt;&gt; MOMENT &lt;&lt;&lt;","<b style='color:var(--accent)'>&gt;&gt;&gt; MOMENT &lt;&lt;&lt;</b>")}</pre><figcaption>transcript ±20 s around ${mmss(p.t)} (what the judge read)</figcaption></figure>`}${refs}</div>
+    ${p.topic?`<p class="muted" style="margin:6px 0 0">speaker's topic: ${esc(p.topic)}</p>`:""}
+    <dl><dt>verdict</dt><dd class="${vcls(p.v)}"><b>${p.v}</b> <span class="muted">(silver)</span></dd>
+      <dt>judge said</dt><dd>${esc(p.why)} <span class="chip">screen: ${p.scr||"–"}</span></dd>
+      ${p.v2?`<dt>second judge</dt><dd class="${vcls(p.v2)}"><b>${p.v2}</b> <span style="color:var(--ink)">${esc(p.why2)}</span></dd>`:""}
+      <dt>timeline</dt><dd>${p.pg?`page ${p.pg}${T.decks.length>1?" of deck "+p.dk:""}`:"no slide shown"} · label <span class="chip">${p.lab}</span> · segment ${p.seg} (${p.pk} point)</dd>
+      <dt>stratum</dt><dd>${p.k==="d"?`decoy (taken from a ${p.ds} point; should be no match)`:p.st}</dd>
+      <dt>files</dt><dd><a href="${p.fr}" target="_blank">frame</a> · ${p.ref.map((r,j)=>`<a href="${r}" target="_blank">ref${p.ref.length>1?" "+(j+1):""}</a>`).join(" · ")} · item <code>${p.id}</code> · <a href="#/points/${T.n}?i=${p.id}">link</a></dd></dl>`;
+}
+
+document.addEventListener("keydown", e => {
+  if(e.target.matches("input,select")) return;
+  if(e.key==="ArrowRight"||e.key==="j") show(cur.i+1);
+  if(e.key==="ArrowLeft"||e.key==="k") show(cur.i-1);
+});
+
+function route(){
+  const h = location.hash || "#/";
+  const m = h.match(/^#\/points\/([^?]+)\??(.*)$/);
+  if(m) points(m[1], m[2]); else if(h.startsWith("#/files")) files(); else overview();
+  window.scrollTo(0,0);
+}
+window.addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>
