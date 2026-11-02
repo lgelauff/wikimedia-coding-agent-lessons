@@ -6,7 +6,7 @@ Each topic captures gotchas, doc links, and patterns that aren't obvious from of
 
 ## Contents
 
-- [`toolforge/lessons.md`](toolforge/lessons.md) — deployment, venv setup, uWSGI, ToolsDB, replica databases
+- [`toolforge/lessons.md`](toolforge/lessons.md) — deployment, venv setup, uWSGI, ToolsDB, replica databases, and sizing a parallel job: a one-part probe sizes memory correctly and wall-clock badly (49% spread between probes, a 3.4×-light projection), because parts are unequal and lanes contend for CPU, so time comes from total input bytes at a rate measured with the lanes already running
 - [`wikimedia/lessons.md`](wikimedia/lessons.md) — OAuth 2.0, MediaWiki API, Commons thumbnail API
 - [`flask/lessons.md`](flask/lessons.md) — Flask-Session + SQLAlchemy 2.0, Alembic stamp-vs-upgrade, general Flask gotchas
 - [`wikimedia-analytics/lessons.md`](wikimedia-analytics/lessons.md) — MediaWiki API parsing, mailing list archives, PAWS, User-Agent convention, and TSV quoting from both sides: names containing `"` are CSV-quoted in the dumps (backslash-escaped, so no `csv` reader recovers them), and ~1% of enwiki titles legitimately contain `"`, so a CSV reader mangles your own well-formed TSVs while `awk` reports the same file as clean

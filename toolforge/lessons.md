@@ -130,6 +130,33 @@ script and pass the environment inline: `--command 'D=/data/project/<tool>/run b
   detached (no `--wait`; it will exceed 600 s) and `tail` the redirected log. (Field data: a 15-edition
   loop ran ~9 h unattended this way; 14 editions landed before en even started stage 2.)
 
+## A one-part probe sizes memory well and wall-clock badly
+
+Observed 2026-10-25/27 [confirmed: three full dump scans, 170 parts over three wikis]. Before fanning
+a `pages-meta-history` scan out across parts, one part was run as a probe. It sized **memory** right,
+and right for all three wikis: its 389 MiB peak RSS justified 1 Gi lanes, and no lane came near the
+cap in 170 parts. It sized **time** wrong — single-part probes landed at 1.84–2.74 MB/s, a 49% spread,
+while the full runs settled at **~1.7 MB/s per 1 Gi lane** once many lanes ran at once. A projection
+built from one part came out 3.4× light.
+
+Two causes, both of which apply to any parallel fan-out:
+
+- **Parts are not equal.** A dump's parts are cut to roughly equal compressed size; the work inside
+  one is not equal, and a probe silently picks one point from that spread.
+- **Lanes contend.** Decompression was 83–93% of wall-clock here, so concurrent lanes compete for the
+  same CPU — and a probe measured alone never sees it.
+
+**Rules:**
+
+- Size memory from one part. Size time from the run's **total input bytes** and a throughput figure
+  measured with lanes already running in parallel; a part count is not a unit of time.
+- Record the per-lane rate from a completed run and reuse it — it carries across wikis much better
+  than any per-part number. Output volume does not carry: output rows per candidate page ran 4.5×,
+  8.1× and 4.8× for the same job on three wikis.
+- A rate computed from a short wiki's run is a **lower bound**, not a competing measurement: lanes
+  that finish early still hold their slot in the window, so the run's own elapsed time overstates the
+  work done in it.
+
 ## Webservice vs jobs
 
 - **A tool can run BOTH `toolforge jobs` (batch) and a `webservice` (HTTP) under one account** — same home, same ToolsDB. Exposing a web UI does not constrain the batch build.
