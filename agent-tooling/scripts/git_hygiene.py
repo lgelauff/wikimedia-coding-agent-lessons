@@ -11,6 +11,8 @@ SessionStart hook (warn on entering a repo) or a daily launchd job (scan many).
   git_hygiene.py --root ~/Documents/GitHub   # scan every child repo
   git_hygiene.py --json
 """
+
+from __future__ import annotations
 import argparse
 import json
 import os

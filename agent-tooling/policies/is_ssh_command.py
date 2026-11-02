@@ -19,6 +19,9 @@ Field false positives that drove this: a heredoc editing a runbook containing
 ssh instructions for the human; a `grep -E 'start|ssh |tmux'` pattern; the
 policy's own unit tests.
 """
+
+from __future__ import annotations
+
 import re
 import sys
 

@@ -24,6 +24,9 @@ reason including the suggested rewrite is printed to stdout. An adapter (e.g. a
 Claude PreToolUse hook) feeds the command in and translates the exit/reason into
 the host's decision format.
 """
+
+from __future__ import annotations
+
 import re
 import sys
 
