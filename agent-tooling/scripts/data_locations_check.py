@@ -2,7 +2,7 @@
 """Check the central data-locations record (what is where, and whether each copy counts).
 
 Usage: data_locations_check.py [PATH_TO_TSV] [--today YYYY-MM-DD] [--no-fs]
-Default TSV: ~/agent/notes/data-locations/DATA-LOCATIONS.tsv
+Default TSV: ~/agent/notes/data-locations/DATA-LOCATIONS.tsv  (public-text: ok, documented default, also in AGENTS.md)
 Exit 0 = clean (warnings allowed), 1 = errors found, 2 = file missing or unreadable.
 
 Rules (Lodewijk 2026-10-26, see the README next to the TSV):
@@ -29,7 +29,7 @@ STALE_DAYS = 30
 MOVING_DAYS = 2
 # verified_at means a byte-level check (P017: size checks were once recorded as verification).
 BYTE_CHECK = re.compile(r"sha\d*sum|shasum|md5|b3sum|rsync\s+[^;]*--checksum|lfs|\bdiff\b|\bcmp\b", re.I)
-DEFAULT_TSV = os.path.expanduser("~/agent/notes/data-locations/DATA-LOCATIONS.tsv")
+DEFAULT_TSV = os.path.expanduser("~/agent/notes/data-locations/DATA-LOCATIONS.tsv")  # public-text: ok (documented default)
 
 
 def parse_date(text):
