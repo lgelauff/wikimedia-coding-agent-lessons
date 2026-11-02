@@ -261,8 +261,13 @@ Permissions are **designed away**, not bypassed. Method:
   power settings. A laptop lid or an energy saver has ended more overnight runs
   than any exception.
 - Power connected; disk space checked against expected output volume.
-- The process must survive the terminal: background it properly (`nohup` /
-  detached background task), log to files.
+- The process must survive the terminal AND the agent session: start it in its
+  own session (`setsid`; on macOS use `scripts/detach_run.py`, which also records
+  the real exit code), log to files. `nohup` is not enough: it ignores only
+  SIGHUP, and an agent's background-task tool sends SIGTERM to its whole process
+  group when it ends (a run died this way after ~1h45 on 2026-10-27, and a
+  trailing `echo exit $?` reported it as exit 0). Never let the launcher's own
+  exit status stand in for the job's.
 
 ## Phase 3 — Dress rehearsal + failure drill
 
@@ -292,6 +297,10 @@ green light; a smoke test (imports, one API call) is NOT sufficient.
   half-written in the output.
 - If the run uses external state (API cursors, DB rows), verify the resume is
   consistent with that state too.
+- **Detach drill:** launch the rehearsal with the runbook command, then end the
+  launching tool/shell (or `kill -TERM` its process group). The job must keep
+  running. Then `kill -TERM -<pgid>` the job itself: the recorded exit code must
+  read as a failure (143), never 0.
 
 ## Phase 4 — Go/no-go gate
 
