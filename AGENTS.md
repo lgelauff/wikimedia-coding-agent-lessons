@@ -117,6 +117,7 @@ python3 -m unittest agent-tooling.scripts.tests.test_audit_skills \
                     agent-tooling.scripts.tests.test_machine_check \
                     agent-tooling.scripts.tests.test_detach_run \
                     agent-tooling.scripts.tests.test_audit_allowlist \
+                    agent-tooling.scripts.tests.test_vault_ingest \
                     agent-tooling.hooks.tests.test_fail_closed \
                     agent-tooling.policies.tests.test_webfetch_mandated
 ```
