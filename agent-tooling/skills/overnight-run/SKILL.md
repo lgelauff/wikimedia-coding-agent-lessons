@@ -147,7 +147,9 @@ it runs as **waves**, not as this session staying alive:
   run uses the same project allowlist; PREP must test-fire the scheduler a few
   minutes out and observe the headless wave start, read the checkpoint, and
   produce **zero permission prompts** — a prompt inside a headless wave hangs
-  it silently, which is the 3am question in a new costume.
+  it silently, which is the 3am question in a new costume. Count the
+  `permission_denials` in each wave's result JSON; an empty `.err` is not
+  proof (playbook Phase 3a).
 - Budget each wave in window units (budget-estimate); >~0.8 windows planned
   for one wave → split or downscope during PREP.
 - Every wave resumes from `status.md`, never from memory or transcript.

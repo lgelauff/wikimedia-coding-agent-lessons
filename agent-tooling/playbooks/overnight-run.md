@@ -187,6 +187,15 @@ nice-to-haves; each one maps to a documented way a night has been lost.
 - **Wall-clock guard (optional but recommended):** `--stop-after HH:MM` or
   `--max-hours` so the run finishes flushing checkpoints before the human wakes
   up, instead of being killed mid-write.
+- **Shell supervisors parse in full before running.** bash reads a script by
+  byte offset as it executes, so an in-place edit of a running supervisor
+  changes what the live run executes next: a syntax error (exit 2, dp
+  re-triage prep, 2026-11-04) or, worse, lines that were never launched.
+  Wrap the whole body in `main() { … }; main "$@"; exit $?` on one line at the
+  end, so bash has parsed all of it before anything runs and never reads past
+  the call; an edit then affects only the next launch. (Editors that save by
+  rename leave the running inode alone; do not rely on knowing which kind
+  saved the file.)
 
 ## Phase 1b — Multi-job nights: the night queue and quota waves
 
@@ -286,7 +295,15 @@ green light; a smoke test (imports, one API call) is NOT sufficient.
   retry overhead — and for agentic runs, the token estimate too). The P90 must
   fit the 8–10h window with ≥25% margin. If it doesn't fit: shrink scope, or
   apply the Phase 0 priority order and state plainly what won't get done.
-- Zero permission prompts observed (Phase 2 criterion).
+- Zero permission prompts observed (Phase 2 criterion). **For headless
+  `claude -p`, the proof is the `permission_denials` list in the result JSON
+  (`--output-format json`), counted per call and logged — not an empty `.err`
+  file.** A refused tool call does not go to stderr: a 2026-10-31 gate passed
+  on empty `.err` files while 1–2 Bash calls per chunk were being refused
+  (shell-variable commands like `B=…; … $B/…`, and inline `python3 -c`). What
+  took the count to 0: a prompt rule (plain commands; Read/Grep/Glob for
+  files) plus logging the per-call denial count (dp re-triage prep,
+  2026-11-04).
 
 **3b. Failure drill (kill -9, not graceful)**
 - Kill the rehearsal run mid-flight with SIGKILL — not Ctrl-C, not SIGTERM;
