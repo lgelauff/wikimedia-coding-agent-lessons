@@ -23,8 +23,11 @@
 - **Shape:** pipeline / night queue / agentic waves / hybrid
 - **Launch command (verbatim — this exact string, no variations):**
   ```
-  caffeinate -i nohup <absolute command with flags> > <run-dir>/run.log 2>&1
+  python3 "${AGENT_TOOLING_ROOT}/scripts/detach_run.py" --run-dir <run-dir> -- <absolute command with flags>
   ```
+  (own session + `caffeinate -i`; outputs `<run-dir>/run.log`, `pgid`, `exit_code`.
+  Stop: `kill -TERM -$(cat <run-dir>/pgid)`. Not `nohup … &`: it dies with the agent's
+  process group.)
 - **Status check command:** `<script> --status`
 - **Verify command:** `<script> --verify`
 - **Expected runtime:** P50 <X h> / P90 <X h> (measured <rate> in rehearsal ×

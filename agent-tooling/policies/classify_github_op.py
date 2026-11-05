@@ -20,6 +20,9 @@ Verdicts:
           close/reopen/merge, release create/edit, workflow run, gist write,
           gh api with a write method) — requires explicit per-action approval.
 """
+
+from __future__ import annotations
+
 import re
 import sys
 

@@ -11,6 +11,9 @@ fails open — never blocks a prompt.
     { "container_filter": "particiapp-docker",
       "stop_command": "docker compose -f ... down (from particiapp-docker dir)" }
 """
+
+from __future__ import annotations
+
 import json
 import os
 import re

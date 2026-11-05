@@ -96,12 +96,18 @@ report.md       the morning report
 ## LAUNCH wiring (playbook Phase 5)
 
 - Re-verify stale-able gate lines (credentials, disk, new commits).
-- Launch the verbatim runbook command with the Bash tool,
-  `run_in_background: true`, wrapped in sleep prevention:
-  `caffeinate -i nohup <command> > <run-dir>/run.log 2>&1`
-  — `caffeinate -i` blocks idle sleep; `nohup` + file logging make the run
-  survive this session dying. Background-task notification fires on exit
-  either way.
+- Launch the verbatim runbook command through the detaching launcher
+  (a plain foreground Bash call; it returns in about a second):
+  `python3 "${AGENT_TOOLING_ROOT}/scripts/detach_run.py" --run-dir <run-dir> -- <command>`
+  — it starts the job in its own session under `caffeinate -i`, logs to
+  `<run-dir>/run.log`, writes the job's process group to `<run-dir>/pgid` and its
+  real exit code to `<run-dir>/exit_code` when it ends.
+  **Never** `caffeinate -i nohup <command> &` via `run_in_background`: the job
+  stays in the tool's process group, gets SIGTERM when the tool or session ends
+  (`nohup` only ignores SIGHUP), and a trailing `echo exit $?` then reports 0.
+  That killed a run after ~1h45 on 2026-10-27. No exit notification fires
+  for a detached job: check `exit_code` (missing + no live `pgid` = died hard,
+  treat as failed).
 - **Watch the first ~10 minutes / first items** via the script's `--status`
   subcommand and the log; confirm the observed rate matches the rehearsal
   extrapolation and a checkpoint has been durably written.

@@ -15,6 +15,9 @@ edit), an explicit secret-env allowlist (no bare *_KEY/*_TOKEN that blocked
 PRIMARY_KEY/CSRF_TOKEN), never treat a grep/regex pattern as a path, and ASK
 (let the human decide) rather than hard-deny (which trains route-arounds).
 """
+
+from __future__ import annotations
+
 import json
 import os
 import re

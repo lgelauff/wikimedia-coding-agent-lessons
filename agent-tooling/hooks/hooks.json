@@ -2,11 +2,11 @@
   "description": "agent-tooling plugin hooks. Generally-useful guards only; block_zotero.py ships as a file but is intentionally NOT wired here (it's a personal path block — wire it yourself if you want it). Paths use ${CLAUDE_PLUGIN_ROOT} so they resolve wherever the plugin is installed.",
   "hooks": {
     "PreToolUse": [
-      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/block_ssh.py\"" }] },
-      { "matcher": "WebFetch", "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/webfetch_registry_gate.py\"" }] },
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/fail_closed.sh\" \"${CLAUDE_PLUGIN_ROOT}/hooks/block_ssh.py\"" }] },
+      { "matcher": "WebFetch", "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/fail_closed.sh\" \"${CLAUDE_PLUGIN_ROOT}/hooks/webfetch_registry_gate.py\"" }] },
       { "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/memory_guard.py\"" }] },
-      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/github_write_permission.py\"" }] },
-      { "matcher": "Read|Edit|NotebookEdit|Bash", "hooks": [{ "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/block_secret_read.py\"" }] },
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/fail_closed.sh\" \"${CLAUDE_PLUGIN_ROOT}/hooks/github_write_permission.py\"" }] },
+      { "matcher": "Read|Edit|NotebookEdit|Bash", "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/fail_closed.sh\" \"${CLAUDE_PLUGIN_ROOT}/hooks/block_secret_read.py\"" }] },
       { "matcher": "Bash", "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/openrouter_permission.sh\"" }] }
     ],
     "SessionStart": [
