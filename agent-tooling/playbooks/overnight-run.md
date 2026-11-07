@@ -173,6 +173,12 @@ nice-to-haves; each one maps to a documented way a night has been lost.
 - **Retry with exponential backoff** on transient network errors; a cap so a
   dead endpoint fails fast into the failure policy instead of retrying forever.
 - **Rate limiting + proper User-Agent** per the project's API etiquette rules.
+  Upload and verify tools count too: a per-file download-back check against an
+  HF bucket hit HTTP 429 after about 2,400 downloads, and the verify tool
+  crashed instead of backing off (T5 years 3–4, 2026-11-06). Every such tool
+  needs 429 back-off with retry, honouring `Retry-After`.
+- **A verify that did not finish is "unverified"**, never "failed" and never
+  "ok". It is recorded as such and re-run; it never counts as a copy.
 - **Logging to a file**, timestamped, with a progress line (`i/N done, ETA
   hh:mm`) at a sane interval and a per-item line on errors. stdout alone is not
   logging — the tmux/terminal may be gone by morning.
