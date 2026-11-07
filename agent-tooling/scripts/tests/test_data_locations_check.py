@@ -36,6 +36,12 @@ class Rules(unittest.TestCase):
         e, w = run([row(), row(location="hf-private")])
         self.assertEqual((e, w), ([], []))
 
+    def test_hf_public_counts_unknown_location_refused(self):
+        e, w = run([row(location="drive"), row(location="hf-public")])
+        self.assertEqual((e, w), ([], []))
+        e, _ = run([row(), row(location="hf-bucket")])
+        self.assertTrue(any("unknown location 'hf-bucket'" in x for x in e))
+
     def test_drive_only_is_error(self):
         e, _ = run([row(location="drive"), row(location="mac", status="removed")])
         self.assertTrue(any("only counting copy is on the drive" in x for x in e))
@@ -74,6 +80,15 @@ class Rules(unittest.TestCase):
                     "rsync -a --checksum dry run clean", "hub lfs.sha256", "diff -rq vs source", "cmp OK"):
             e, w = run([row(verified_how=how), row(location="hf-private")])
             self.assertEqual(e, [], how)
+
+    def test_bucket_deposit_verify_accepted_only_with_its_pass_line(self):
+        ok = "t5_bucket_deposit.py verify: BUCKET VERIFIED 13/13 by content 20:19:40Z"
+        e, _ = run([row(verified_how=ok), row(location="hf-private")])
+        self.assertEqual(e, [], ok)
+        for how in ("t5_bucket_deposit.py verify", "t5_bucket_deposit.py upload: BUCKET VERIFIED",
+                    "BUCKET VERIFIED", "verified OK", "t5_bucket_deposit.py verify; BUCKET VERIFIED"):
+            e, _ = run([row(verified_how=how), row(location="hf-private")])
+            self.assertEqual(len([x for x in e if "no byte-level check" in x]), 1, how)
 
     def test_unverified_copy_does_not_count(self):
         e, w = run([row(verified_at="")])

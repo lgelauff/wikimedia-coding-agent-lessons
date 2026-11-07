@@ -20,7 +20,7 @@ from datetime import date, datetime
 COLUMNS = ["dataset_id", "project", "owner", "what", "class", "location", "path", "bytes",
            "sha256_manifest", "verified_at", "verified_how", "keep_register", "rebuild",
            "status", "updated_at", "updated_by", "note"]
-LOCATIONS = {"mac", "drive", "hague", "hf-private", "toolforge", "github", "other"}
+LOCATIONS = {"mac", "drive", "hague", "hf-private", "hf-public", "toolforge", "github", "other"}
 CLASSES = {"paper-output", "irreplaceable", "input", "derived", "cache", "pii"}
 STATUSES = {"present", "moving", "removed"}
 NEEDS_TWO = {"paper-output", "irreplaceable", "pii"}
@@ -28,7 +28,10 @@ DRIVE_ROOT = "/Volumes/Research"
 STALE_DAYS = 30
 MOVING_DAYS = 2
 # verified_at means a byte-level check (P017: size checks were once recorded as verification).
-BYTE_CHECK = re.compile(r"sha\d*sum|shasum|md5|b3sum|rsync\s+[^;]*--checksum|lfs|\bdiff\b|\bcmp\b", re.I)
+# t5_bucket_deposit.py verify downloads every bucket file back and sha256-compares it locally
+# (read 2026-11-07, script sha 4912fe40c9a7); its pass line is "BUCKET VERIFIED" (Lodewijk, 2026-11-07).
+BYTE_CHECK = re.compile(r"sha\d*sum|shasum|md5|b3sum|rsync\s+[^;]*--checksum|lfs|\bdiff\b|\bcmp\b"
+                        r"|t5_bucket_deposit\.py verify\b[^;]*BUCKET VERIFIED", re.I)
 DEFAULT_TSV = os.path.expanduser("~/agent/notes/data-locations/DATA-LOCATIONS.tsv")  # public-text: ok (documented default)
 
 
@@ -79,7 +82,7 @@ def check(rows, today, check_fs=True):
         by_id.setdefault(row["dataset_id"], []).append(row)
         if row["verified_at"] and not byte_checked(row):
             errors.append("%s: verified_at set but verified_how names no byte-level check "
-                          "(sha256sum -c, shasum -c, md5, rsync --checksum, lfs, diff, cmp): %r; "
+                          "(sha256sum -c, shasum -c, md5, rsync --checksum, lfs, diff, cmp, t5_bucket_deposit.py verify … BUCKET VERIFIED): %r; "
                           "a size check is not verification, does not count" % (where, row["verified_how"]))
 
         if row["status"] == "present" and check_fs and row["location"] in ("mac", "drive"):
