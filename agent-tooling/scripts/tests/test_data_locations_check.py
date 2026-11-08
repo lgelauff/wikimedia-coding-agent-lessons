@@ -90,6 +90,16 @@ class Rules(unittest.TestCase):
             e, _ = run([row(verified_how=how), row(location="hf-private")])
             self.assertEqual(len([x for x in e if "no byte-level check" in x]), 1, how)
 
+    def test_cday_ship_accepted_only_with_its_pass_line(self):
+        ok = "t5_cday_ship.py BUCKET.VERIFIED: 733 files sha256 OK manifest d0e27c831fb0"
+        e, _ = run([row(verified_how=ok), row(location="hf-private")])
+        self.assertEqual(e, [], ok)
+        for how in ("t5_cday_ship.py", "t5_cday_ship.py shipped 733 files",
+                    "733 files sha256 OK manifest d0e27c831fb0",
+                    "t5_cday_ship.py; 733 files sha256 OK manifest d0e27c831fb0"):
+            e, _ = run([row(verified_how=how), row(location="hf-private")])
+            self.assertEqual(len([x for x in e if "no byte-level check" in x]), 1, how)
+
     def test_unverified_copy_does_not_count(self):
         e, w = run([row(verified_at="")])
         self.assertTrue(any("no counting copy" in x for x in e))
