@@ -1080,3 +1080,41 @@ mislead in the same way: the reader can't see which arithmetic produced which fi
   taken from the other side is not a second route.
 - Before reporting a disagreement as unresolved, re-run your own method under the other side's
   definitions (centring, denominators, filters). Report what remains after that.
+
+## What the desktop app's built-in browser pane sends, and how it misleads a probe
+
+Observed 2026-11-10 [confirmed: server log of a local test page, plus the page's own JS readout].
+- **What a site receives from the pane:**
+  - Its user agent contains a `Claude/<version>` marker.
+  - Navigations send no client hints.
+  - It sends no cookies, DNT or GPC.
+  - The app fetches the favicon itself with the desktop user agent, even under the mobile preset.
+    That request does not show in `read_network_requests`.
+- **A hidden pane loaded no lazy images at all.** Ask the user to show the pane before measuring
+  anything that depends on scrolling or visibility.
+- **`javascript_tool` times out at about 45 s.** For a long scripted scroll, start it without
+  awaiting, store results on `window`, and poll.
+- **Resource-timing entries appear only once a fetch completes.** Over a slow link, counting entries
+  at each scroll step undercounts. Map each entry's `startTime` to the scroll marks instead.
+
+**Rule:** before quoting the pane as "a browser" in a measurement, check visibility, the user agent and
+the app's own side requests.
+
+## Pull a remote log into a new filename, never over a local copy
+
+Observed 2026-11-10 [confirmed: line counts before and after]. An `scp -r` pull of a log directory
+overwrote a longer local copy (928 lines) with a 4-line snapshot that had the same name on the remote
+side. The longer copy was gone.
+
+**Rule:** pull each log into a fresh, dated filename, then compare line counts and hashes before
+deleting anything.
+
+## Logging a public test site collects personal data: say so before it goes up
+
+Observed 2026-11-10 [confirmed: user decision recorded in the session]. A request to "log everything
+that accesses it" on a public link meant logging visitor IP addresses: a friend's, the user's own home,
+and third parties'. The session only raised this after the tunnel was up.
+
+**Rule:** before a public probe goes live, say what will be logged (IPs, user agents, cookie names), where
+the log lives, and when it is deleted. Keep an anonymised summary (visitor type and what arrived, no IPs,
+times or countries) as the shareable result. Delete the raw logs once they are verified.

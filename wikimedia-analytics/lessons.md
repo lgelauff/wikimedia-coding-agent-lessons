@@ -494,3 +494,37 @@ Checked 2026-07-23 against the live dump index and 2026-08-05 on raw files [conf
 
 **Rule:** before any clickstream series across languages or years, check the month's directory index
 for the wiki, and check the native-script share of `prev` on that file.
+
+## Link previews look like readers: HTML only, no bot word, no images
+
+Observed 2026-11-10 [confirmed: server log of a public test copy of one article, 930 requests].
+We served a copy of one Wikipedia article on a public link for a few hours. The copy lazy-loads
+images the way Wikipedia does. We shared the link in chat apps and with AI tools.
+
+What arrived:
+- **A human reader** in desktop Chrome made 1 page load and fetched 93 images while scrolling.
+- **Google Lens (8), "Google" (2) and WhatsApp (1)** each fetched the HTML and nothing else.
+  - None of their user agents contains a word from the public spider regex on
+    [Research:Page_view](https://meta.wikimedia.org/wiki/Research:Page_view).
+  - Under the public rules they would count as user pageviews [concluded].
+  - They may still be caught by the private "automated" detection, which is not public. Its retired
+    predecessor flagged user agents shorter than 25 characters, and all of these are [guess].
+- **Telegram's preview** says "Bot" and would be filtered as a spider.
+- **OpenAI's and Anthropic's fetchers** read robots.txt and never got the page. The host's
+  network edge most likely blocked them [concluded].
+
+Image fetches tell the two apart. With native `loading="lazy"`, Chrome fetches each image about
+1250 px before it scrolls into view. A reader's image requests therefore follow the scroll, while a
+preview requests none. Wikipedia's pageview definition counts the HTML request only, so this signal is
+not in the pageview data.
+
+A single testing tool made 817 of the 930 requests and fetched 755 of the 848 images, because it
+inspected the images on purpose.
+
+**Rules:**
+- When reasoning about pageviews from shared links, expect previews that look like human pageviews.
+  An HTML-only visit with a short user agent is a candidate preview, not a confirmed reader.
+- In a small traffic probe, report counts with and without your own and your testers' tools. One
+  tool can swamp everything else.
+- A test site behind a CDN quick tunnel cannot show how AI fetchers behave: the edge may block them
+  before they reach you.
