@@ -762,3 +762,21 @@ became that copy. The rebuild had never been tested. The coordinator then repeat
 typed (whose chat, date, log entry) and (2) how the claim behind it was checked: a test with its
 result, or the words "design only". "Relayed by X" alone is not a source. "Rebuildable" counts
 only with a rebuild that was run and compared. Until then it is a plan, not a copy.
+
+## Archiving a worktree session deletes its gitignored files, with no backup
+
+Reported by the coordinator and a project director, 2026-11-15 [confirmed: storage report shows
+no kept worktree; the folder went from 12 GB to 0 B in the same minute as the archive].
+The coordinator archived a finished session after it replied "safe to archive". The desktop
+app's archive returned the session's worktree to its reuse pool. That deleted every untracked and
+gitignored file (12 GB of `.claude/` working data) but left the empty directories. The app
+keeps a worktree after archiving only for uncommitted *tracked* changes, so nothing was kept.
+The data was very likely a copy of the main checkout's `.claude/`, so little or nothing unique
+was lost, but nobody could prove that afterwards. The "safe" reply had been judged from git
+state and a sample of files. A standing rule ("never archive a session with a worktree") was in
+the state file but not in the archive checklist.
+
+**Rule:** before archiving a session that has a worktree, list its gitignored and untracked
+files with sizes. Copy anything not already elsewhere (to the main checkout or the drive, with a
+byte check), or leave the session open. "Safe to archive" from the session itself is not enough:
+it must say it checked ignored files, not just `git status`.
