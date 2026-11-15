@@ -155,5 +155,113 @@ class Cli(unittest.TestCase):
             self.assertEqual(dlc.main([self.write(dlc.COLUMNS, []), "--no-fs"]), 0)
 
 
+class Links(unittest.TestCase):
+    """2026-11-08: 9 laptop copies were links into a failing drive and were counted as live."""
+    def test_broken_link_is_an_error_and_not_a_copy(self):
+        d = Path(tempfile.mkdtemp())
+        (d / "gone").symlink_to("/nonexistent/drive/folder")
+        e, _ = dlc.check([row(location="mac", path=str(d / "gone")), row(location="hague")], TODAY, check_fs=True)
+        self.assertTrue(any("broken link" in x for x in e), e)
+        self.assertFalse(any("no counting copy" in x for x in e))
+        e, _ = dlc.check([row(location="mac", path=str(d / "gone") + "/")], TODAY, check_fs=True)
+        self.assertTrue(any("no counting copy" in x for x in e), e)
+
+    def test_missing_mac_path_does_not_count(self):
+        e, w = dlc.check([row(location="mac", path="/nonexistent/x")], TODAY, check_fs=True)
+        self.assertTrue(any("path missing" in x for x in w))
+        self.assertTrue(any("no counting copy" in x for x in e), e)
+
+    def test_live_link_counts(self):
+        d = Path(tempfile.mkdtemp())
+        (d / "real").mkdir()
+        (d / "ok").symlink_to(d / "real")
+        e, _ = dlc.check([row(location="mac", path=str(d / "ok")), row(location="hague")], TODAY, check_fs=True)
+        self.assertEqual(e, [])
+
+
+class Registry(unittest.TestCase):
+    def repo(self, artifacts):
+        import json
+        root = Path(tempfile.mkdtemp())
+        (root / ".git").mkdir()
+        (root / "data").mkdir()
+        (root / "data" / "here").mkdir()
+        (root / "data" / "gone").symlink_to("/nonexistent/drive/gone")
+        reg = root / "scripts" / "registry.json"
+        reg.parent.mkdir()
+        reg.write_text(json.dumps({"artifacts": artifacts}))
+        return str(reg)
+
+    def test_broken_laptop_link_in_registry_is_an_error(self):
+        reg = self.repo({"ds": {"status": "local", "copies": [{"host": "laptop", "path": "data/gone/"}]}})
+        e, _ = dlc.registry_check(reg, [row(dataset_id="p/ds")])
+        self.assertEqual(len(e), 1, e)
+        self.assertIn("broken link", e[0])
+        e, _ = dlc.registry_check(reg, [row(dataset_id="p/ds")], check_fs=False)
+        self.assertEqual(e, [])
+
+    def test_missing_laptop_copy_warns(self):
+        reg = self.repo({"ds": {"status": "local", "copies": [{"host": "laptop", "path": "data/nothere/"}]}})
+        _, w = dlc.registry_check(reg, [row(dataset_id="p/ds")])
+        self.assertTrue(any("listed but missing" in x for x in w), w)
+
+    def test_artifact_without_row_is_flagged_once(self):
+        reg = self.repo({"has-row": {"status": "local"}, "no_row_a": {"status": "local"},
+                         "no-row-b": {"status": "deposited"}, "old": {"status": "retired"},
+                         "by-path": {"status": "local", "folder": "/Volumes/X/by-path/"},
+                         "live": {"status": "local", "copies": [{"host": "laptop", "path": "data/here"}]}})
+        rows = [row(dataset_id="p/has_row"), row(dataset_id="p/other", path="/Volumes/X/by-path"),
+                row(dataset_id="p/live")]
+        e, w = dlc.registry_check(reg, rows)
+        self.assertEqual(e, [])
+        self.assertEqual(len(w), 1, w)
+        self.assertIn("2 artifacts", w[0])
+        self.assertIn("no-row-b, no_row_a", w[0])
+        for k in ("has-row", "old", "by-path", "live,"):
+            self.assertNotIn(k, w[0].split(": ", 1)[1] + ",")
+
+    def test_cli_registry_flag(self):
+        reg = self.repo({"ds": {"status": "local", "copies": [{"host": "laptop", "path": "data/gone"}]}})
+        f = Path(tempfile.mkdtemp()) / "t.tsv"
+        r = row(dataset_id="p/ds")
+        f.write_text("\t".join(dlc.COLUMNS) + "\n" + "\t".join(r[c] for c in dlc.COLUMNS) + "\n"
+                     + "\t".join(row(dataset_id="p/ds", location="hf-private")[c] for c in dlc.COLUMNS) + "\n")
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(dlc.main([str(f), "--today", "2026-10-26", "--no-fs"]), 0)
+            self.assertEqual(dlc.main([str(f), "--today", "2026-10-26", "--registry", reg]), 1)
+            self.assertEqual(dlc.main([str(f), "--registry", "/nonexistent/registry.json"]), 2)
+
+    def test_copies_marked_removed_or_not_usable_are_not_checked(self):
+        reg = self.repo({
+            "a": {"status": "local", "copies": [{"host": "laptop", "path": "data/gone", "status": "NOT USABLE"}]},
+            "b": {"status": "local", "copies": [{"host": "laptop", "path": "data/nothere", "removed": "2026-11-06"}]},
+            "c": {"status": "local", "copies": [{"host": "laptop", "path": "data/nothere2",
+                                                 "partially_removed": "2026-11-06"}]}})
+        e, w = dlc.registry_check(reg, [row(dataset_id="p/a"), row(dataset_id="p/b"), row(dataset_id="p/c")])
+        self.assertEqual((e, w), ([], []))
+
+    def test_worktree_registry_reads_data_from_main_checkout(self):
+        import json
+        main = Path(tempfile.mkdtemp())
+        (main / ".git" / "worktrees" / "wt").mkdir(parents=True)
+        (main / "data" / "here").mkdir(parents=True)
+        wt = main / ".claude" / "worktrees" / "wt"
+        (wt / "scripts").mkdir(parents=True)
+        (wt / ".git").write_text("gitdir: %s/.git/worktrees/wt\n" % main)
+        reg = wt / "scripts" / "registry.json"
+        reg.write_text(json.dumps({"artifacts": {"ds": {"status": "local",
+                                                        "copies": [{"host": "laptop", "path": "data/here"}]}}}))
+        self.assertEqual(dlc.registry_check(str(reg), [row(dataset_id="p/ds")]), ([], []))
+        _, w = dlc.registry_check(str(reg), [row(dataset_id="p/ds")], data_root=str(wt))
+        self.assertTrue(any("listed but missing" in x for x in w), w)
+
+    def test_brace_paths_are_expanded(self):
+        self.assertEqual(dlc.expand_braces("d/{a, b}/x{1,2}"), ["d/a/x1", "d/a/x2", "d/b/x1", "d/b/x2"])
+        reg = self.repo({"ds": {"status": "local", "copies": [{"host": "laptop", "path": "data/{here,gone}"}]}})
+        e, _ = dlc.registry_check(reg, [row(dataset_id="p/ds")])
+        self.assertEqual(len(e), 1, e)
+        self.assertIn("data/gone", e[0])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -727,110 +727,38 @@ script that produced it is committed to the project's `scripts/` (or the analysi
 together with its input checksums. The scratchpad is for throwaway work only. A number whose
 producing script is gone is unverified, however carefully it was copied.
 
-# Data pipelines and unattended jobs
+## Unused weekly quota expires at the reset: keep token-heavy work ready, and raise it a day ahead
 
-## A fuzzy "matched" score is not an identity check
-
-Reported by a paper wish-list session, 2026-10-28 [confirmed by that session]. A lookup returned
-`matched: true` for a 1974 statistics paper. It had found an unrelated 2025 paper at a similarity
-score of 85.5, and a separate "not auto-accepted" flag was ignored. A report that trusted the
-boolean listed the 1974 paper as missing when it was in the library under its exact DOI.
-
-**Rule:** decide "is this the same work" only on an exact identifier (DOI, arXiv id, URL, citekey,
-Handle ID). Treat title similarity as a candidate, never as a match, and turn every candidate into
-an explicit "same work?" item for a person rather than a silent merge.
-
-## Records can share a DOI: pick the one with usable text
-
-Reported by a paper wish-list session, 2026-10-28 [confirmed by that session]. A library index
-held two records for the same paper. One had the PDF and 17 KB of extracted text; the other was a
-245-byte header from a failed fetch. A pipeline that keyed on "last record with this DOI" reopened
-a want that was already satisfied, and another session read the stub and drew the same wrong
-conclusion.
+Observed by the sessions coordinator, 2026-11-14 [confirmed: plan usage read 40 minutes before
+the reset]. Weekly quota was 46% used with 40 minutes to go, and the user asked to use the rest.
+Nothing was ready to start. The candidate jobs either waited on the user's own steps (a re-triage
+needing four commands he types) or were not defined (proto "updates"). The cloud sessions the
+user picked could not be started from a phone session: the app starts a session on another
+repository only from the Code tab. The coordinator's list of open PRs to review was also out of
+date: one had merged that morning. The reset passed with the quota unused.
 
 **Rules:**
-- **Pick by content.** When several records share an identifier, choose the one with a PDF or
-  non-trivial extracted text (here 17 KB against a 245-byte stub).
-- **Test per identifier.** Apply any "collected" test per identifier, not per record key.
-- **Report the duplicates** as a data-quality item; do not route around them.
+- **Check plan usage at the first turn of the day and again about 24 h and 3 h before the
+  weekly reset.** If much is unused, tell the user then, not in the last hour.
+- **Keep a short ready queue of token-heavy work that needs no approval to start:** read-only
+  reviews, triage and literature passes. Each item has a written brief and a named repository,
+  so it can start in one step.
+- **Get the user's go while they are at the desktop,** or have them start cloud sessions there.
+  A Remote Control (phone) session cannot start a session on another repository.
+- **Before proposing a review, re-check the PR's state.** A list made yesterday is stale.
+- Work that starts after the reset counts against the new week. Only work started before the
+  reset uses the old quota.
 
-## A "waiting" status must not outrank a verified state
+## A storage exception in a registry must cite its ruling and how it was verified
 
-Reported by a paper wish-list session, 2026-10-28 [confirmed by that session]. A human note
-"downloaded" put an entry into a waiting-for-ingest status. Later the file was ingested and the
-library index matched it exactly, but the list still showed it as waiting, because the note was
-applied after the exact match and overrode it. Five entries sat in the wrong section.
+Reported by the Toolforge director, 2026-11-14 [confirmed by that session against its own log].
+A registry row said one T5 year's day-level shards could have a single copy "because cday
+rebuilds byte-identical … (Lodewijk, relayed by ADR-03 2026-11-05)". The Toolforge director's
+log has no such ruling. On 11-05 the user had said no delete without a copy, and the bucket
+became that copy. The rebuild had never been tested. The coordinator then repeated
+"exactly rebuildable" in its own log entry the same day.
 
-**Rule:** order precedence so that an observed fact (the record now exists with text) beats a
-pending claim (somebody said it was done). Where the code is pinned and cannot change, close the
-entry with a data line instead of editing the code.
-
-## Keep unattended code frozen; put changing data in unpinned files
-
-Reported by a paper wish-list session, 2026-10-28 [confirmed by that session]. An unattended job
-checked the hash of its own scripts. Over one week the scripts were edited several times for small
-corrections, each edit changed the pinned hash, and the scheduled job refused to run on a stale
-pin while the fixes were correct. The gate behaved as designed; the fault was keeping content that
-changes often inside the pinned set.
-
-**Rule:** separate code from data. Anything that changes often (wants, closings, notes) goes in
-append-only data files the job only reads, so a data edit never changes a pin. Re-pin after each
-reviewed code change and tell the owner of the schedule. See also "Pin any helper whose version
-changes the output": pin code, not data.
-
-## With many writers, make the shared file append-only by mechanism
-
-Reported by a paper wish-list session, 2026-10-28 [concluded]. Several sessions had permission to
-add lines to one inbox file. An editor tool rewrites the whole file, so two overlapping writes
-could drop one agent's block; no loss was observed, the file was hardened before it happened.
-
-**Rules:**
-- **Flag it.** Set the OS append-only flag on the shared file (`chflags uappnd` on macOS). It
-  stops accidents, not a determined agent running as the same user.
-- **One door.** Give agents one validating script that takes a lock and appends.
-- **Test both.** An overwrite and a replace must fail, parallel appends must all land (eight did
-  in the test run), and a malformed block must be refused with a reason.
-
-## The swap ratio is a bad "is the machine busy" signal on macOS
-
-Reported by a paper wish-list session, 2026-10-28 [confirmed by that session; the cause is
-concluded]. A guard skipped a nightly job when swap use exceeded 90 percent. macOS grows and
-shrinks the swap file, so "used over total" sat at 88 to 97 percent for days even when
-`memory_pressure` reported 26 to 32 percent of memory free. The job was skipped on seven of eight
-nights, and a separate disk guard blocked it at 10 GiB free although it wrote under a megabyte.
-
-**Rules:**
-- **Gate on free memory** from `memory_pressure` (here a floor of 10 percent, against the
-  observed 26 to 32), not on the swap ratio.
-- **Set the disk floor from what the job writes** (a couple of GiB, not 10).
-- **Log the exact reason** each time a run is skipped, so a week of skips is visible at a glance.
-- See also the container-caps lesson: a guard needs a threshold taken from observation.
-- **Open conflict:** `agent-tooling/playbooks/machine-check.md` (and `machine_check.py`) still gate on
-  swap (caution above 85 percent, stop above 90 percent for `heavy-local`), which is the signal this lesson
-  says misleads on macOS. Until that gate is changed, the two disagree; the playbook's stop rule still applies.
-
-## `python -I` does not put the script's directory on the import path
-
-Reported by a paper wish-list session, 2026-10-28 [confirmed by that session]. A helper module
-next to the script imported fine under `python3 script.py` and failed with `ModuleNotFoundError`
-under `python3 -I script.py`, the form the unattended job used. The wrapper logged the traceback
-and the run looked complete but did nothing.
-
-Verified by: a script importing a sibling `helper.py` printed its value under `python3` and raised
-`ModuleNotFoundError` under `python3 -I` (re-run 2026-10-28).
-
-**Rule:** in isolated mode insert the script directory into `sys.path` explicitly, and check that
-a run which "completed" produced its output, not just an exit code. Compare "run every mutant
-with the cache off or isolated" in the test-runs section.
-
-## Free API tiers spend a daily budget: stop on a long Retry-After, never cache the 429
-
-Reported by a paper wish-list session, 2026-10-28 [confirmed by that session]. An anonymous
-scholarly API moved to a small daily credit budget. When it was spent it answered 429 with a
-Retry-After of about twelve hours. Sleeping and retrying would stall the whole job, and a client
-that stored the 429 as "no result" would mark real works as having no open copy.
-
-**Rule:** treat a Retry-After above five minutes as "this route is done for the night": stop using
-it, log the rate-limit headers, and store the entry as incomplete so it is retried later. Record
-rate-limited as its own status, never as "no open copy". See also "Unattended jobs finish far under
-their caps" and the route-vetting guidance on per-route daily caps.
+**Rule:** any exception to the copy rule written into a registry names (1) where the ruling was
+typed (whose chat, date, log entry) and (2) how the claim behind it was checked: a test with its
+result, or the words "design only". "Relayed by X" alone is not a source. "Rebuildable" counts
+only with a rebuild that was run and compared. Until then it is a plan, not a copy.
