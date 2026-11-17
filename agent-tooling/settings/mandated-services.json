@@ -687,6 +687,19 @@
       "verified": "2026-09"
     },
     {
+      "id": "wikimedia-cli-docs",
+      "service": "a Wikimedia CLI (mw) documentation, a Toolforge tool",
+      "kind": "docs",
+      "hosts": ["a-wikimedia-cli.toolforge.org"],
+      "host_suffixes": [],
+      "protocol": "HTTPS/Markdown (Accept: text/markdown; .md pages; llms.txt)",
+      "sources": [
+        "agent-tooling/skills/wikimedia-dev-cli/SKILL.md"
+      ],
+      "access_policy_ref": "Docs only, no data collection. robots.txt Allow / (2026-11-17). Wikimedia Robot policy pacing: 1 at a time, >=1 s apart, descriptive UA. Only this host, not .toolforge.org (Lodewijk, 2026-11-17: permitted road)",
+      "verified": "2026-11"
+    },
+    {
       "id": "github",
       "service": "GitHub (repository + raw content)",
       "kind": "docs",
