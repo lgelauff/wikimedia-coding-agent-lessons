@@ -21,14 +21,25 @@ services that agents previously reached badly (Phabricator HTML, Gerrit's JS UI,
 no code search at all). This skill says which of its doors an agent may use,
 how fast, and with whose identity.
 
-## 0. Gate: is it installed, and is this use approved?
+## 0. Always go through the wrapper
 
 ```bash
-command -v mw && mw version
+python3 "${AGENT_TOOLING_ROOT}/scripts/mw_agent.py" codesearch search --output json onPageSaveComplete
 ```
 
-- **Not installed → stop.** Installing a binary is Lodewijk's decision, not the
-  agent's. Never download or run an installer yourself.
+`mw_agent.py` runs `~/agent/bin/mw` (installed 2026-11-17 with Lodewijk's yes,
+v0.36.0, release sha256 checked). It:
+- points `HOME` at `~/agent/mwcli-home`, because `mw` writes its config on every
+  run and would otherwise write to `~/Library/Application Support/mwcli`, outside
+  the agent boundary;
+- always adds `--no-interaction`, so the first-run telemetry consent prompt
+  (send usage statistics to the Wikimedia event intake) is never answered by
+  an agent. Whether to opt in is Lodewijk's call;
+- spaces calls at least 1 s apart and runs one at a time across processes (§2);
+- refuses tier C (§1) with exit 2 and a reason.
+
+Never call `~/agent/bin/mw` directly. If it is missing, stop: installing or
+updating the binary is Lodewijk's decision (`mw update` is refused).
 - Docs: `https://a-wikimedia-cli.toolforge.org/manual/<group>/<cmd>.md` (send
   `Accept: text/markdown`), index at `/manual/llms.txt`. On an installed
   copy prefer `mw <cmd> --help`, which matches the installed version.
@@ -37,8 +48,8 @@ command -v mw && mw version
 
 | Tier | Commands | Identity | Rule |
 |---|---|---|---|
-| **A. anonymous reads** | `mw codesearch search …`; `mw gerrit changes list/get/detail/comments/messages list`, `mw gerrit api <GET path>`; `mw gitlab mr list/view`, `mw gitlab ci …` read subcommands, `mw gitlab api` GET on public projects; `mw tools toolviews` | none | Allowed after §0. Pace per §2. |
-| **B. reads that need his token** | `mw phabricator read/view/task list/task read/comments/project/board` (Conduit is token-gated even for reads) | Lodewijk's saved profile | Only after **he** ran `mw phabricator auth login` himself. See §3. |
+| **A. anonymous reads** (run 2026-11-17) | `codesearch search …` ✔ works; `gerrit api '<GET path>'` ✔ works (uses Gerrit's anonymous `/r/` REST); `tools toolviews` (not run) | none | Allowed. Pace per §2. |
+| **B. reads that need his login** | `gerrit changes list/comments/messages …` (✘ 401: these always use the authenticated `/r/a/` path); every `gitlab …` command (✘ 404 / "unauthenticated" even on the public `repos/releng/cli`); `phabricator read/view/task list/task read/comments/project/board` (Conduit is token-gated even for reads) | Lodewijk's saved profile | Only after **he** ran `mw <service> auth login` himself. Until then use the tier A route: `gerrit api` for any Gerrit read. See §3. |
 | **C. never** | anything that writes: `create`, `edit`, `assign`, `mv`, `setprio`, `setstatus`, `rmtag`, `paste` create/edit, Gerrit review/abandon/rebase/submit/edit/hashtags set, any `gitlab` create/update/delete; every `auth login/remove`, `config secrets *`; `mw toolforge shell/cp/job/build/envvar/kubernetes`; `mw cloudvps *`; `mw toolforge replicas tunnel/proxy`, `toolsdb` (see §4); `mw phabricator shell/browse` (interactive) | n/a | Not run by an agent. Writes act on someone's behalf in public, and the Toolforge/Cloud VPS commands open SSH as Lodewijk, which agents never do. |
 
 Always pass `--no-interaction` and a machine format (`--output json` where the
@@ -62,10 +73,9 @@ loop on the first 5xx. A loop of more than ~50 calls is bulk collection:
 use phabricator-conduit / the Gerrit REST API via a script with its own pacing
 and caching, or a dump, instead.
 
-User-Agent: **unverified** what `mw` sends. The first time it runs on a
-machine, check with `mw -vv codesearch search --output json <term>` and
-record the UA in this file. If it carries no contact address, that is a
-question for Lodewijk, not something to patch around.
+User-Agent: **unverified** what `mw` sends; `-vv` logs the URL but not the
+headers (checked 2026-11-17). If it turns out to carry no contact address,
+that is a question for Lodewijk, not something to patch around.
 
 ## 3. Phabricator: whose token
 
@@ -124,25 +134,44 @@ the tool account, launched by the Toolforge director.
 ## 5. Recipes (tier A)
 
 ```bash
-# where is a hook/function/config key used across Wikimedia code
-mw --no-interaction codesearch search --output json 'onPageSaveComplete'
-mw --no-interaction codesearch search --type extensions --files '.*\.php' --output json 'ExtensionRegistry'
-mw --no-interaction codesearch search --type operations --output json 'wgSomething'   # puppet / mediawiki-config
+MW="python3 ${AGENT_TOOLING_ROOT}/scripts/mw_agent.py"
 
-# Gerrit: changes touching a task, then one change's thread
-mw --no-interaction gerrit changes list --query 'bug:T123456' --limit 25
-mw --no-interaction gerrit changes comments --change 1234567
-mw --no-interaction gerrit api 'changes/1234567/messages'
+# where is a hook/function/config key used across Wikimedia code   [ran OK]
+$MW codesearch search --output json onPageSaveComplete
+$MW codesearch search --type extensions --files '.*\.php' --output json ExtensionRegistry
+$MW codesearch search --type operations --output json wgSomething   # puppet / mediawiki-config
 
-# GitLab (gitlab.wikimedia.org): MRs of a public project
-mw --no-interaction gitlab mr list -R repos/releng/cli
+# Gerrit, anonymously, through the REST API (JSON; Gerrit's XSSI prefix already stripped)
+$MW gerrit api 'changes/?q=bug:T123456&n=25'          # changes that name a task  [ran OK]
+$MW gerrit api 'changes/1234567/messages'               # one change's review thread
+$MW gerrit api 'changes/1234567/comments'               # inline comments
 ```
 
-Flags differ by version: confirm with `--help` before relying on one.
-Check the exact syntax of every recipe the first time it runs, and fix this
-file where it is wrong (they come from the docs, not from a run).
+Codesearch output is keyed by repository (`{"Extension:X": {"Matches": […]}}`);
+one broad term returned ~115 kB, so narrow with `--type`, `--repos` or `--files`.
+`gerrit changes get` does not exist in v0.36.0; `gerrit api` covers it. Recipes
+not marked "ran OK" come from the docs.
 
-## 6. Provenance
+## 6. Whose rule is each restriction
+
+Lodewijk's standing view (2026-11-17): where a Wikimedia rule explicitly
+permits a use and ours forbids it, ours is probably an over-strict reading
+and should change. So every restriction here is tagged by source:
+
+| Restriction | Source |
+|---|---|
+| 1 at a time, ≥1 s, 15 min pause on 5xx | Wikimedia Robot policy |
+| No repeated automation on a personal Phabricator token | Wikimedia bot guidance (via the source-connectors library; not re-read 2026-11-17) |
+| No agent-driven use of a personal Toolforge login while he is away; no idle DB connections | Toolforge rule 3; Wiki Replicas connection policy |
+| No writes on anyone's behalf | ours (outward-facing content needs his approval per item) |
+| Agents never SSH to Toolforge/hague | ours, from the threat model, **not** a reading of Wikimedia rules |
+| Agents never handle passwords or tokens | ours and the agent platform's safety rules |
+
+Rows marked "ours" are candidates for review when a Wikimedia rule permits
+more. The last two exist for security reasons that a Wikimedia permission does
+not answer; changing them is a design conversation, not a rule lookup.
+
+## 7. Provenance
 
 Rules above come from, all fetched 2026-11-17 as raw wikitext with our UA:
 wikitech `Robot_policy` ("Rules for other resources"),
