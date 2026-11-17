@@ -32,9 +32,10 @@ v0.36.0, release sha256 checked). It:
 - points `HOME` at `~/agent/mwcli-home`, because `mw` writes its config on every
   run and would otherwise write to `~/Library/Application Support/mwcli`, outside
   the agent boundary;
-- always adds `--no-interaction`, so the first-run telemetry consent prompt
-  (send usage statistics to the Wikimedia event intake) is never answered by
-  an agent. Whether to opt in is Lodewijk's call;
+- always adds `--no-interaction`, so no consent or login prompt is ever
+  answered by an agent. Telemetry (usage statistics to the Wikimedia event
+  intake) is **on** in `~/agent/mwcli-home`: Lodewijk said yes on 2026-11-17
+  ("fine to send to wikimedia"). Changing it is his call;
 - spaces calls at least 1 s apart and runs one at a time across processes (§2);
 - refuses tier C (§1) with exit 2 and a reason.
 
