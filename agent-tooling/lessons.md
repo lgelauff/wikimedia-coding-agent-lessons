@@ -780,3 +780,17 @@ the state file but not in the archive checklist.
 files with sizes. Copy anything not already elsewhere (to the main checkout or the drive, with a
 byte check), or leave the session open. "Safe to archive" from the session itself is not enough:
 it must say it checked ignored files, not just `git status`.
+
+## Hague cannot fetch YouTube media, and some public sites answer bots with a JS challenge
+
+Reported by a hague research session, 2026-11-17 [confirmed by that session: every YouTube media
+request from hague's address got "Sign in to confirm you're not a bot"; `yt-dlp --flat-playlist`
+metadata still worked; a public-body site served a JavaScript challenge (HTTP 401) to curl, and
+its Wayback copies worked]. The session routed around neither block and asked Lodewijk.
+
+**Rule:** treat a bot wall as an access decision by the host, not as an obstacle. The only ways
+past a YouTube sign-in wall are cookies (a sign-in), tokens or proxies, which are circumvention
+and are off the table. For a blocked public page use the Internet Archive route (`id_` URLs).
+For YouTube media, a fetch route has to be approved by Lodewijk first (on the Mac, or as a job he
+starts) and written into the connector library. Until then, a packet that needs YouTube media is
+not launch-ready on hague. Check this when the packet is built, not after it fails overnight.
