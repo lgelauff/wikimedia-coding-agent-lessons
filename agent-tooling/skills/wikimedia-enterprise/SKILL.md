@@ -100,3 +100,6 @@ own. If that's not enough:
 - Don't commit `~/.cache/wikimedia-enterprise/token.json`.
 - Don't scrape enterprise.wikimedia.com or fall back to the free APIs to work around
   a credentials issue — if auth fails, surface the error and the fix.
+- Don't use `mw enterprise …` (the Wikimedia CLI) as a shortcut: it stores an
+  Enterprise login in its own profile, and the agent `mw` wrapper refuses the whole
+  `enterprise` group (see wikimedia-dev-cli). This skill's token flow is the route.

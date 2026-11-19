@@ -17,6 +17,11 @@ Query Phabricator's API, not its HTML. Prefer the modern **`*.search`** methods
 **API token** available to the task as an env var (do NOT hardcode it). Token
 comes from Phabricator → Settings → *Conduit API Tokens*.
 
+**Reading one or a few tasks in a Claude Code session on the Mac**: the agent-tooling
+`wikimedia-dev-cli` skill covers it (`mw phabricator read|view`, which needs his own
+saved login; without it a task page is readable anonymously). Anything repeated or
+unattended needs a registered bot account, not his personal token (see that skill, §3).
+
 ## Endpoint & shape
 `https://phabricator.wikimedia.org/api/<method>`, POST form-encoded, JSON back.
 Auth: pass `api.token`. Response: `{result:{data:[{id,phid,fields:{…}}],

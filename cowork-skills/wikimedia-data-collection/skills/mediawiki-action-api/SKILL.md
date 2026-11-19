@@ -17,6 +17,11 @@ data.
 **Prerequisites (Cowork):** network access enabled; an `/outputs/` folder mounted
 for the deliverable.
 
+**One quick read in a Claude Code session on the Mac** (one page's source, info or
+history, one API query): the agent-tooling `wikimedia-dev-cli` skill does it through
+the paced, read-only `mw` wrapper (`mw wiki page get|info|history`, `mw wiki api`).
+Collecting many pages or revisions stays here.
+
 ## Endpoint & shape
 `https://<wiki>/w/api.php` (e.g. `https://en.wikipedia.org/w/api.php`), GET,
 `format=json&formatversion=2`. Everything is `action=query` + a module.

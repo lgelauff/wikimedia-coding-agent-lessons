@@ -15,6 +15,11 @@ endpoint and get clean JSON.
 
 **Prerequisites (Cowork):** network access enabled; `/outputs/` mounted.
 
+**One quick series in a Claude Code session on the Mac** (one article or project,
+a short date range): the agent-tooling `wikimedia-dev-cli` skill does it through the
+paced `mw` wrapper (`mw analytics pageviews|top-pages|edits …`, `mw api metrics/…`).
+Series over many articles stay here, with your own pacing and caching.
+
 ## Endpoint & shape
 Base: `https://wikimedia.org/api/rest_v1/metrics/...`, GET, JSON.
 Send a descriptive **User-Agent** (required). Path params are slash-delimited;

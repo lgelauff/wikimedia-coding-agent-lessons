@@ -1,19 +1,19 @@
 ---
 name: wikimedia-dev-cli
 description: >-
-  Reads Wikimedia developer infrastructure (Gerrit changes and comments, MediaWiki
-  Codesearch across core/extensions/puppet/config, gitlab.wikimedia.org merge
-  requests and CI, Phabricator tasks) through the `mw` CLI ("a Wikimedia CLI",
-  docs at a-wikimedia-cli.toolforge.org), within the Wikimedia Robot policy and the
-  Cloud Services terms. Use whenever a task needs to find where something lives in
-  Wikimedia code, read a Gerrit change or its review thread, look up a GitLab MR or
-  pipeline, read a Phabricator task, or asks whether `mw` may be used for something,
-  including a Wiki Replicas tunnel. Read it before any `mw` call. Near misses:
-  bulk Phabricator data collection over many tasks is phabricator-conduit; wiki page
-  content is mediawiki-action-api; a host not covered here is source-connectors.
+  Use whenever a task needs to find where something lives in Wikimedia code, read a
+  Gerrit change or Phabricator task, check one wiki page or one pageview series
+  quickly, look up an EventStreams stream, or asks whether the Wikimedia `mw` CLI may
+  be used for something (including a Wiki Replicas tunnel). Read it before any `mw`
+  call. Runs `mw` ("a Wikimedia CLI", a-wikimedia-cli.toolforge.org) read-only and
+  paced per the Wikimedia Robot policy: Codesearch across core/extensions/puppet/config,
+  Gerrit, GitLab, Phabricator, single reads of any wiki (page source, info, history,
+  Action API, REST), the REST/AQS APIs and the EventStreams catalogue. Near misses:
+  collecting many pages, revisions or tasks is mediawiki-action-api,
+  wikimedia-analytics-api or phabricator-conduit; Enterprise is wikimedia-enterprise.
 ---
 
-# wikimedia-dev-cli: read Gerrit, Codesearch, GitLab and Phabricator with `mw`
+# wikimedia-dev-cli: read Wikimedia code, tasks, wikis and metrics with `mw`
 
 `mw` (v0.36.0 when this was written, 2026-11-17) is the Wikimedia Release
 Engineering CLI. It is the documented, publisher-built door to several
@@ -32,8 +32,10 @@ v0.36.0, release sha256 checked). It:
 - points `HOME` at `~/agent/mwcli-home`, because `mw` writes its config on every
   run and would otherwise write to `~/Library/Application Support/mwcli`, outside
   the agent boundary;
-- always adds `--no-interaction`, so no consent or login prompt is ever
-  answered by an agent. Telemetry (usage statistics to the Wikimedia event
+- always adds `--no-interaction` (after the command: placed first, `mw` v0.36.0
+  reports real commands such as `analytics pageviews` as unknown, found
+  2026-11-19), so no consent or login prompt is ever answered by an agent. For
+  `mw wiki …` it also adds `--anon`, so a saved wiki login is never used. Telemetry (usage statistics to the Wikimedia event
   intake) is **on** in `~/agent/mwcli-home`: Lodewijk said yes on 2026-11-17
   ("fine to send to wikimedia"). Changing it is his call;
 - spaces calls at least 1 s apart and runs one at a time across processes (§2);
@@ -49,9 +51,9 @@ updating the binary is Lodewijk's decision (`mw update` is refused).
 
 | Tier | Commands | Identity | Rule |
 |---|---|---|---|
-| **A. anonymous reads** (run 2026-11-17) | `codesearch search …` ✔ works; `gerrit api '<GET path>'` ✔ works (uses Gerrit's anonymous `/r/` REST); `tools toolviews` (not run) | none | Allowed. Pace per §2. |
+| **A. anonymous reads** (run 2026-11-17/19) | `codesearch search …` ✔; `gerrit api '<GET path>'` ✔ (Gerrit's anonymous `/r/` REST); `analytics pageviews\|top-pages\|edits\|editors\|devices\|…` ✔; `wiki page get\|info\|history\|categories\|diff\|list` ✔; `wiki api <module> -f …` (GET) ✔; `wiki rest get <path>` ✔; `api <rest_v1 path or Wikimedia URL>` (GET) ✔; `events list\|info` ✔; `tools toolviews` (not run) | none (`--anon` forced for `wiki`) | Allowed for single or few reads. Pace per §2. Many pages or a time series over many articles is bulk: use the data-collection skills. |
 | **B. reads that need his login** | `gerrit changes list/comments/messages …` (✘ 401: these always use the authenticated `/r/a/` path); every `gitlab …` command (✘ 404 / "unauthenticated" even on the public `repos/releng/cli`); `phabricator read/view/task list/task read/comments/project/board` (Conduit is token-gated even for reads) | Lodewijk's saved profile | Only after **he** ran `mw <service> auth login` himself. Until then use the tier A route: `gerrit api` for any Gerrit read. See §3. |
-| **C. never** | anything that writes: `create`, `edit`, `assign`, `mv`, `setprio`, `setstatus`, `rmtag`, `paste` create/edit, Gerrit review/abandon/rebase/submit/edit/hashtags set, any `gitlab` create/update/delete; every `auth login/remove`, `config secrets *`; `mw toolforge shell/cp/job/build/envvar/kubernetes`; `mw cloudvps *`; `mw toolforge replicas tunnel/proxy`, `toolsdb` (see §4); `mw phabricator shell/browse` (interactive) | n/a | Not run by an agent. Writes act on someone's behalf in public, and the Toolforge/Cloud VPS commands open SSH as Lodewijk, which agents never do. |
+| **C. never** | anything that writes: `create`, `edit`, `assign`, `mv`, `setprio`, `setstatus`, `rmtag`, `paste` create/edit, Gerrit abandon/rebase/submit/edit/wip/topic/reviewers/hashtags, any `gitlab` create/update/delete; `wiki page put/delete/move`, `wiki bulk`, `wiki file`, `wiki ext`, `wiki api` with `--method POST`/`--token`, `wiki rest` other than `get`; `mw api` with a body (`-f` without `-X GET`, `--input`) or a header (`-H`), or to a non-Wikimedia host; `events tail` (unbounded stream); `enterprise *` (needs his account: see wikimedia-enterprise); every `auth login/remove`, `--profile/--username`, `config secrets *`; `mw toolforge shell/cp/job/build/envvar/kubernetes`; `mw cloudvps *`; `mw toolforge replicas tunnel/proxy`, `toolsdb` (see §4); `mw phabricator shell/browse` (interactive) | n/a | Not run by an agent; the wrapper refuses them (tests: `scripts/tests/test_mw_agent.py`). Writes act on someone's behalf in public, and the Toolforge/Cloud VPS commands open SSH as Lodewijk, which agents never do. |
 
 Always pass `--no-interaction` and a machine format (`--output json` where the
 command has it). Never pass `--password`, `--auth-password` or a token on the
@@ -148,6 +150,26 @@ $MW gerrit api 'changes/1234567/messages'               # one change's review th
 $MW gerrit api 'changes/1234567/comments'               # inline comments
 ```
 
+```bash
+# one wiki page: source, metadata, history (anonymous; --anon is added)   [ran OK 11-19]
+$MW wiki page get Earth --wiki en.wikipedia.org
+$MW wiki page info Earth --wiki en.wikipedia.org --output json
+$MW wiki api query -f titles=Earth -f prop=info --wiki en.wikipedia.org
+$MW wiki rest get /v1/page/Earth/bare --wiki en.wikipedia.org
+$MW wiki api wbgetentities -f ids=Q42 --wiki www.wikidata.org
+
+# pageviews and other AQS metrics for one page or project              [ran OK 11-19]
+$MW analytics pageviews Earth --project en.wikipedia.org --start 20261101 --end 20261102 --output json
+$MW api 'metrics/pageviews/top/nl.wikipedia.org/all-access/2025/01/01' --output jq --format '.items[0].articles[:5]'
+
+# EventStreams catalogue (never `events tail`)                          [ran OK 11-19]
+$MW events list --output json
+$MW events info mediawiki.page-create
+```
+
+Put the verb right after the group (`wiki page get X --wiki …`): the wrapper reads
+the first words as the command and refuses when a flag comes first.
+
 Codesearch output is keyed by repository (`{"Extension:X": {"Matches": […]}}`);
 one broad term returned ~115 kB, so narrow with `--type`, `--repos` or `--files`.
 `gerrit changes get` does not exist in v0.36.0; `gerrit api` covers it. Recipes
@@ -180,4 +202,7 @@ wikitech `Robot_policy` ("Rules for other resources"),
 (rules 3–4), `Help:Wiki_Replicas` (connection handling, own-computer access);
 mw docs `manual/{phabricator,gerrit,gitlab,codesearch,toolforge}`,
 `guides/tools/wiki-replicas`; source-connectors library (Phabricator row).
-None of the `mw` behaviour here is verified by a run yet.
+Runs: tier A Codesearch and `gerrit api` 2026-11-17; `wiki page/api/rest`,
+`analytics pageviews`, `api`, `events list/info` and the refusals 2026-11-19
+(`scripts/tests/test_mw_agent.py` covers the guard; it caught `gerrit changes wip`
+and `reviewers add` passing before the 11-19 fix).
