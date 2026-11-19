@@ -27,21 +27,21 @@ how fast, and with whose identity.
 python3 "${AGENT_TOOLING_ROOT}/scripts/mw_agent.py" codesearch search --output json onPageSaveComplete
 ```
 
-`mw_agent.py` runs `~/agent/bin/mw` (installed 2026-11-17 with Lodewijk's yes,
+`mw_agent.py` runs `bin/mw` in the agent hub (installed 2026-11-17 with Lodewijk's yes,
 v0.36.0, release sha256 checked). It:
-- points `HOME` at `~/agent/mwcli-home`, because `mw` writes its config on every
+- points `HOME` at `mwcli-home` in the agent hub, because `mw` writes its config on every
   run and would otherwise write to `~/Library/Application Support/mwcli`, outside
   the agent boundary;
 - always adds `--no-interaction` (after the command: placed first, `mw` v0.36.0
   reports real commands such as `analytics pageviews` as unknown, found
   2026-11-19), so no consent or login prompt is ever answered by an agent. For
   `mw wiki …` it also adds `--anon`, so a saved wiki login is never used. Telemetry (usage statistics to the Wikimedia event
-  intake) is **on** in `~/agent/mwcli-home`: Lodewijk said yes on 2026-11-17
+  intake) is **on** in `mwcli-home` in the agent hub: Lodewijk said yes on 2026-11-17
   ("fine to send to wikimedia"). Changing it is his call;
 - spaces calls at least 1 s apart and runs one at a time across processes (§2);
 - refuses tier C (§1) with exit 2 and a reason.
 
-Never call `~/agent/bin/mw` directly. If it is missing, stop: installing or
+Never call `bin/mw` in the agent hub directly. If it is missing, stop: installing or
 updating the binary is Lodewijk's decision (`mw update` is refused).
 - Docs: `https://a-wikimedia-cli.toolforge.org/manual/<group>/<cmd>.md` (send
   `Accept: text/markdown`), index at `/manual/llms.txt`. On an installed

@@ -3,7 +3,7 @@
 
     python3 mw_agent.py codesearch search --output json onPageSaveComplete
 
-- HOME is pointed at ~/agent/mwcli-home, so mw's config (it writes one on every
+- HOME is pointed at mwcli-home in the agent hub, so mw's config (it writes one on every
   run) stays inside the agent boundary instead of ~/Library/Application Support.
 - --no-interaction is always added: no telemetry consent or login prompt is
   ever answered by an agent.
@@ -12,15 +12,16 @@
 - Command groups and verbs that write, authenticate, or open SSH are refused
   (see the wikimedia-dev-cli skill, tier C). Exit 2 with the reason.
 
-Environment: MW_BIN (default ~/agent/bin/mw), MW_AGENT_HOME (default
-~/agent/mwcli-home).
+Environment: MW_BIN (default bin/mw in the agent hub), MW_AGENT_HOME (default
+mwcli-home in the agent hub). The agent hub is AGENT_HUB, else the folder
+`agent` in the home directory.
 """
 import fcntl
 import os
 import sys
 import time
 
-AGENT = os.path.expanduser("~/agent")
+AGENT = os.environ.get("AGENT_HUB") or os.path.join(os.path.expanduser("~"), "agent")
 MW_BIN = os.environ.get("MW_BIN", os.path.join(AGENT, "bin", "mw"))
 MW_HOME = os.environ.get("MW_AGENT_HOME", os.path.join(AGENT, "mwcli-home"))
 SPACING_S = 1.0
