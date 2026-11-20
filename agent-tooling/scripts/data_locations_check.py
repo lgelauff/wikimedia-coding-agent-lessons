@@ -2,6 +2,7 @@
 """Check the central data-locations record (what is where, and whether each copy counts).
 
 Usage: data_locations_check.py [PATH_TO_TSV] [--today YYYY-MM-DD] [--no-fs] [--registry REGISTRY_JSON ...] [--data-root DIR]
+       data_locations_check.py [PATH_TO_TSV] --before-delete DATASET_ID@LOCATION [...]
 Default TSV: ~/agent/notes/data-locations/DATA-LOCATIONS.tsv  (public-text: ok, documented default, also in AGENTS.md)
 Exit 0 = clean (warnings allowed), 1 = errors found, 2 = file missing or unreadable.
 
@@ -9,6 +10,12 @@ Rules (Lodewijk 2026-10-26, see the README next to the TSV):
 - a copy counts if status=present and it was verified; drive is never the only copy;
 - a toolforge copy counts only with keep_register=yes;
 - paper-output, irreplaceable and pii data need two counting copies.
+
+--before-delete (WDR-00 lesson, 2026-11-19): before deleting a copy, count the counting copies
+that would REMAIN. It prints one line per target, "remaining verified copies: … (N)", to go into
+the delete line Lodewijk approves, and exits 1 unless at least two remain and not all on the
+drive, or the dataset is a cache with a rebuild recipe, or a row's note records
+"delete-exception: <ruling>". Exit codes then reflect only the delete gate.
 """
 import argparse
 import csv
@@ -138,6 +145,47 @@ def check(rows, today, check_fs=True):
     return errors, warnings
 
 
+EXCEPTION = re.compile(r"delete-exception:\s*([^;|]+)", re.I)
+
+
+def before_delete(rows, targets):
+    """For each "dataset_id@location" target: (ok, line). Run after check(), which marks
+    rows whose path is gone. All targets are removed together before counting."""
+    out = []
+    gone = set()
+    parsed = []
+    for t in targets:
+        ds, sep, loc = t.rpartition("@")
+        parsed.append((t, ds, loc, sep))
+        gone.add((ds, loc))
+    for t, ds, loc, sep in parsed:
+        ds_rows = [r for r in rows if r["dataset_id"] == ds]
+        if not sep or not ds_rows:
+            out.append((False, "BLOCK %s: no such dataset_id@location in the register" % t))
+            continue
+        if not any(r["location"] == loc and r["status"] != "removed" for r in ds_rows):
+            out.append((False, "BLOCK %s: no live row at %s to delete" % (t, loc)))
+            continue
+        left = [r for r in ds_rows if (r["dataset_id"], r["location"]) not in gone and counts(r)]
+        names = ", ".join(sorted(r["location"] for r in left)) or "none"
+        line = "deletes %s @ %s; remaining verified copies: %s (%d)" % (ds, loc, names, len(left))
+        exc = next((m.group(1).strip() for r in ds_rows for m in [EXCEPTION.search(r["note"])] if m), None)
+        rebuild = any(r["rebuild"] and r["rebuild"] != "none" for r in ds_rows)
+        cache = {r["class"] for r in ds_rows} <= {"cache"}
+        if len(left) >= 2 and {r["location"] for r in left} != {"drive"}:
+            out.append((True, "OK    " + line))
+        elif cache and rebuild:
+            out.append((True, "OK    " + line + "; cache, rebuildable"))
+        elif exc:
+            out.append((True, "OK    " + line + "; recorded exception: " + exc))
+        else:
+            why = "only the drive would remain" if left else "nothing would remain"
+            if len(left) == 1 and left[0]["location"] != "drive":
+                why = "one copy would remain"
+            out.append((False, "BLOCK " + line + "; " + why + ", needs 2 (or a recorded delete-exception)"))
+    return out
+
+
 PLAIN_PATH = re.compile(r"^[^*(){}\s+]+$")  # after brace expansion: skip globs and annotated paths
 BRACE = re.compile(r"\{([^{}]*,[^{}]*)\}")
 NOT_LIVE = ("removed", "partially_removed")  # registry copy fields that mean "no longer all there"
@@ -233,6 +281,8 @@ def main(argv=None):
                     help="also cross-check a project registry.json against the TSV (repeatable)")
     ap.add_argument("--data-root", help="checkout that holds the registry's data "
                     "(default: the registry's git checkout, or the main one for a worktree)")
+    ap.add_argument("--before-delete", action="append", default=[], metavar="DATASET_ID@LOCATION",
+                    help="count the verified copies that would remain after deleting these (repeatable)")
     args = ap.parse_args(argv)
     today = parse_date(args.today) if args.today else date.today()
     try:
@@ -246,6 +296,12 @@ def main(argv=None):
         print("ERROR: cannot read %s: %s" % (args.tsv, exc))
         return 2
     errors, warnings = check(rows, today, check_fs=not args.no_fs)
+    if args.before_delete:
+        results = before_delete(rows, args.before_delete)
+        for _, line in results:
+            print(line)
+        print("(register: %d errors elsewhere; run without --before-delete to list them)" % len(errors))
+        return 0 if all(ok for ok, _ in results) else 1
     for reg in args.registry:
         try:
             e, w = registry_check(reg, rows, check_fs=not args.no_fs, data_root=args.data_root)

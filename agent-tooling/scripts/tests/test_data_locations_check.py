@@ -263,5 +263,63 @@ class Registry(unittest.TestCase):
         self.assertIn("data/gone", e[0])
 
 
+class BeforeDelete(unittest.TestCase):
+    """WDR-00 2026-11-19: the hague delete guard checked "verified elsewhere", left 9 items drive-only."""
+
+    def gate(self, rows, *targets):
+        run(rows)
+        return dlc.before_delete(rows, list(targets))
+
+    def test_the_cold_case_is_blocked(self):
+        # hague + drive, delete hague: only the drive would remain (the 2026-11-19 failure)
+        [(ok, line)] = self.gate([row(), row(location="drive")], "p/ds@hague")
+        self.assertFalse(ok)
+        self.assertIn("remaining verified copies: drive (1)", line)
+        self.assertIn("only the drive would remain", line)
+
+    def test_two_remaining_ok_and_count_printed(self):
+        [(ok, line)] = self.gate([row(), row(location="drive"), row(location="mac")], "p/ds@hague")
+        self.assertTrue(ok)
+        self.assertIn("remaining verified copies: drive, mac (2)", line)
+
+    def test_unverified_or_removed_copies_do_not_remain(self):
+        rows = [row(), row(location="drive"), row(location="mac", verified_how="ls -l sizes match"),
+                row(location="hf-private", status="removed")]
+        [(ok, line)] = self.gate(rows, "p/ds@hague")
+        self.assertFalse(ok)
+        self.assertIn("(1)", line)
+
+    def test_targets_deleted_together(self):
+        rows = [row(), row(location="mac"), row(location="drive")]
+        res = self.gate(rows, "p/ds@hague", "p/ds@mac")
+        self.assertFalse(any(ok for ok, _ in res))
+
+    def test_recorded_exception_and_rebuildable_cache(self):
+        rows = [row(), row(location="drive", note="delete-exception: D-1119-03 superseded")]
+        [(ok, line)] = self.gate(rows, "p/ds@hague")
+        self.assertTrue(ok)
+        self.assertIn("D-1119-03", line)
+        [(ok, _)] = self.gate([row(**{"class": "cache"}, rebuild="make cache")], "p/ds@hague")
+        self.assertTrue(ok)
+        # a cache with rebuild=none (articletopic-cache) is still blocked
+        [(ok, _)] = self.gate([row(**{"class": "cache"}), row(**{"class": "cache"}, location="drive")], "p/ds@hague")
+        self.assertFalse(ok)
+
+    def test_unknown_target_blocked(self):
+        self.assertFalse(self.gate([row()], "p/other@hague")[0][0])
+        self.assertFalse(self.gate([row()], "p/ds@mac")[0][0])
+        self.assertFalse(self.gate([row()], "p/ds")[0][0])
+
+    def test_cli_exit_reflects_only_the_gate(self):
+        f = Cli.write(None, dlc.COLUMNS, [row(), row(location="drive"), row(location="mac"),
+                                          row(dataset_id="p/bad", location="drive")])
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            self.assertEqual(dlc.main([f, "--no-fs", "--today", "2026-10-26", "--before-delete", "p/ds@hague"]), 0)
+            self.assertEqual(dlc.main([f, "--no-fs", "--today", "2026-10-26", "--before-delete", "p/ds@hague",
+                                       "--before-delete", "p/ds@mac"]), 1)
+        self.assertIn("1 errors elsewhere", buf.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()

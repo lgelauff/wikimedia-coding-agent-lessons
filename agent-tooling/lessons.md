@@ -794,3 +794,25 @@ and are off the table. For a blocked public page use the Internet Archive route 
 For YouTube media, a fetch route has to be approved by Lodewijk first (on the Mac, or as a job he
 starts) and written into the connector library. Until then, a packet that needs YouTube media is
 not launch-ready on hague. Check this when the packet is built, not after it fails overnight.
+
+## A delete guard must count the copies that remain, not check that one copy exists elsewhere
+
+Reported by the drop director, 2026-11-19 [confirmed in the data register: nine items moved from
+the compute host to the Research drive the same day and became drive-only the moment the host
+copies were deleted; one of them, a 0.5 GB article-topic cache, had no laptop original and was
+not on Hugging Face, so the drive tar became its only copy]. Every step looked correct on its own:
+the move was verified file by file, and the delete rule was "the item is verified off the host".
+But "verified somewhere else" is not "two verified copies remain". The approval line the owner
+saw did not say how many copies would be left.
+
+**Rule:** before any delete, count the verified copies that would remain, from the data register
+(only copies that are present and byte-verified count; the drive never counts as the only one).
+Require at least two, or a recorded exception citing the owner's ruling. Print that count in the
+delete line the owner approves: "deletes X; remaining verified copies: drive, laptop (2)". A
+relayed "copy exists" from another session is not the count; the register is.
+
+**Guard:** `data_locations_check.py --before-delete DATASET_ID@LOCATION` (repeatable; all targets
+are removed together before counting) prints that line and exits 1 when fewer than two would
+remain, or only drive copies would, unless the dataset is a cache with a rebuild recipe or a row's
+note records `delete-exception: <ruling>`. Its tests replay this case; under the old "verified
+elsewhere" rule five of them fail.
