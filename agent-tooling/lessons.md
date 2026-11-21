@@ -805,6 +805,9 @@ nights, and a separate disk guard blocked it at 10 GiB free although it wrote un
 - **Set the disk floor from what the job writes** (a couple of GiB, not 10).
 - **Log the exact reason** each time a run is skipped, so a week of skips is visible at a glance.
 - See also the container-caps lesson: a guard needs a threshold taken from observation.
+- **Open conflict:** `agent-tooling/playbooks/machine-check.md` (and `machine_check.py`) still gate on
+  swap (caution above 85 percent, stop above 90 percent for `heavy-local`), which is the signal this lesson
+  says misleads on macOS. Until that gate is changed, the two disagree; the playbook's stop rule still applies.
 
 ## `python -I` does not put the script's directory on the import path
 
