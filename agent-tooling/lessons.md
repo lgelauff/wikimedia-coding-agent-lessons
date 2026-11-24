@@ -816,3 +816,135 @@ are removed together before counting) prints that line and exits 1 when fewer th
 remain, or only drive copies would, unless the dataset is a cache with a rebuild recipe or a row's
 note records `delete-exception: <ruling>`. Its tests replay this case; under the old "verified
 elsewhere" rule five of them fail.
+
+## Orphaned log-filter processes are invisible until a memory event turns them into load
+
+Reported by the WWK-03 Hy13 session, 2026-11-22, with the host data from the hague director
+[confirmed by the director's status file: hague load 1.57 at 20:37Z, 69 at 23:07Z, 83 at 23:27Z;
+the first app probe at 23:41:50Z; peak about 195, 98 % kernel time]. A long job's memory peak
+pushed the compute host into swap. Underneath it, 16 `ugrep --line-buffered` filters left from
+agent Monitor pipelines dated 2 to 17 October were still alive, reparented to init (ppid 1), and
+spun in kernel time once memory got tight. An 11-hour job step was starved for about 8 hours and
+timed out. Load fell to about 1 only after those filters were killed. Nobody had owned or seen
+them for seven weeks.
+
+**Rule:** a pipeline such as `tail -f | grep --line-buffered` or a Monitor filter outlives the
+session that started it when that session dies. On every long-lived host, include a sweep for
+processes with no live parent in the regular check-ins, not just after an incident:
+`ps -Ao pid,ppid,etime,time,command | awk '$2==1'`. Look for filters, `tail -f`, and anything with
+a large accumulated TIME. The hague director now runs this sweep at each check-in. (The Mac
+had none on 2026-11-22.)
+
+**Related amplifier:** the desktop app keeps its remote-host SSH links with `ControlMaster=yes`,
+`ControlPersist=no` and `ConnectTimeout=30`. On a loaded host its `server --version` probe
+hangs and the app opens another, so 52 piled up and made the spike worse. They didn't start it.
+The coordinator advised against disabling the entries, because every agent session on hague
+runs through them. Keep the host from spiking instead: memory exceptions end with the run they
+were granted for, the orphan sweep runs at each check-in, and a watcher alerts on probe or load
+growth. (WWK-03 first advised removing the entries, then withdrew that advice once it learned
+what depends on them. That withdrawal is itself an example of the next lesson.)
+
+## Classify what a pattern matched before you publish the count
+
+Same incident. Counting the app's SSH connections by grepping `ps` output for the control-socket
+path gave 51. Only 6 were connections. The other ~45 were app helper processes that carry the
+path in their arguments [confirmed: WWK-03's retraction; the coordinator's own `ps` showed 6].
+The 51 had already been relayed toward Lodewijk before the correction caught up. A wrong number
+passed between sessions spreads at machine speed and reaches the user ahead of its correction.
+
+**Rule:** before reporting a count from a pattern match, look at what matched and count by the
+property you mean. For processes that means the executable, e.g.
+`ps -Ao pid,ppid,etime,command | awk '$4=="/usr/bin/ssh"'`, not the arguments. If a count has
+already been sent, the retraction goes to every recipient, not only the next one.
+
+## A slope gate and an overlap gate can both pass a pure level shift
+
+Reported by the WWK-03 Hy13 session, 2026-11-22, from the T110 placebo [WWK-03 confirmed by
+recomputing from the bin means; commit 7007a0ac in the drop repo]. Across every decile of the
+exposure variable, the placebo outcome on a null window rose by the same amount, about +0.006.
+The registered gates tested the slope against exposure and the overlap between groups. A uniform
+shift moves every bin together, so it has no slope and the groups still overlap. Neither gate
+could see it, and every difference-in-means-against-exposure test in that register had the same
+blind spot. The same recomputation showed that the slope artifact sat only in the extreme top
+deciles, which no gate checked either.
+
+**Rule:** when a register gates on a slope or a group difference, add a level gate as well: the
+mean change on the null or placebo window must be indistinguishable from zero. Also look at the
+per-bin values, not just the fitted slope, before reading a verdict. A failure confined to one
+tail, or a uniform shift, is a finding in its own right.
+
+**Amendment, same day (WWK-03, T110 AMENDMENT, drop repo 975ae640):** the T110 window was not
+null. A daily trace of 2026-08-03..31 found an unexplained step on 2026-08-08 (about −0.19 in the
+daily slope, flat for the nine days after). The known 08-17 lazy-loading switch showed up in the same
+trace, which confirms the instrument picks up real events [WWK-03 confirmed]. The placebo window
+08-03..09 vs 08-10..16 straddles the step, so its failure says nothing about the instrument. T88
+was withdrawn on the strength of that placebo. Both briefs had justified the window as
+"weekday-balanced by construction". The level-gate rule above stands, plus a second one: **before
+a window serves as a placebo or baseline, trace the series day by day across it and check that no
+step falls inside it.** A balanced design does not make two weeks interchangeable if the process
+changed between them, and a two-week comparison cannot see that it did.
+
+**Second amendment (WWK-03, T112 RESULT, drop repo 40587a5e):** the step screen WWK-03 then
+pre-registered, blind to the block it would run on, passed its positive-control gate for the wrong
+reason. Both known switches (2026-04-20, 2026-05-11) fell on Mondays, and the jump it flagged at
+04-20 was smaller than an average Monday. The weekly cycle contaminated both the test statistic and
+the noise estimate it was compared against [WWK-03 confirmed]. Under a weekday-balanced screen
+neither date shows any change, while the 08-17 lazy-loading switch shows at 41.2 SE, so those two
+dates are not positive controls for image-request instruments [WWK-03 concluded]. The same
+registration's baseline-selection rule cannot be met by any block of this data, for the same reason.
+The balanced screen then dated a second unexplained step, 2026-05-01, inside a decline the register
+had carried as "late April to late May, mechanism unknown". Rule: **a pre-registered threshold on a
+seasonal series must handle the seasonality inside the statistic, and the positive controls must not
+share a phase of the cycle.** Pre-registration guards against choosing after the fact; it does
+nothing for a flaw in the statistic itself, and a gate that passes on calendar-confounded controls
+is worse than no gate, because it is trusted.
+
+## Test an alarming inventory finding before you report it to other sessions
+
+*2026-11-23 · source: WWK-03, relayed by WDR-00 (wikipedia-drop-2026 sessions)*
+
+In a multi-session setup a report fans out: the receiving session passes it on, and others start
+acting on it, before anyone has re-checked it. A retraction then travels the same path, but later.
+That week WWK-03 raised two inventory alarms, a hole in the leadmc data and a char_offset mismatch,
+and both turned out to be wrong [WWK-03/WDR-00 confirmed]. The char_offset alarm had already reached
+WWK-05 through WDR-00 before it was tested. Re-checks caught both, not downstream analysis, so no
+result was built on them; the cost was the other sessions' attention and a retraction to chase.
+Rule: **an alarming finding from an inventory or audit is a hypothesis until you have tested it.
+Run the cheapest test that would disprove it, then report, with the label that test earned
+([confirmed] / [concluded] / [guess]).** If it must go out untested because something is at risk,
+mark it untested and say what would settle it.
+
+A related habit held up in the same episode: when WWK-03 re-used WDR-00's drive check, it left the
+check under WDR-00's name instead of re-labelling it as its own (drop repo 1888dc3f). A custody record
+should name the session that actually performed each check. Re-labelling turns one verification into
+what looks like two independent ones.
+
+## A program's self-reported peak memory is silently wrong on one of your two platforms
+
+*2026-11-24 · source: WWK-03, found by ADR-02 (wikipedia-drop-2026 sessions)*
+
+`resource.getrusage(...).ru_maxrss` is in **bytes on macOS/BSD** but **kilobytes on Linux**. Python's
+docs note only that the units are platform-dependent, so the idiomatic `ru_maxrss / 1e6` labelled "MB"
+is correct on a Mac and **1000x too small on Linux**. A script here printed *"peak RSS 2 MB"* for a job
+that `/usr/bin/time` measured at **1.57 GB** [confirmed: `1.57e9 / 1e3 / 1e6` formatted `%.0f` prints
+`2`].
+
+Why it survives review: the wrong number is **plausible and flattering**. A 2 MB figure reads as a
+lean job, not as a defect, so nobody interrogates it — whereas an implausible number gets caught the
+first time anyone looks. It also errs in the dangerous direction: it **hides** memory pressure on the
+remote Linux host where memory limits actually bite, while on the developer's Mac, where the figure
+happens to be right, there is RAM to spare. A grep of one repo found **44 call sites — 42 assuming
+macOS, 2 assuming Linux, and none platform-aware**, so every one of them was wrong on the other
+platform. Any historical RSS figure recorded from a Linux run is suspect by 1000x in whichever
+direction the divisor assumed.
+
+Two rules:
+
+1. **Make the divisor explicit**: `1e6 if sys.platform == "darwin" else 1e3`. A bare `/1e6` is a
+   platform assumption written as arithmetic, which is why it reads as correct.
+2. ⭐ **Never size a job from its own self-report.** Measure anything you hand to another host with an
+   external tool (`/usr/bin/time -v`) and compare the two figures. This bug was found by a peer
+   noticing that two measurements of the same quantity disagreed by three orders of magnitude — not by
+   anyone reading the code, which had been read several times by then. Agreement between an internal
+   and an external measurement is the cheapest available evidence that a self-reported resource number
+   means anything at all; without it, the number is decoration.
